@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"teacher" | "student">("teacher");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -33,7 +34,18 @@ export default function LoginPage() {
       const role = snap.data().role;
       router.replace(role === "student" ? "/student/home" : "/dashboard");
     } catch (err: any) {
-      setError("بيانات الدخول غير صحيحة، يرجى المحاولة مجددًا.");
+      const code = err?.code ?? "";
+      if (code === "auth/user-not-found" || code === "auth/invalid-email") {
+        setError(
+          `لا يوجد حساب بهذا الرقم في وضع "${mode === "teacher" ? "معلم/مدير" : "طالب"}". تأكد من رقم الهاتف أو من أنك اخترت النوع الصحيح فوق.`
+        );
+      } else if (code === "auth/wrong-password" || code === "auth/invalid-credential") {
+        setError("كلمة المرور غير صحيحة. تأكد من كتابتها بالضبط (استخدم زر العين لمراجعتها).");
+      } else if (code === "auth/too-many-requests") {
+        setError("محاولات كثيرة خاطئة متتالية. انتظر دقيقة وحاول مجددًا.");
+      } else {
+        setError("بيانات الدخول غير صحيحة، يرجى المحاولة مجددًا.");
+      }
       setLoading(false);
     }
   };
@@ -85,18 +97,34 @@ export default function LoginPage() {
               className="w-full px-4 py-2.5 rounded-xl border border-brand-primary/25 bg-white/70 focus:bg-white outline-none"
               placeholder="0912345678"
             />
+            {identifier.trim() && (
+              <p dir="ltr" className="text-brand-textMuted text-xs mt-1">
+                {phoneToEmail(identifier, mode)}
+              </p>
+            )}
           </div>
           <div>
             <label className="text-sm text-brand-text block mb-1.5">
               كلمة المرور
             </label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-brand-primary/25 bg-white/70 focus:bg-white outline-none"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                dir="ltr"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-brand-primary/25 bg-white/70 focus:bg-white outline-none pl-12"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-textMuted text-xs"
+                tabIndex={-1}
+              >
+                {showPassword ? "إخفاء" : "إظهار"}
+              </button>
+            </div>
           </div>
           {error && (
             <p className="text-brand-error text-sm bg-brand-error/10 rounded-xl px-3 py-2">
