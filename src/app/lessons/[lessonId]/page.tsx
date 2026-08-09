@@ -7,7 +7,8 @@ import { db } from "@/lib/firebase";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
-import { SpeakButton } from "@/components/SpeakButton";
+import { LessonBlockView } from "@/components/LessonBlockView";
+import { BlockFileUpload } from "@/components/BlockFileUpload";
 import { Lesson, LessonBlock, LessonBlockType } from "@/lib/types";
 
 const blockLabels: Record<LessonBlockType, string> = {
@@ -20,13 +21,21 @@ const blockLabels: Record<LessonBlockType, string> = {
   alert: "تنبيه",
   example: "مثال",
   rule: "قاعدة",
-  image: "صورة (رابط)",
-  pdf: "ملف PDF (رابط)",
-  audio: "تسجيل صوتي (رابط)",
+  image: "صورة",
+  pdf: "ملف PDF",
+  audio: "تسجيل صوتي",
+  youtube: "فيديو يوتيوب",
+  "google-drive": "ملف Google Drive",
+  "book-page": "صفحة من الكتاب",
   "vocabulary-word": "كلمة مفردة",
   "vocabulary-list": "قائمة مفردات",
   "quiz-question": "سؤال داخل الدرس",
 };
+
+// كتل المحتوى اللي بتاخذ ملف مرفوع (رفع مباشر) بدل نص عادي
+const UPLOAD_TYPES: LessonBlockType[] = ["image", "pdf", "audio", "book-page"];
+// كتل تحتاج فقط لصق رابط (يوتيوب / Google Drive لازم رابط مو ملف)
+const LINK_ONLY_TYPES: LessonBlockType[] = ["youtube", "google-drive"];
 
 function newBlock(type: LessonBlockType, order: number): LessonBlock {
   return { id: crypto.randomUUID(), type, content: "", order };
@@ -69,6 +78,13 @@ export default function LessonEditorPage() {
   const commitBlock = (id: string) => {
     if (!lesson) return;
     save(lesson.blocks);
+  };
+
+  const setBlockContentAndSave = (id: string, content: string) => {
+    if (!lesson) return;
+    const blocks = lesson.blocks.map((b) => (b.id === id ? { ...b, content } : b));
+    setLesson({ ...lesson, blocks });
+    save(blocks);
   };
 
   const removeBlock = (id: string) => {
@@ -160,7 +176,38 @@ export default function LessonEditorPage() {
               )}
 
               {preview ? (
-                <BlockPreview block={block} />
+                <LessonBlockView block={block} />
+              ) : UPLOAD_TYPES.includes(block.type) ? (
+                <div className="flex flex-col gap-2">
+                  <BlockFileUpload
+                    type={block.type as "image" | "pdf" | "audio" | "book-page"}
+                    onUploaded={(url) => setBlockContentAndSave(block.id, url)}
+                  />
+                  <input
+                    value={block.content}
+                    onChange={(e) => updateBlockContent(block.id, e.target.value)}
+                    onBlur={() => commitBlock(block.id)}
+                    dir="ltr"
+                    placeholder="أو الصق رابط مباشر هنا"
+                    className="w-full px-3 py-2 rounded-xl border border-brand-primary/20 bg-white/70 outline-none text-xs"
+                  />
+                  {block.content && (
+                    <p className="text-xs text-brand-success">✅ تم إرفاق ملف — اضغط "معاينة كطالب" لمشاهدته</p>
+                  )}
+                </div>
+              ) : LINK_ONLY_TYPES.includes(block.type) ? (
+                <input
+                  value={block.content}
+                  onChange={(e) => updateBlockContent(block.id, e.target.value)}
+                  onBlur={() => commitBlock(block.id)}
+                  dir="ltr"
+                  placeholder={
+                    block.type === "youtube"
+                      ? "الصق رابط فيديو يوتيوب (youtube.com أو youtu.be)"
+                      : "الصق رابط مشاركة Google Drive"
+                  }
+                  className="w-full px-3 py-2 rounded-xl border border-brand-primary/20 bg-white/70 outline-none"
+                />
               ) : (
                 <textarea
                   value={block.content}
@@ -168,11 +215,7 @@ export default function LessonEditorPage() {
                   onBlur={() => commitBlock(block.id)}
                   dir={block.type.includes("en") || block.type === "vocabulary-word" ? "ltr" : "rtl"}
                   rows={block.type === "heading" || block.type === "subheading" ? 1 : 3}
-                  placeholder={
-                    block.type === "image" || block.type === "pdf" || block.type === "audio"
-                      ? "الصق رابط الملف من Firebase Storage هنا"
-                      : "اكتب المحتوى هنا..."
-                  }
+                  placeholder="اكتب المحتوى هنا..."
                   className="w-full px-3 py-2 rounded-xl border border-brand-primary/20 bg-white/70 outline-none"
                 />
               )}
@@ -188,37 +231,3 @@ export default function LessonEditorPage() {
   );
 }
 
-function BlockPreview({ block }: { block: LessonBlock }) {
-  switch (block.type) {
-    case "heading":
-      return <h2 className="text-xl font-bold text-brand-text">{block.content}</h2>;
-    case "subheading":
-      return <h3 className="text-lg font-semibold text-brand-text">{block.content}</h3>;
-    case "paragraph-ar":
-      return <p dir="rtl" className="text-brand-text leading-relaxed">{block.content}</p>;
-    case "paragraph-en":
-      return (
-        <div className="flex items-start gap-3">
-          <p dir="ltr" className="text-brand-text leading-relaxed flex-1">{block.content}</p>
-          <SpeakButton text={block.content} size="sm" />
-        </div>
-      );
-    case "vocabulary-word":
-      return (
-        <div className="flex items-center gap-3">
-          <p dir="ltr" className="text-2xl font-bold text-brand-primary">{block.content}</p>
-          <SpeakButton text={block.content} />
-        </div>
-      );
-    case "note":
-      return <p className="text-brand-text bg-brand-primary/5 rounded-xl p-3">💡 {block.content}</p>;
-    case "alert":
-      return <p className="text-brand-error bg-brand-error/10 rounded-xl p-3">⚠️ {block.content}</p>;
-    case "rule":
-      return <p className="text-brand-text bg-brand-success/10 rounded-xl p-3">📏 {block.content}</p>;
-    case "example":
-      return <p dir="ltr" className="text-brand-text italic bg-brand-secondary/10 rounded-xl p-3">✏️ {block.content}</p>;
-    default:
-      return <p className="text-brand-text whitespace-pre-wrap">{block.content}</p>;
-  }
-}

@@ -13,8 +13,10 @@ const teacherLinks = [
   { href: "/vocabulary", label: "الكلمات", icon: "🔤" },
   { href: "/files", label: "الملفات", icon: "📎" },
   { href: "/questions", label: "بنك الأسئلة", icon: "❓" },
+  { href: "/past-exams", label: "أسئلة الدورات السابقة", icon: "🗂️" },
   { href: "/assignments", label: "الواجبات والاختبارات", icon: "📝" },
   { href: "/announcements", label: "الإعلانات", icon: "📣" },
+  { href: "/settings", label: "إعدادات النقاط", icon: "⚙️" },
 ];
 
 const studentLinks = [
@@ -22,6 +24,7 @@ const studentLinks = [
   { href: "/student/lessons", label: "دروسي", icon: "📚" },
   { href: "/student/vocabulary", label: "الكلمات", icon: "🔤" },
   { href: "/student/assignments", label: "الواجبات", icon: "📝" },
+  { href: "/student/past-exams", label: "أسئلة الدورات السابقة", icon: "🗂️" },
   { href: "/student/results", label: "نتائجي", icon: "📊" },
 ];
 

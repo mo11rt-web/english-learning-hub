@@ -9,6 +9,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { listenCollection, updateDocById, where } from "@/lib/firestore-helpers";
 import { Assignment, Attempt, Question, Profile } from "@/lib/types";
+import { awardPoints, getPointsSettings } from "@/lib/gamification";
 
 export default function GradeAssignmentPage() {
   const { assignmentId } = useParams<{ assignmentId: string }>();
@@ -31,13 +32,24 @@ export default function GradeAssignmentPage() {
     return () => { u1(); u2(); u3(); };
   }, [assignmentId]);
 
-  const setManualScore = (attemptId: string, score: number) => {
-    updateDocById("attempts", attemptId, {
+  const setManualScore = async (att: Attempt & { id: string }, score: number) => {
+    await updateDocById("attempts", att.id, {
       manualScore: score,
       finalScore: score,
       status: "graded",
       gradedAt: Date.now(),
     });
+    // نمنح النقاط مرة واحدة فقط، بعد أول تصحيح نهائي لهذه المحاولة
+    if (!att.pointsAwarded) {
+      const settings = await getPointsSettings();
+      const maxScore = att.maxScore ?? score;
+      const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
+      const isExam = assignment?.type === "exam";
+      let points = isExam ? settings.examComplete : settings.quizComplete;
+      if (percentage >= settings.highScoreThreshold) points += settings.highScoreBonus;
+      await awardPoints(att.studentId, points);
+      await updateDocById("attempts", att.id, { pointsAwarded: true });
+    }
   };
 
   const setFeedback = (attemptId: string, feedback: string) => {
@@ -91,7 +103,7 @@ export default function GradeAssignmentPage() {
                   type="number"
                   placeholder="الدرجة النهائية"
                   defaultValue={att.finalScore ?? att.autoScore}
-                  onBlur={(e) => setManualScore(att.id, Number(e.target.value))}
+                  onBlur={(e) => setManualScore(att, Number(e.target.value))}
                   className="w-32 px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70 text-sm"
                 />
                 <input

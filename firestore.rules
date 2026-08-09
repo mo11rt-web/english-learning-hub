@@ -15,10 +15,19 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
-    // الملفات الشخصية: كل مستخدم يقرأ ملفه، المعلم/المدير يقرأ ويكتب الجميع
+    // الملفات الشخصية: كل مستخدم يقرأ ملفه، المعلم/المدير يقرأ ويكتب الجميع.
+    // الطالب نفسه يقدر يحدّث فقط حقوله غير الحساسة (النقاط عبر increment من
+    // نظام النقاط، وحالة "يجب تغيير كلمة المرور")، ولا يقدر يغيّر دوره أو
+    // حالة حسابه أو أي حقل إداري آخر.
     match /profiles/{uid} {
       allow read: if isOwner(uid) || isTeacherOrAdmin();
-      allow create, update: if isTeacherOrAdmin() || isOwner(uid);
+      allow create: if isTeacherOrAdmin();
+      allow update: if isTeacherOrAdmin() ||
+        (isOwner(uid) &&
+         request.resource.data.role == resource.data.role &&
+         request.resource.data.status == resource.data.status &&
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['points', 'mustChangePassword', 'photoUrl']));
       allow delete: if isTeacherOrAdmin();
     }
 
@@ -35,6 +44,20 @@ service cloud.firestore {
 
     match /vocabulary_items/{id} { allow read: if isSignedIn(); allow write: if isTeacherOrAdmin(); }
     match /files/{id} { allow read: if isSignedIn(); allow write: if isTeacherOrAdmin(); }
+    // إعدادات عامة (قيم النقاط...): يقرأها أي مستخدم موثّق (الطالب يحتاجها
+    // لحساب نقاطه)، ويكتبها المعلم/المدير فقط
+    match /app_settings/{id} { allow read: if isSignedIn(); allow write: if isTeacherOrAdmin(); }
+    match /past_exam_questions/{id} { allow read: if isSignedIn(); allow write: if isTeacherOrAdmin(); }
+
+    // روابط مشاركة نتائج الطالب مع ولي الأمر: لقطة عامة للقراءة فقط، بدون
+    // تسجيل دخول، ولا تحتوي كلمة مرور أو أي بيانات حساسة أخرى — فقط الحقول
+    // المحسوبة مسبقًا (نقاط، نسبة إنجاز، نتائج اختبارات). القراءة العامة
+    // مسموحة فقط إذا كان enabled == true، والمعلم هو الوحيد القادر على
+    // الكتابة أو التعطيل.
+    match /shares/{token} {
+      allow read: if resource.data.enabled == true;
+      allow write: if isTeacherOrAdmin();
+    }
     // ملاحظة: القراءة متاحة لأي مستخدم موثّق حتى يتمكن الطالب من عرض أسئلة
     // الواجب المخصص له وحل الاختبار من جهة العميل. هذا يعني أن الإجابة
     // الصحيحة (correctAnswer) قابلة للقراءة تقنيًا من المتصفح — وهو قيد معروف

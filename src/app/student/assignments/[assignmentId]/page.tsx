@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
 import { createDoc, listenCollection, where } from "@/lib/firestore-helpers";
 import { Assignment, Question, Attempt } from "@/lib/types";
+import { awardPoints, getPointsSettings } from "@/lib/gamification";
 
 function normalize(s: string) {
   return s.trim().toLowerCase();
@@ -60,8 +61,14 @@ export default function TakeAssignmentPage() {
     if (!user) return;
     let autoScore = 0;
     let totalAuto = 0;
+    let totalAll = 0;
+    let hasManual = false;
     for (const q of assignmentQuestions) {
-      if (!q.autoGrade) continue;
+      totalAll += q.points;
+      if (!q.autoGrade) {
+        hasManual = true;
+        continue;
+      }
       totalAuto += q.points;
       const correct = Array.isArray(q.correctAnswer)
         ? q.correctAnswer.map(normalize)
@@ -70,11 +77,28 @@ export default function TakeAssignmentPage() {
         autoScore += q.points;
       }
     }
+
+    // إذا كانت كل الأسئلة موضوعية (تصحح تلقائيًا) نمنح النقاط فورًا عند
+    // التسليم؛ إذا فيه أسئلة تحتاج مراجعة يدوية، تُمنح النقاط لاحقًا من
+    // صفحة التصحيح بعد ما يحدد المعلم الدرجة النهائية.
+    let pointsAwarded = false;
+    if (!hasManual) {
+      const settings = await getPointsSettings();
+      const percentage = totalAll > 0 ? (autoScore / totalAll) * 100 : 0;
+      const isExam = assignment.type === "exam";
+      let points = isExam ? settings.examComplete : settings.quizComplete;
+      if (percentage >= settings.highScoreThreshold) points += settings.highScoreBonus;
+      await awardPoints(user.uid, points);
+      pointsAwarded = true;
+    }
+
     await createDoc("attempts", {
       assignmentId,
       studentId: user.uid,
       answers,
       autoScore,
+      maxScore: totalAll,
+      pointsAwarded,
       status: "submitted",
       startedAt: Date.now(),
       submittedAt: Date.now(),

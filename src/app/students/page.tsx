@@ -15,6 +15,9 @@ import {
 } from "@/lib/firestore-helpers";
 import { StudentProfile, Stage, Group } from "@/lib/types";
 import { phoneToEmail, normalizePhone } from "@/lib/phone";
+import { computeLevel } from "@/lib/gamification";
+import { publishResultsShare, setShareEnabled } from "@/lib/shareResults";
+import { useAuth } from "@/hooks/useAuth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -38,6 +41,7 @@ export default function StudentsPage() {
   const [form, setForm] = useState({
     fullName: "",
     phone: "",
+    address: "",
     stageId: "",
     groupId: "",
   });
@@ -47,6 +51,10 @@ export default function StudentsPage() {
     password: string;
   } | null>(null);
   const [search, setSearch] = useState("");
+  const [sharingId, setSharingId] = useState<string | null>(null);
+  const [shareLink, setShareLink] = useState<string | null>(null);
+  const [shareToken, setShareToken] = useState<string | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     const u1 = listenCollection<StudentProfile>(
@@ -86,21 +94,39 @@ export default function StudentsPage() {
         role: "student",
         username: phone,
         phone,
+        address: form.address || "",
         studentNumber,
         stageId: form.stageId,
         groupIds: form.groupId ? [form.groupId] : [],
         status: "active",
+        points: 0,
         mustChangePassword: true,
         createdAt: Date.now(),
       } as StudentProfile);
       setLastCreated({ phone, password });
-      setForm({ fullName: "", phone: "", stageId: "", groupId: "" });
+      setForm({ fullName: "", phone: "", address: "", stageId: "", groupId: "" });
     } catch (e: any) {
       alert("تعذر إنشاء الحساب: " + (e.message ?? "خطأ غير معروف"));
     } finally {
       await secondaryAuth.signOut();
       await deleteApp(secondaryApp);
       setCreating(false);
+    }
+  };
+
+  const handleShare = async (student: StudentProfile & { id: string }) => {
+    if (!user) return;
+    setSharingId(student.id);
+    try {
+      const token = await publishResultsShare(student.id, user.uid);
+      const link = `${window.location.origin}/share/${token}`;
+      setShareLink(link);
+      setShareToken(token);
+      await navigator.clipboard?.writeText(link).catch(() => {});
+    } catch (e: any) {
+      alert("تعذر إنشاء رابط المشاركة: " + (e.message ?? "خطأ غير معروف"));
+    } finally {
+      setSharingId(null);
     }
   };
 
@@ -114,6 +140,37 @@ export default function StudentsPage() {
   return (
     <AppShell requireRole="teacher">
       <h1 className="text-2xl font-bold text-brand-text mb-6">إدارة الطلاب</h1>
+
+      {shareLink && (
+        <GlassCard className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm text-brand-text font-medium mb-1">
+              ✅ رابط مشاركة النتائج جاهز (تم نسخه تلقائيًا)
+            </p>
+            <a href={shareLink} target="_blank" rel="noreferrer" dir="ltr"
+              className="text-brand-primary text-sm break-all">
+              {shareLink}
+            </a>
+            <p className="text-xs text-brand-textMuted mt-1">
+              أرسل هذا الرابط لولي الأمر — يفتحه بدون تسجيل دخول ويشوف بس النتائج (بدون كلمة مرور أو بيانات حساسة).
+            </p>
+          </div>
+          <div className="flex gap-3 items-start">
+            <button
+              onClick={async () => {
+                if (!shareToken) return;
+                await setShareEnabled(shareToken, false);
+                setShareLink(null);
+                setShareToken(null);
+              }}
+              className="text-brand-error text-xs whitespace-nowrap"
+            >
+              إيقاف المشاركة
+            </button>
+            <button onClick={() => setShareLink(null)} className="text-brand-textMuted text-xs">✕ إغلاق</button>
+          </div>
+        </GlassCard>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-6">
         <GlassCard className="lg:col-span-1 h-fit">
@@ -131,6 +188,12 @@ export default function StudentsPage() {
               type="tel"
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+            />
+            <input
+              placeholder="العنوان (اختياري)"
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
               className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
             />
             <select
@@ -196,6 +259,7 @@ export default function StudentsPage() {
                 <tr className="text-brand-textMuted text-right border-b border-brand-primary/10">
                   <th className="py-2 px-2">الاسم</th>
                   <th className="py-2 px-2">رقم الهاتف</th>
+                  <th className="py-2 px-2">النقاط / المستوى</th>
                   <th className="py-2 px-2">المرحلة</th>
                   <th className="py-2 px-2">الحالة</th>
                   <th className="py-2 px-2">إجراء</th>
@@ -207,6 +271,9 @@ export default function StudentsPage() {
                     <td className="py-2 px-2 text-brand-text">{s.fullName}</td>
                     <td className="py-2 px-2 text-brand-textMuted" dir="ltr">
                       {s.username}
+                    </td>
+                    <td className="py-2 px-2 text-brand-textMuted">
+                      {s.points ?? 0} · {computeLevel(s.points ?? 0).name}
                     </td>
                     <td className="py-2 px-2 text-brand-textMuted">
                       {stages.find((st) => st.id === s.stageId)?.name ?? "—"}
@@ -222,7 +289,7 @@ export default function StudentsPage() {
                         {s.status === "active" ? "نشط" : "معطّل"}
                       </span>
                     </td>
-                    <td className="py-2 px-2">
+                    <td className="py-2 px-2 flex flex-wrap gap-2">
                       <button
                         onClick={() =>
                           updateDocById("profiles", s.id, {
@@ -233,12 +300,19 @@ export default function StudentsPage() {
                       >
                         {s.status === "active" ? "تعطيل" : "تفعيل"}
                       </button>
+                      <button
+                        onClick={() => handleShare(s)}
+                        disabled={sharingId === s.id}
+                        className="text-brand-secondary text-xs"
+                      >
+                        {sharingId === s.id ? "..." : "🔗 مشاركة النتائج"}
+                      </button>
                     </td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="py-6 text-center text-brand-textMuted">
+                    <td colSpan={6} className="py-6 text-center text-brand-textMuted">
                       لا يوجد طلاب بعد.
                     </td>
                   </tr>

@@ -2,19 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { doc, onSnapshot, setDoc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
-import { SpeakButton } from "@/components/SpeakButton";
-import { Lesson, LessonBlock } from "@/lib/types";
+import { LessonBlockView } from "@/components/LessonBlockView";
+import { Lesson } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
+import { awardPoints, getPointsSettings } from "@/lib/gamification";
 
 export default function StudentLessonViewPage() {
   const { lessonId } = useParams<{ lessonId: string }>();
   const { user } = useAuth();
   const [lesson, setLesson] = useState<(Lesson & { id: string }) | null>(null);
+  const [justCompleted, setJustCompleted] = useState(false);
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "lessons", lessonId), (snap) => {
@@ -32,13 +34,18 @@ export default function StudentLessonViewPage() {
     );
   }, [user, lessonId]);
 
-  const markComplete = () => {
+  const markComplete = async () => {
     if (!user) return;
-    setDoc(
-      doc(db, "lesson_progress", `${user.uid}_${lessonId}`),
-      { completed: true, completedAt: Date.now() },
-      { merge: true }
-    );
+    const progressRef = doc(db, "lesson_progress", `${user.uid}_${lessonId}`);
+    const existing = await getDoc(progressRef);
+    const alreadyCompleted = existing.exists() && existing.data()?.completed;
+    await setDoc(progressRef, { completed: true, completedAt: Date.now() }, { merge: true });
+    // نمنح النقاط مرة واحدة فقط لكل درس (حتى لو ضغط الطالب الزر أكثر من مرة)
+    if (!alreadyCompleted) {
+      const settings = await getPointsSettings();
+      await awardPoints(user.uid, settings.lessonComplete);
+      setJustCompleted(true);
+    }
   };
 
   if (!lesson) {
@@ -53,54 +60,19 @@ export default function StudentLessonViewPage() {
           .sort((a, b) => a.order - b.order)
           .map((block) => (
             <GlassCard key={block.id}>
-              <BlockView block={block} />
+              <LessonBlockView block={block} />
             </GlassCard>
           ))}
       </div>
-      <Button onClick={markComplete} className="mt-6">✅ أنهيت هذا الدرس</Button>
+      {justCompleted ? (
+        <p className="mt-6 text-brand-success font-medium">
+          ✅ أحسنت! أنهيت الدرس وحصلت على نقاط إضافية 🎉
+        </p>
+      ) : (
+        <Button onClick={markComplete} className="mt-6">✅ أنهيت هذا الدرس</Button>
+      )}
     </AppShell>
   );
 }
 
-function BlockView({ block }: { block: LessonBlock }) {
-  switch (block.type) {
-    case "heading":
-      return <h2 className="text-xl font-bold text-brand-text">{block.content}</h2>;
-    case "subheading":
-      return <h3 className="text-lg font-semibold text-brand-text">{block.content}</h3>;
-    case "paragraph-ar":
-      return <p dir="rtl" className="text-brand-text leading-relaxed">{block.content}</p>;
-    case "paragraph-en":
-      return (
-        <div className="flex items-start gap-3">
-          <p dir="ltr" className="text-brand-text leading-relaxed flex-1">{block.content}</p>
-          <SpeakButton text={block.content} size="sm" />
-        </div>
-      );
-    case "vocabulary-word":
-      return (
-        <div className="flex items-center gap-3">
-          <p dir="ltr" className="text-2xl font-bold text-brand-primary">{block.content}</p>
-          <SpeakButton text={block.content} />
-        </div>
-      );
-    case "note":
-      return <p className="text-brand-text bg-brand-primary/5 rounded-xl p-3">💡 {block.content}</p>;
-    case "alert":
-      return <p className="text-brand-error bg-brand-error/10 rounded-xl p-3">⚠️ {block.content}</p>;
-    case "rule":
-      return <p className="text-brand-text bg-brand-success/10 rounded-xl p-3">📏 {block.content}</p>;
-    case "example":
-      return <p dir="ltr" className="text-brand-text italic bg-brand-secondary/10 rounded-xl p-3">✏️ {block.content}</p>;
-    case "pdf":
-      return (
-        <a href={block.content} target="_blank" rel="noreferrer" className="text-brand-primary text-sm">
-          📄 فتح ملف PDF ↗
-        </a>
-      );
-    case "image":
-      return <img src={block.content} alt="" className="rounded-xl max-w-full" />;
-    default:
-      return <p className="text-brand-text whitespace-pre-wrap">{block.content}</p>;
-  }
-}
+

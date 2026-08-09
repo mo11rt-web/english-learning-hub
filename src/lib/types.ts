@@ -9,6 +9,7 @@ export interface Profile {
   phone?: string;
   photoUrl?: string;
   status: "active" | "disabled";
+  points?: number;
   createdAt: number;
 }
 
@@ -19,11 +20,13 @@ export interface StudentProfile extends Profile {
   gradeId: string;
   sectionId?: string;
   groupIds: string[];
+  address?: string;
   level?: "beginner" | "pre-intermediate" | "intermediate" | "upper-intermediate" | "advanced";
   guardianName?: string;
   guardianPhone?: string;
   mustChangePassword?: boolean;
   notes?: string;
+  shareToken?: string;
 }
 
 export interface Stage {
@@ -64,6 +67,9 @@ export type LessonBlockType =
   | "image"
   | "pdf"
   | "audio"
+  | "youtube"
+  | "google-drive"
+  | "book-page"
   | "vocabulary-word"
   | "vocabulary-list"
   | "quiz-question";
@@ -182,13 +188,48 @@ export interface Attempt {
   studentId: string;
   answers: Record<string, string | string[]>;
   autoScore: number;
+  maxScore?: number;
   manualScore?: number;
   finalScore?: number;
+  pointsAwarded?: boolean;
   status: "in-progress" | "submitted" | "graded";
   teacherFeedback?: string;
   startedAt: number;
   submittedAt?: number;
   gradedAt?: number;
+}
+
+export interface PastExamQuestion {
+  id: string;
+  year: number;
+  subject: string;
+  stageId: string;
+  round: string; // الدورة: مثلاً "الدورة الأولى" أو "دورة 2025"
+  questionText: string;
+  imageUrl?: string;
+  answerText: string;
+  marks?: number;
+  createdBy: string;
+  createdAt: number;
+}
+
+export interface ShareSnapshot {
+  id: string; // = token
+  studentId: string;
+  studentName: string;
+  stageName: string;
+  groupName: string;
+  points: number;
+  levelName: string;
+  lessonsCompleted: number;
+  lessonsTotal: number;
+  completionPercentage: number;
+  quizResults: { title: string; score: number; maxScore: number; date: number }[];
+  lastActivityAt?: number;
+  enabled: boolean;
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface Announcement {

@@ -7,6 +7,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { useAuth } from "@/hooks/useAuth";
 import { listenCollection, where, orderBy } from "@/lib/firestore-helpers";
 import { Lesson, Assignment, Announcement, StudentProfile } from "@/lib/types";
+import { computeLevel } from "@/lib/gamification";
 
 export default function StudentHomePage() {
   const { profile } = useAuth();
@@ -59,6 +60,40 @@ export default function StudentHomePage() {
         مرحبًا، {student.fullName} 👋
       </h1>
       <p className="text-brand-textMuted mb-6">استمر في التعلم اليوم!</p>
+
+      <GlassCard className="mb-6">
+        {(() => {
+          const points = student.points ?? 0;
+          const lvl = computeLevel(points);
+          return (
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="text-xs text-brand-textMuted mb-1">نقاطك ومستواك</p>
+                <p className="text-2xl font-bold text-brand-primary">
+                  {points} نقطة <span className="text-brand-text text-base">· {lvl.name}</span>
+                </p>
+              </div>
+              {lvl.next && (
+                <div className="flex-1 min-w-[160px]">
+                  <div className="flex justify-between text-xs text-brand-textMuted mb-1">
+                    <span>{lvl.name}</span>
+                    <span>{lvl.next}</span>
+                  </div>
+                  <div className="w-full bg-black/5 rounded-full h-2">
+                    <div
+                      className="bg-brand-primary h-2 rounded-full transition-all"
+                      style={{ width: `${lvl.progressToNext}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-brand-textMuted mt-1">
+                    {lvl.nextAt! - points > 0 ? `${lvl.nextAt! - points} نقطة للمستوى القادم` : ""}
+                  </p>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </GlassCard>
 
       <div className="grid md:grid-cols-2 gap-6">
         <GlassCard>
