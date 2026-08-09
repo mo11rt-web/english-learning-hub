@@ -1,0 +1,72 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function myProfile() {
+      return get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data;
+    }
+    function isTeacherOrAdmin() {
+      return isSignedIn() && myProfile().role in ['admin', 'teacher'];
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // الملفات الشخصية: كل مستخدم يقرأ ملفه، المعلم/المدير يقرأ ويكتب الجميع
+    match /profiles/{uid} {
+      allow read: if isOwner(uid) || isTeacherOrAdmin();
+      allow create, update: if isTeacherOrAdmin() || isOwner(uid);
+      allow delete: if isTeacherOrAdmin();
+    }
+
+    // بيانات إدارية عامة: المعلم/المدير فقط يكتب، الجميع الموثّق يقرأ (محتوى منشور)
+    match /stages/{id} { allow read: if isSignedIn(); allow write: if isTeacherOrAdmin(); }
+    match /groups/{id} { allow read: if isSignedIn(); allow write: if isTeacherOrAdmin(); }
+    match /units/{id} { allow read: if isSignedIn(); allow write: if isTeacherOrAdmin(); }
+
+    match /lessons/{id} {
+      allow read: if isSignedIn() &&
+        (isTeacherOrAdmin() || resource.data.status == 'published');
+      allow write: if isTeacherOrAdmin();
+    }
+
+    match /vocabulary_items/{id} { allow read: if isSignedIn(); allow write: if isTeacherOrAdmin(); }
+    match /files/{id} { allow read: if isSignedIn(); allow write: if isTeacherOrAdmin(); }
+    // ملاحظة: القراءة متاحة لأي مستخدم موثّق حتى يتمكن الطالب من عرض أسئلة
+    // الواجب المخصص له وحل الاختبار من جهة العميل. هذا يعني أن الإجابة
+    // الصحيحة (correctAnswer) قابلة للقراءة تقنيًا من المتصفح — وهو قيد معروف
+    // لهذا الإصدار (MVP). لمنع ذلك تمامًا، انقل التصحيح إلى Cloud Function
+    // في المرحلة القادمة بدل التصحيح من جهة العميل.
+    match /question_bank/{id} { allow read: if isSignedIn(); allow write: if isTeacherOrAdmin(); }
+    match /announcements/{id} { allow read: if isSignedIn(); allow write: if isTeacherOrAdmin(); }
+
+    match /assignments/{id} {
+      allow read: if isSignedIn() &&
+        (isTeacherOrAdmin() || resource.data.status == 'published');
+      allow write: if isTeacherOrAdmin();
+    }
+
+    // محاولات الطالب: يقرأ/يكتب محاولاته فقط، المعلم يقرأ ويصحح الجميع
+    match /attempts/{id} {
+      allow read: if isTeacherOrAdmin() ||
+        (isSignedIn() && resource.data.studentId == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
+      allow update: if isTeacherOrAdmin() ||
+        (isSignedIn() && resource.data.studentId == request.auth.uid && resource.data.status == 'in-progress');
+    }
+
+    // تقدم الطالب في الدروس: خاص بالطالب + قراءة المعلم
+    match /lesson_progress/{id} {
+      allow read: if isTeacherOrAdmin() || (isSignedIn() && id.matches(request.auth.uid + '_.*'));
+      allow write: if isSignedIn() && id.matches(request.auth.uid + '_.*');
+    }
+
+    match /activity_logs/{id} {
+      allow read: if isTeacherOrAdmin();
+      allow create: if isSignedIn();
+    }
+  }
+}
