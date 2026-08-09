@@ -34,17 +34,17 @@ export default function LoginPage() {
       const role = snap.data().role;
       router.replace(role === "student" ? "/student/home" : "/dashboard");
     } catch (err: any) {
-      const code = err?.code ?? "";
+      const code = err?.code ?? "unknown";
       if (code === "auth/user-not-found" || code === "auth/invalid-email") {
         setError(
-          `لا يوجد حساب بهذا الرقم في وضع "${mode === "teacher" ? "معلم/مدير" : "طالب"}". تأكد من رقم الهاتف أو من أنك اخترت النوع الصحيح فوق.`
+          `لا يوجد حساب بهذا الرقم في وضع "${mode === "teacher" ? "معلم/مدير" : "طالب"}". تأكد من رقم الهاتف أو من أنك اخترت النوع الصحيح فوق. (${code})`
         );
       } else if (code === "auth/wrong-password" || code === "auth/invalid-credential") {
-        setError("كلمة المرور غير صحيحة. تأكد من كتابتها بالضبط (استخدم زر العين لمراجعتها).");
+        setError(`كلمة المرور غير صحيحة. تأكد من كتابتها بالضبط. (${code})`);
       } else if (code === "auth/too-many-requests") {
-        setError("محاولات كثيرة خاطئة متتالية. انتظر دقيقة وحاول مجددًا.");
+        setError(`محاولات كثيرة خاطئة متتالية. انتظر دقيقة وحاول مجددًا. (${code})`);
       } else {
-        setError("بيانات الدخول غير صحيحة، يرجى المحاولة مجددًا.");
+        setError(`بيانات الدخول غير صحيحة، يرجى المحاولة مجددًا. (${code})`);
       }
       setLoading(false);
     }
