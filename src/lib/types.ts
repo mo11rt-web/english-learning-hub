@@ -8,7 +8,7 @@ export interface Profile {
   email?: string;
   phone?: string;
   photoUrl?: string;
-  status: "active" | "disabled";
+  status: "active" | "disabled" | "deleted";
   points?: number;
   createdAt: number;
 }

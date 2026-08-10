@@ -27,11 +27,25 @@ export default function LoginPage() {
       const cred = await signInWithEmailAndPassword(auth, email, password);
       const snap = await getDoc(doc(db, "profiles", cred.user.uid));
       if (!snap.exists()) {
+        await auth.signOut();
         setError("لا يوجد حساب مرتبط بهذا المستخدم.");
         setLoading(false);
         return;
       }
-      const role = snap.data().role;
+      const profileData = snap.data();
+      if (profileData.status === "disabled") {
+        await auth.signOut();
+        setError("تم تعطيل هذا الحساب من قبل المعلم. تواصل مع المعلم لإعادة تفعيله.");
+        setLoading(false);
+        return;
+      }
+      if (profileData.status === "deleted") {
+        await auth.signOut();
+        setError("هذا الحساب لم يعد موجودًا على المنصة.");
+        setLoading(false);
+        return;
+      }
+      const role = profileData.role;
       router.replace(role === "student" ? "/student/home" : "/dashboard");
     } catch (err: any) {
       const code = err?.code ?? "unknown";

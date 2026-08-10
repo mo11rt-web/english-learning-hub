@@ -13,13 +13,19 @@ export function AppShell({
   children: ReactNode;
   requireRole?: "teacher" | "student"; // teacher تشمل admin
 }) {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, signOut } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (loading) return;
     if (!user || !profile) {
       router.replace("/login");
+      return;
+    }
+    // إذا عطّل المعلم الحساب أو حذفه أثناء استخدام الطالب للمنصة، نطرده
+    // فورًا — الملف الشخصي يتحدث لحظيًا (onSnapshot) فلا حاجة لإعادة تحميل
+    if (profile.status !== "active") {
+      signOut().then(() => router.replace("/login"));
       return;
     }
     if (requireRole === "student" && profile.role !== "student") {
@@ -31,9 +37,9 @@ export function AppShell({
     ) {
       router.replace("/student/home");
     }
-  }, [loading, user, profile, requireRole, router]);
+  }, [loading, user, profile, requireRole, router, signOut]);
 
-  if (loading || !profile) {
+  if (loading || !profile || profile.status !== "active") {
     return (
       <div className="min-h-screen bg-app-gradient flex items-center justify-center">
         <p className="text-brand-text font-arabic">جاري التحميل...</p>
