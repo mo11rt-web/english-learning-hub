@@ -1,19 +1,21 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"],
   theme: {
     extend: {
       colors: {
         brand: {
           sidebar: "#07596B",
-          primary: "#18AFC4",
-          secondary: "#47C5D5",
-          success: "#28B889",
-          warning: "#F2B84B",
-          error: "#E76B74",
-          text: "#173942",
-          textMuted: "#72878E",
+          primary: "rgb(var(--brand-primary) / <alpha-value>)",
+          secondary: "rgb(var(--brand-secondary) / <alpha-value>)",
+          success: "rgb(var(--brand-success) / <alpha-value>)",
+          warning: "rgb(var(--brand-warning) / <alpha-value>)",
+          error: "rgb(var(--brand-error) / <alpha-value>)",
+          text: "rgb(var(--brand-text) / <alpha-value>)",
+          textMuted: "rgb(var(--brand-text-muted) / <alpha-value>)",
+          surface: "rgb(var(--brand-surface) / <alpha-value>)",
         },
       },
       fontFamily: {
@@ -22,7 +24,7 @@ const config: Config = {
       },
       backgroundImage: {
         "app-gradient":
-          "linear-gradient(135deg, #F5F9FC, #E6F2F7, #DCEEF5)",
+          "linear-gradient(135deg, var(--app-gradient-1), var(--app-gradient-2), var(--app-gradient-3))",
       },
       borderRadius: {
         glass: "24px",

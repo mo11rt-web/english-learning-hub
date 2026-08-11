@@ -11,7 +11,7 @@ export function GlassCard({
   return (
     <div
       className={clsx(
-        "bg-white/[0.68] backdrop-blur-[18px] border border-white/[0.76]",
+        "bg-white/[0.68] dark:bg-brand-surface/70 backdrop-blur-[18px] border border-white/[0.76] dark:border-white/10",
         "rounded-glass shadow-glass p-6",
         className
       )}

@@ -18,7 +18,7 @@ import {
 } from "@/lib/firestore-helpers";
 import { Lesson, Unit, LessonBlock } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
-import { getYoutubeEmbedUrl, getDriveEmbedUrl } from "@/lib/embed";
+import { detectVideoType } from "@/lib/embed";
 
 const MAX_PDF_BYTES = 4 * 1024 * 1024; // 4 MB حسب طلبك بالضبط
 
@@ -34,6 +34,7 @@ export default function UnitLessonsPage() {
   const [pdfError, setPdfError] = useState("");
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
 
   useEffect(() => {
     const u = listenCollection<Lesson>(
@@ -76,55 +77,67 @@ export default function UnitLessonsPage() {
     setPdfFile(null);
     setPdfError("");
     setUploadProgress(null);
+    setFormError("");
   };
 
   const addLesson = async () => {
-    if (!form.title.trim() || !user || !unit) return;
+    setFormError("");
+    if (!form.title.trim()) {
+      setFormError("لازم تكتب عنوان الدرس.");
+      return;
+    }
+    if (!user || !unit) {
+      setFormError("تعذّر تحديد المستخدم أو الوحدة. أعد تحميل الصفحة وحاول مجددًا.");
+      return;
+    }
 
     const blocks: LessonBlock[] = [];
     let order = 0;
 
-    if (form.videoUrl.trim()) {
-      const isYoutube = !!getYoutubeEmbedUrl(form.videoUrl.trim());
-      const isDrive = !!getDriveEmbedUrl(form.videoUrl.trim());
-      if (isYoutube) {
-        blocks.push({ id: crypto.randomUUID(), type: "youtube", content: form.videoUrl.trim(), order: order++ });
-      } else if (isDrive) {
-        blocks.push({ id: crypto.randomUUID(), type: "google-drive", content: form.videoUrl.trim(), order: order++ });
-      } else {
-        // رابط فيديو غير معروف الصيغة: نضيفه كرابط Google Drive كمحاولة افتراضية آمنة،
-        // ويمكن للمعلم تعديل نوع الكتلة لاحقًا من محرر الدرس الكامل
-        blocks.push({ id: crypto.randomUUID(), type: "youtube", content: form.videoUrl.trim(), order: order++ });
-      }
-    }
-
-    let pdfUrl = "";
-    if (pdfFile) {
-      setUploadProgress(0);
-      const path = `lesson-files/${Date.now()}-${pdfFile.name}`;
-      const storageRef = ref(storage, path);
-      const task = uploadBytesResumable(storageRef, pdfFile);
-      pdfUrl = await new Promise<string>((resolve, reject) => {
-        task.on(
-          "state_changed",
-          (snap) => setUploadProgress((snap.bytesTransferred / snap.totalBytes) * 100),
-          (err) => reject(err),
-          async () => resolve(await getDownloadURL(task.snapshot.ref))
+    const videoUrl = form.videoUrl.trim();
+    if (videoUrl) {
+      const videoType = detectVideoType(videoUrl);
+      if (!videoType) {
+        // رابط فيديو غير مدعوم (مو يوتيوب ولا Google Drive) — نوقف الحفظ ونوضّح للمعلم
+        // بدل ما نخزّن كتلة فيديو مكسورة ما بتشتغل عند الطالب
+        setFormError(
+          "رابط الفيديو غير مدعوم. استخدم رابط يوتيوب (youtube.com / youtu.be) أو رابط مشاركة Google Drive فقط."
         );
-      });
-      blocks.push({ id: crypto.randomUUID(), type: "pdf", content: pdfUrl, order: order++ });
-    }
-
-    if (form.notes.trim()) {
-      blocks.push({ id: crypto.randomUUID(), type: "note", content: form.notes.trim(), order: order++ });
+        return;
+      }
+      blocks.push({ id: crypto.randomUUID(), type: videoType, content: videoUrl, order: order++ });
     }
 
     setSaving(true);
     try {
+      let pdfUrl = "";
+      if (pdfFile) {
+        setUploadProgress(0);
+        const path = `lesson-files/${Date.now()}-${pdfFile.name}`;
+        const storageRef = ref(storage, path);
+        const task = uploadBytesResumable(storageRef, pdfFile);
+        pdfUrl = await new Promise<string>((resolve, reject) => {
+          task.on(
+            "state_changed",
+            (snap) => setUploadProgress((snap.bytesTransferred / snap.totalBytes) * 100),
+            (err) => reject(err),
+            async () => resolve(await getDownloadURL(task.snapshot.ref))
+          );
+        });
+        blocks.push({ id: crypto.randomUUID(), type: "pdf", content: pdfUrl, order: order++ });
+      }
+
+      if (form.notes.trim()) {
+        blocks.push({ id: crypto.randomUUID(), type: "note", content: form.notes.trim(), order: order++ });
+      }
+
+      // نتأكد إنه ما في أي قيمة undefined بالمستند — Firestore يرفض الحفظ بصمت
+      // (بدون رسالة خطأ واضحة بالواجهة) إذا لقى undefined بأي حقل، وهاد كان
+      // سبب مشكلة "الدرس ما ينزل" عند بعض الوحدات القديمة اللي بدون stageId
       await createDoc("lessons", {
         title: form.title.trim(),
         unitId,
-        stageId: unit.stageId,
+        stageId: unit.stageId ?? "",
         status: "draft",
         order: lessons.length,
         targetGroupIds: [],
@@ -136,6 +149,9 @@ export default function UnitLessonsPage() {
       });
       resetForm();
       setModalOpen(false);
+    } catch (err) {
+      console.error("addLesson failed:", err);
+      setFormError("صار خطأ أثناء حفظ الدرس. تأكد من اتصال الإنترنت وحاول مرة ثانية.");
     } finally {
       setSaving(false);
     }
@@ -248,6 +264,10 @@ export default function UnitLessonsPage() {
           <p className="text-xs text-brand-textMuted">
             بعد الإنشاء تقدر تضيف المزيد من المحتوى (صور، صفحات كتاب، مفردات...) وأسئلة الكويز من صفحة الدرس الكاملة.
           </p>
+
+          {formError && (
+            <p className="text-brand-error text-sm bg-brand-error/10 rounded-xl p-3">⚠️ {formError}</p>
+          )}
 
           <Button onClick={addLesson} disabled={saving || !form.title.trim()}>
             {saving ? "جارٍ الحفظ..." : "إنشاء الدرس"}

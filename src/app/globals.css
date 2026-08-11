@@ -2,12 +2,43 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --brand-primary: 24 175 196; /* #18AFC4 */
+  --brand-secondary: 71 197 213; /* #47C5D5 */
+  --brand-success: 40 184 137; /* #28B889 */
+  --brand-warning: 242 184 75; /* #F2B84B */
+  --brand-error: 231 107 116; /* #E76B74 */
+  --brand-text: 23 57 66; /* #173942 */
+  --brand-text-muted: 114 135 142; /* #72878E */
+  --brand-surface: 255 255 255; /* white glass cards */
+  --app-gradient-1: #F5F9FC;
+  --app-gradient-2: #E6F2F7;
+  --app-gradient-3: #DCEEF5;
+}
+
+/* الوضع الليلي — يُفعَّل بإضافة class="dark" على <html> (زر تبديل يدوي فقط،
+   بدون اعتماد على إعدادات نظام التشغيل) */
+.dark {
+  --brand-primary: 62 200 220; /* أفتح شوي عن النسخة النهارية عشان يبرز فوق خلفية غامقة */
+  --brand-secondary: 94 214 230;
+  --brand-success: 60 200 150;
+  --brand-warning: 245 195 100;
+  --brand-error: 240 130 138;
+  --brand-text: 232 241 243; /* نص فاتح تقريبًا أبيض */
+  --brand-text-muted: 156 178 184;
+  --brand-surface: 16 38 43; /* خلفية الكروت الزجاجية بالوضع الليلي */
+  --app-gradient-1: #0B1B1F;
+  --app-gradient-2: #0F2429;
+  --app-gradient-3: #0B2026;
+}
+
 html {
   scroll-behavior: smooth;
 }
 
 body {
-  color: #173942;
+  color: rgb(var(--brand-text));
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* نص إنجليزي داخل سياق عربي RTL */
@@ -22,11 +53,46 @@ body {
   background: #18AFC4aa;
   border-radius: 999px;
 }
+.dark ::-webkit-scrollbar-thumb {
+  background: #3EC8DCaa;
+}
 
 :focus-visible {
   outline: 2px solid #18AFC4;
   outline-offset: 2px;
 }
+.dark :focus-visible {
+  outline-color: #3EC8DC;
+}
+
+/* تغطية شاملة لحقول الإدخال بكل صفحات المنصة بالوضع الليلي — أغلب النماذج
+   تستخدم نفس نمط bg-white/70 المتكرر بعشرات الملفات، فبدل تعديل كل ملف
+   لحاله منفصل، هاد التعريف العام يغطيها كلها دفعة وحدة */
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  color: rgb(var(--brand-text)) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: rgba(232, 241, 243, 0.4);
+}
+
+/* نفس فكرة تغطية حقول الإدخال، بس هون لعناصر الأزرار/الكروت الفرعية
+   المتكررة بعشرات الصفحات (خيارات الكويز، بطاقات صغيرة...) اللي تستخدم
+   نفس درجات الشفافية البيضاء بشكل مباشر بدل ما نلحقها ملف ملف */
+.dark .bg-white\/70 { background-color: rgba(255, 255, 255, 0.07) !important; }
+.dark .bg-white\/60 { background-color: rgba(255, 255, 255, 0.06) !important; }
+.dark .bg-white\/50 { background-color: rgba(255, 255, 255, 0.05) !important; }
+.dark .bg-white\/95 { background-color: rgba(12, 31, 35, 0.97) !important; }
+.dark .bg-white\/15 { background-color: rgba(255, 255, 255, 0.1) !important; }
+.dark .bg-white\/10 { background-color: rgba(255, 255, 255, 0.08) !important; }
+.dark .bg-white\/5 { background-color: rgba(255, 255, 255, 0.04) !important; }
+.dark .hover\:bg-white:hover { background-color: rgba(255, 255, 255, 0.1) !important; }
+.dark .border-black\/5 { border-color: rgba(255, 255, 255, 0.1) !important; }
+.dark .hover\:bg-black\/5:hover { background-color: rgba(255, 255, 255, 0.08) !important; }
 
 @keyframes sheet-in {
   from {

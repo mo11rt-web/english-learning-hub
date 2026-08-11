@@ -30,8 +30,15 @@ const blockLabels: Record<LessonBlockType, string> = {
   "book-page": "صفحة من الكتاب",
   "vocabulary-word": "كلمة مفردة",
   "vocabulary-list": "قائمة مفردات",
-  "quiz-question": "سؤال داخل الدرس",
+  "quiz-question": "سؤال داخل الدرس (قديم)",
 };
+
+// أزرار "إضافة كتلة محتوى" المعروضة فعليًا للمعلم — استبعدنا "quiz-question"
+// لأن أسئلة الكويز الحقيقية تُدار من قسم "أسئلة الكويز" بالأسفل (نظام منفصل
+// ومكتمل)، وترك الزر كان يُنشئ كتلة نص عادية بلا وظيفة كويز فعلية
+const ADDABLE_BLOCK_TYPES = (Object.keys(blockLabels) as LessonBlockType[]).filter(
+  (t) => t !== "quiz-question"
+);
 
 // كتل المحتوى اللي بتاخذ ملف مرفوع (رفع مباشر) بدل نص عادي
 const UPLOAD_TYPES: LessonBlockType[] = ["image", "pdf", "audio", "book-page"];
@@ -204,7 +211,7 @@ export default function LessonEditorPage() {
         <GlassCard className="mb-6">
           <h2 className="font-bold text-brand-text mb-3">إضافة كتلة محتوى</h2>
           <div className="flex flex-wrap gap-2">
-            {(Object.keys(blockLabels) as LessonBlockType[]).map((type) => (
+            {ADDABLE_BLOCK_TYPES.map((type) => (
               <button
                 key={type}
                 onClick={() => addBlock(type)}
@@ -273,6 +280,16 @@ export default function LessonEditorPage() {
                       : "الصق رابط مشاركة Google Drive"
                   }
                   className="w-full px-3 py-2 rounded-xl border border-brand-primary/20 bg-white/70 outline-none"
+                />
+              ) : block.type === "vocabulary-list" ? (
+                <textarea
+                  value={block.content}
+                  onChange={(e) => updateBlockContent(block.id, e.target.value)}
+                  onBlur={() => commitBlock(block.id)}
+                  dir="ltr"
+                  rows={5}
+                  placeholder={"كل سطر كلمة: word | الترجمة\nمثال:\napple | تفاحة\nrun | يجري"}
+                  className="w-full px-3 py-2 rounded-xl border border-brand-primary/20 bg-white/70 outline-none font-mono text-sm"
                 />
               ) : (
                 <textarea

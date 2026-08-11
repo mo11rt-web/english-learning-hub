@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { listenCollection, where } from "@/lib/firestore-helpers";
 import { IrregularVerb, StudentProfile } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
+import { SpeakButton } from "@/components/SpeakButton";
 
 type Mode = "past-simple" | "past-participle" | "sentence";
 type Level = "easy" | "medium" | "hard" | "all";
@@ -192,9 +193,12 @@ export default function IrregularVerbsTrainerPage() {
           <p className="text-brand-textMuted text-sm mb-2">
             سؤال {qIndex + 1} من {questions.length}
           </p>
-          <h2 dir="ltr" className="text-2xl font-bold text-brand-primary mb-6 text-center py-4">
-            {current.prompt}
-          </h2>
+          <div dir="ltr" className="flex items-center justify-center gap-3 mb-6 py-4">
+            <h2 className="text-2xl font-bold text-brand-primary text-center">
+              {current.prompt}
+            </h2>
+            <SpeakButton text={current.verb.base} size="sm" />
+          </div>
           <p className="text-brand-text text-sm mb-3">اختر الإجابة الصحيحة:</p>
           <div className="grid grid-cols-2 gap-3">
             {current.options.map((opt) => {

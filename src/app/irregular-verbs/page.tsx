@@ -15,6 +15,7 @@ import {
 import { IrregularVerb } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { IRREGULAR_VERBS_SEED } from "@/lib/irregularVerbsData";
 
 const emptyForm = {
   base: "",
@@ -31,6 +32,8 @@ export default function IrregularVerbsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const { user } = useAuth();
   const { stageId: workspaceStageId, stageName: workspaceStageName } = useWorkspace();
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState("");
 
   useEffect(() => {
     const u = listenCollection<IrregularVerb>(
@@ -101,12 +104,56 @@ export default function IrregularVerbsPage() {
     easy: "سهل", medium: "متوسط", hard: "صعب",
   };
 
+  // يستورد القائمة الكاملة (٨٠+ فعل شاذ شائع) دفعة وحدة، ويتجاوز أي فعل
+  // موجود مسبقًا بنفس القسم (بالاعتماد على اسم الفعل الأساسي) حتى ما يتكرر
+  const importFullList = async () => {
+    if (!user || !workspaceStageId) return;
+    setImporting(true);
+    setImportMsg("");
+    try {
+      const existingBases = new Set(verbsInWorkspace.map((v) => v.base.trim().toLowerCase()));
+      const toAdd = IRREGULAR_VERBS_SEED.filter((v) => !existingBases.has(v.base.toLowerCase()));
+      for (const v of toAdd) {
+        await createDoc("irregular_verbs", {
+          base: v.base,
+          pastSimple: v.pastSimple,
+          pastParticiple: v.pastParticiple,
+          meaningAr: v.meaningAr,
+          example: "",
+          level: v.level,
+          stageId: workspaceStageId,
+          active: true,
+          createdBy: user.uid,
+          createdAt: Date.now(),
+        });
+      }
+      setImportMsg(
+        toAdd.length > 0
+          ? `✅ تمت إضافة ${toAdd.length} فعل جديد.`
+          : "كل الأفعال بالقائمة موجودة أصلًا بهذا القسم."
+      );
+    } catch (err) {
+      console.error("importFullList failed:", err);
+      setImportMsg("⚠️ صار خطأ أثناء الاستيراد، حاول مرة ثانية.");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <AppShell requireRole="teacher">
-      <h1 className="text-2xl font-bold text-brand-text mb-1">الأفعال الشاذة</h1>
-      <p className="text-brand-textMuted text-sm mb-6">القسم الحالي: {workspaceStageName ?? "—"}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-1">
+        <div>
+          <h1 className="text-2xl font-bold text-brand-text mb-1">الأفعال الشاذة</h1>
+          <p className="text-brand-textMuted text-sm">القسم الحالي: {workspaceStageName ?? "—"}</p>
+        </div>
+        <Button variant="secondary" onClick={importFullList} disabled={importing || !workspaceStageId}>
+          {importing ? "جارٍ الاستيراد..." : `📥 استيراد القائمة الكاملة (${IRREGULAR_VERBS_SEED.length} فعل)`}
+        </Button>
+      </div>
+      {importMsg && <p className="text-sm text-brand-textMuted mb-4">{importMsg}</p>}
 
-      <GlassCard className="mb-6">
+      <GlassCard className="mb-6 mt-6">
         <h2 className="font-bold text-brand-text mb-4">
           {editingId ? "تعديل فعل" : "إضافة فعل جديد"}
         </h2>
