@@ -36,8 +36,11 @@ export default function ShareResultsPage() {
     <div className="min-h-screen bg-app-gradient flex items-center justify-center p-4" dir="rtl">
       <div className="w-full max-w-lg">
         <div className="text-center mb-6">
-          <h1 className="text-xl font-bold text-brand-text">English Learning Hub</h1>
-          <p className="text-brand-textMuted text-sm">تقرير نتائج الطالب لولي الأمر</p>
+          <h1 className="text-xl font-bold text-brand-text" dir="ltr">
+            Learn <span className="text-brand-primary">English</span>
+          </h1>
+          <p className="text-brand-textMuted text-xs" dir="ltr">with Mohanad Allawi</p>
+          <p className="text-brand-textMuted text-sm mt-1">تقرير نتائج الطالب لولي الأمر</p>
         </div>
 
         {loading && <p className="text-center text-brand-textMuted">جاري التحميل...</p>}

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { Sidebar } from "./Sidebar";
+import { useMobileMenu } from "@/hooks/useMobileMenu";
 
 export function MobileSidebar() {
-  const [open, setOpen] = useState(false);
+  const { open, setOpen } = useMobileMenu();
   return (
     <>
       <button

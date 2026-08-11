@@ -12,6 +12,7 @@ import {
 } from "@/lib/firestore-helpers";
 import { Question, QuestionType, Stage } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
+import { useWorkspace } from "@/hooks/useWorkspace";
 
 const typeLabels: Record<QuestionType, string> = {
   mcq: "اختيار من متعدد",
@@ -32,15 +33,14 @@ const emptyForm = {
   correctAnswer: "",
   points: 1,
   difficulty: "medium" as Question["difficulty"],
-  stageId: "",
 };
 
 export default function QuestionsPage() {
   const [questions, setQuestions] = useState<(Question & { id: string })[]>([]);
   const [stages, setStages] = useState<(Stage & { id: string })[]>([]);
   const [form, setForm] = useState(emptyForm);
-  const [filterStage, setFilterStage] = useState("");
   const { user } = useAuth();
+  const { stageId: workspaceStageId, stageName: workspaceStageName } = useWorkspace();
 
   useEffect(() => {
     const u1 = listenCollection<Question>(
@@ -56,7 +56,7 @@ export default function QuestionsPage() {
   }, []);
 
   const addQuestion = async () => {
-    if (!form.text.trim() || !form.stageId || !user) return;
+    if (!form.text.trim() || !workspaceStageId || !user) return;
     const autoGrade = AUTO_TYPES.includes(form.type);
     await createDoc("question_bank", {
       text: form.text,
@@ -66,17 +66,15 @@ export default function QuestionsPage() {
         form.type === "true-false" ? form.correctAnswer || "true" : form.correctAnswer,
       points: Number(form.points) || 1,
       difficulty: form.difficulty,
-      stageId: form.stageId,
+      stageId: workspaceStageId,
       autoGrade,
       createdBy: user.uid,
       createdAt: Date.now(),
     });
-    setForm({ ...emptyForm, stageId: form.stageId });
+    setForm(emptyForm);
   };
 
-  const filtered = filterStage
-    ? questions.filter((q) => q.stageId === filterStage)
-    : questions;
+  const filtered = questions.filter((q) => q.stageId === workspaceStageId);
 
   return (
     <AppShell requireRole="teacher">
@@ -105,19 +103,6 @@ export default function QuestionsPage() {
               </option>
             ))}
           </select>
-          <select
-            value={form.stageId}
-            onChange={(e) => setForm({ ...form, stageId: e.target.value })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
-          >
-            <option value="">اختر المرحلة</option>
-            {stages.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-
           {form.type === "mcq" && (
             <div className="md:col-span-2 grid grid-cols-2 gap-2">
               {form.options.map((opt, i) => (
@@ -182,19 +167,9 @@ export default function QuestionsPage() {
       </GlassCard>
 
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-bold text-brand-text">البنك ({filtered.length})</h2>
-        <select
-          value={filterStage}
-          onChange={(e) => setFilterStage(e.target.value)}
-          className="px-3 py-1.5 rounded-xl border border-brand-primary/25 bg-white/70 text-sm"
-        >
-          <option value="">كل المراحل</option>
-          {stages.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
+        <h2 className="font-bold text-brand-text">
+          بنك "{workspaceStageName ?? "—"}" ({filtered.length})
+        </h2>
       </div>
 
       <div className="flex flex-col gap-3">

@@ -55,6 +55,7 @@ service cloud.firestore {
     // لحساب نقاطه)، ويكتبها المعلم/المدير فقط
     match /app_settings/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
     match /past_exam_questions/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
+    match /irregular_verbs/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
 
     // روابط مشاركة نتائج الطالب مع ولي الأمر: لقطة عامة للقراءة فقط، بدون
     // تسجيل دخول، ولا تحتوي كلمة مرور أو أي بيانات حساسة أخرى — فقط الحقول
@@ -97,6 +98,19 @@ service cloud.firestore {
     match /activity_logs/{id} {
       allow read: if isTeacherOrAdmin();
       allow create: if isSignedIn();
+    }
+
+    // الإشعارات: كل مستخدم يقرأ/يحذف إشعاراته فقط (نموذج "احذف عند القراءة"
+    // — لا حاجة لحقل isRead لأن الإشعار المقروء يُحذف مباشرة). المعلم/المدير
+    // يقدر ينشئ أي إشعار (عند نشر درس/واجب/إعلان)؛ الطالب يقدر بس ينشئ
+    // إشعار نوعه "submission" وموجّه لحساب معلم/مدير فعلي (تنبيه تسليم واجب).
+    match /notifications/{id} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isTeacherOrAdmin() ||
+        (isActive() &&
+         request.resource.data.type == 'submission' &&
+         get(/databases/$(database)/documents/profiles/$(request.resource.data.userId)).data.role in ['admin', 'teacher']);
     }
   }
 }

@@ -1,0 +1,26 @@
+{
+  "name": "Learn English with Mohanad Allawi",
+  "short_name": "Learn English",
+  "description": "تعلّم. احترف. انجح. — منصة الأستاذ مهند علاوي لتعليم اللغة الإنجليزية",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5F9FC",
+  "theme_color": "#07596B",
+  "orientation": "portrait-primary",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

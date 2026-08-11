@@ -10,6 +10,8 @@ import {
 } from "@/lib/firestore-helpers";
 import { Assignment, Question, Group, QuestionType } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
+import { useWorkspace } from "@/hooks/useWorkspace";
+import { notifyUsers, getStudentUidsForStage } from "@/lib/notifications";
 
 const qTypeLabels: Record<QuestionType, string> = {
   mcq: "اختيار من متعدد", "true-false": "صح أو خطأ", "fill-blank": "إكمال الفراغ",
@@ -18,6 +20,7 @@ const qTypeLabels: Record<QuestionType, string> = {
 
 export default function AssignmentsPage() {
   const { user } = useAuth();
+  const { stageId: workspaceStageId, stageName: workspaceStageName } = useWorkspace();
   const [questions, setQuestions] = useState<(Question & { id: string })[]>([]);
   const [assignments, setAssignments] = useState<(Assignment & { id: string })[]>([]);
   const [groups, setGroups] = useState<(Group & { id: string })[]>([]);
@@ -39,8 +42,15 @@ export default function AssignmentsPage() {
     return () => { u1(); u2(); u3(); };
   }, []);
 
+  const groupsInWorkspace = groups.filter((g) => g.stageId === workspaceStageId);
+  const groupIdsInWorkspace = new Set(groupsInWorkspace.map((g) => g.id));
+  const questionsInWorkspace = questions.filter((q) => q.stageId === workspaceStageId);
+  const assignmentsInWorkspace = assignments.filter(
+    (a) => a.targetGroupIds.length === 0 || a.targetGroupIds.some((g) => groupIdsInWorkspace.has(g))
+  );
+
   const addQuestion = async () => {
-    if (!qForm.text.trim() || !user) return;
+    if (!qForm.text.trim() || !user || !workspaceStageId) return;
     await createDoc("question_bank", {
       text: qForm.text,
       type: qForm.type,
@@ -48,7 +58,7 @@ export default function AssignmentsPage() {
       correctAnswer: qForm.correctAnswer,
       points: qForm.points,
       difficulty: "medium",
-      stageId: "",
+      stageId: workspaceStageId,
       autoGrade: qForm.type !== "essay" && qForm.type !== "short-answer",
       createdBy: user.uid,
       createdAt: Date.now(),
@@ -63,7 +73,7 @@ export default function AssignmentsPage() {
   };
 
   const createAssignment = async () => {
-    if (!aForm.title.trim() || aForm.selectedQ.size === 0 || !user) return;
+    if (!aForm.title.trim() || aForm.selectedQ.size === 0 || !user || !workspaceStageId) return;
     await createDoc("assignments", {
       title: aForm.title,
       type: aForm.type,
@@ -78,6 +88,14 @@ export default function AssignmentsPage() {
       status: "published",
       createdBy: user.uid,
       createdAt: Date.now(),
+    });
+    const targetGroups = aForm.targetGroupId ? [aForm.targetGroupId] : [];
+    const studentUids = await getStudentUidsForStage(workspaceStageId, targetGroups);
+    await notifyUsers(studentUids, {
+      title: aForm.type === "exam" ? "اختبار جديد" : "واجب جديد",
+      body: aForm.title,
+      type: aForm.type === "exam" ? "new-exam" : "new-exercise",
+      link: "/student/assignments",
     });
     setAForm({ title: "", type: "homework", targetGroupId: "", selectedQ: new Set() });
   };
@@ -141,27 +159,27 @@ export default function AssignmentsPage() {
             <select value={aForm.targetGroupId}
               onChange={(e) => setAForm({ ...aForm, targetGroupId: e.target.value })}
               className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70">
-              <option value="">كل المجموعات</option>
-              {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+              <option value="">كل مجموعات "{workspaceStageName}"</option>
+              {groupsInWorkspace.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
           </div>
           <p className="text-sm text-brand-textMuted mb-2">اختر الأسئلة ({aForm.selectedQ.size}):</p>
           <div className="max-h-48 overflow-y-auto flex flex-col gap-1 mb-3">
-            {questions.map((q) => (
+            {questionsInWorkspace.map((q) => (
               <label key={q.id} className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg bg-white/50">
                 <input type="checkbox" checked={aForm.selectedQ.has(q.id)} onChange={() => toggleQ(q.id)} />
                 <span className="text-brand-text truncate">{q.text}</span>
               </label>
             ))}
-            {questions.length === 0 && <p className="text-xs text-brand-textMuted">أضف أسئلة أولًا.</p>}
+            {questionsInWorkspace.length === 0 && <p className="text-xs text-brand-textMuted">أضف أسئلة أولًا.</p>}
           </div>
           <Button onClick={createAssignment}>نشر الواجب</Button>
         </GlassCard>
       </div>
 
-      <h2 className="font-bold text-brand-text mb-4">الواجبات المنشورة</h2>
+      <h2 className="font-bold text-brand-text mb-4">واجبات "{workspaceStageName ?? "—"}"</h2>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {assignments.map((a) => (
+        {assignmentsInWorkspace.map((a) => (
           <GlassCard key={a.id}>
             <h3 className="font-bold text-brand-text mb-1">{a.title}</h3>
             <p className="text-xs text-brand-textMuted mb-3">
@@ -172,7 +190,7 @@ export default function AssignmentsPage() {
             </Link>
           </GlassCard>
         ))}
-        {assignments.length === 0 && <p className="text-brand-textMuted">لا توجد واجبات بعد.</p>}
+        {assignmentsInWorkspace.length === 0 && <p className="text-brand-textMuted">لا توجد واجبات بهذا القسم بعد.</p>}
       </div>
     </AppShell>
   );

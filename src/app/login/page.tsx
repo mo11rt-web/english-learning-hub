@@ -68,11 +68,14 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center p-4" dir="rtl">
       <GlassCard className="w-full max-w-md">
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-brand-text">
-            English Learning Hub
+          <h1 className="text-2xl font-bold text-brand-text tracking-tight" dir="ltr">
+            Learn <span className="text-brand-primary">English</span>
           </h1>
-          <p className="text-brand-textMuted text-sm mt-1">
-            منصة تعليم اللغة الإنجليزية
+          <p className="text-brand-textMuted text-xs mt-0.5" dir="ltr">
+            with Mohanad Allawi
+          </p>
+          <p className="text-brand-textMuted text-sm mt-2">
+            تعلّم. احترف. انجح.
           </p>
         </div>
 
@@ -104,6 +107,10 @@ export default function LoginPage() {
             </label>
             <input
               type="tel"
+              inputMode="tel"
+              enterKeyHint="next"
+              autoFocus
+              autoComplete="tel"
               dir="ltr"
               required
               value={identifier}
@@ -126,6 +133,8 @@ export default function LoginPage() {
                 type={showPassword ? "text" : "password"}
                 required
                 dir="ltr"
+                enterKeyHint="done"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl border border-brand-primary/25 bg-white/70 focus:bg-white outline-none pl-12"

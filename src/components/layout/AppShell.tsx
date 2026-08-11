@@ -1,10 +1,14 @@
 "use client";
 
 import { ReactNode, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { useWorkspace } from "@/hooks/useWorkspace";
 import { Sidebar } from "./Sidebar";
 import { MobileSidebar } from "./MobileSidebar";
+import { BottomNav } from "./BottomNav";
+import { NotificationBell } from "@/components/NotificationBell";
+import { MobileMenuProvider } from "@/hooks/useMobileMenu";
 
 export function AppShell({
   children,
@@ -14,7 +18,9 @@ export function AppShell({
   requireRole?: "teacher" | "student"; // teacher تشمل admin
 }) {
   const { user, profile, loading, signOut } = useAuth();
+  const { stageId, loading: workspaceLoading } = useWorkspace();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (loading) return;
@@ -30,14 +36,25 @@ export function AppShell({
     }
     if (requireRole === "student" && profile.role !== "student") {
       router.replace("/dashboard");
+      return;
     }
+    if (requireRole === "teacher" && profile.role === "student") {
+      router.replace("/student/home");
+      return;
+    }
+    // المعلم/المدير لازم يختار القسم (تاسع/بكالوريا/...) أول ما يفوت،
+    // حتى ما تختلط بيانات الأقسام ببعضها. صفحة اختيار القسم نفسها مستثناة
+    // من هذا الشرط لتجنب حلقة تحويل لا نهائية.
     if (
       requireRole === "teacher" &&
-      profile.role === "student"
+      profile.role !== "student" &&
+      !workspaceLoading &&
+      !stageId &&
+      pathname !== "/workspace"
     ) {
-      router.replace("/student/home");
+      router.replace(`/workspace?from=${encodeURIComponent(pathname)}`);
     }
-  }, [loading, user, profile, requireRole, router, signOut]);
+  }, [loading, user, profile, requireRole, router, signOut, stageId, workspaceLoading, pathname]);
 
   if (loading || !profile || profile.status !== "active") {
     return (
@@ -47,15 +64,35 @@ export function AppShell({
     );
   }
 
-  return (
-    <div className="min-h-screen bg-app-gradient flex" dir="rtl">
-      <div className="hidden md:block">
-        <Sidebar />
+  if (
+    requireRole === "teacher" &&
+    profile.role !== "student" &&
+    !workspaceLoading &&
+    !stageId &&
+    pathname !== "/workspace"
+  ) {
+    return (
+      <div className="min-h-screen bg-app-gradient flex items-center justify-center">
+        <p className="text-brand-text font-arabic">جاري التحويل لاختيار القسم...</p>
       </div>
-      <MobileSidebar />
-      <main className="flex-1 p-4 md:p-8 max-w-full overflow-x-hidden">
-        {children}
-      </main>
-    </div>
+    );
+  }
+
+  return (
+    <MobileMenuProvider>
+      <div className="min-h-screen bg-app-gradient flex" dir="rtl">
+        <div className="hidden md:block">
+          <Sidebar />
+        </div>
+        <MobileSidebar />
+        <div className="fixed top-4 left-4 z-40">
+          <NotificationBell />
+        </div>
+        <main className="flex-1 p-4 md:p-8 pb-24 md:pb-8 max-w-full overflow-x-hidden">
+          {children}
+        </main>
+        <BottomNav />
+      </div>
+    </MobileMenuProvider>
   );
 }

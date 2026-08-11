@@ -81,6 +81,14 @@ export interface LessonBlock {
   order: number;
 }
 
+export interface LessonQuizQuestion {
+  id: string;
+  text: string;
+  options: string[];
+  correctIndex: number;
+  order: number;
+}
+
 export interface Lesson {
   id: string;
   title: string;
@@ -94,6 +102,7 @@ export interface Lesson {
   order: number;
   targetGroupIds: string[]; // فارغ = كل المجموعات ضمن المرحلة
   blocks: LessonBlock[];
+  quizQuestions?: LessonQuizQuestion[];
   createdBy: string;
   createdAt: number;
   updatedAt: number;
@@ -230,6 +239,38 @@ export interface ShareSnapshot {
   createdBy: string;
   createdAt: number;
   updatedAt: number;
+}
+
+export interface IrregularVerb {
+  id: string;
+  base: string;
+  pastSimple: string;
+  pastParticiple: string;
+  meaningAr: string;
+  example?: string;
+  stageId: string;
+  level: "easy" | "medium" | "hard";
+  active: boolean;
+  createdBy: string;
+  createdAt: number;
+}
+
+export interface Notification {
+  id: string;
+  userId: string; // uid المستلم
+  title: string;
+  body?: string;
+  type:
+    | "new-lesson"
+    | "new-pdf"
+    | "new-video"
+    | "new-exercise"
+    | "new-exam"
+    | "announcement"
+    | "submission" // للمعلم: طالب سلّم واجب
+    | "system";
+  link?: string; // رابط داخلي يفتح عند الضغط
+  createdAt: number;
 }
 
 export interface Announcement {

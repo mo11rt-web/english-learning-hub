@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
 export function Modal({
@@ -16,6 +16,8 @@ export function Modal({
   children: ReactNode;
   maxWidth?: string;
 }) {
+  const contentRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -23,9 +25,20 @@ export function Modal({
     };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
+
+    // تركيز تلقائي على أول حقل إدخال داخل النافذة — يفتح لوحة المفاتيح
+    // فورًا على الهاتف بدون ما يحتاج المستخدم يضغط بنفسه
+    const t = setTimeout(() => {
+      const firstField = contentRef.current?.querySelector<HTMLElement>(
+        "input:not([type=hidden]):not([disabled]), textarea:not([disabled]), select:not([disabled])"
+      );
+      firstField?.focus();
+    }, 50);
+
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
+      clearTimeout(t);
     };
   }, [open, onClose]);
 
@@ -37,6 +50,7 @@ export function Modal({
       onClick={onClose}
     >
       <div
+        ref={contentRef}
         onClick={(e) => e.stopPropagation()}
         className={`w-full ${maxWidth} bg-white/95 backdrop-blur-xl rounded-glass shadow-glass border border-white/70 max-h-[90vh] overflow-y-auto`}
       >

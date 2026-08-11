@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { createDoc, listenCollection, where } from "@/lib/firestore-helpers";
 import { Assignment, Question, Attempt } from "@/lib/types";
 import { awardPoints, getPointsSettings } from "@/lib/gamification";
+import { notifyUsers, getTeacherUids } from "@/lib/notifications";
 
 function normalize(s: string) {
   return s.trim().toLowerCase();
@@ -18,7 +19,7 @@ function normalize(s: string) {
 
 export default function TakeAssignmentPage() {
   const { assignmentId } = useParams<{ assignmentId: string }>();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const router = useRouter();
   const [assignment, setAssignment] = useState<(Assignment & { id: string }) | null>(null);
   const [questions, setQuestions] = useState<(Question & { id: string })[]>([]);
@@ -103,6 +104,16 @@ export default function TakeAssignmentPage() {
       startedAt: Date.now(),
       submittedAt: Date.now(),
     });
+
+    // إشعار المعلم/المدير بتسليم جديد يحتاج مراجعة (خصوصًا إذا فيه أسئلة تصحيح يدوي)
+    const teacherUids = await getTeacherUids();
+    await notifyUsers(teacherUids, {
+      title: "تسليم جديد يحتاج مراجعة",
+      body: `${profile?.fullName ?? "طالب"} سلّم "${assignment.title}"`,
+      type: "submission",
+      link: `/assignments/${assignmentId}/grade`,
+    });
+
     setResultScore(autoScore);
     setSubmitted(true);
   };

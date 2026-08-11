@@ -7,9 +7,12 @@ import { Button } from "@/components/ui/Button";
 import { listenCollection, createDoc, orderBy } from "@/lib/firestore-helpers";
 import { Announcement, Group } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
+import { useWorkspace } from "@/hooks/useWorkspace";
+import { notifyUsers, getStudentUidsForStage } from "@/lib/notifications";
 
 export default function AnnouncementsPage() {
   const { user } = useAuth();
+  const { stageId: workspaceStageId, stageName: workspaceStageName } = useWorkspace();
   const [items, setItems] = useState<(Announcement & { id: string })[]>([]);
   const [groups, setGroups] = useState<(Group & { id: string })[]>([]);
   const [title, setTitle] = useState("");
@@ -22,6 +25,8 @@ export default function AnnouncementsPage() {
     return () => { u1(); u2(); };
   }, []);
 
+  const groupsInWorkspace = groups.filter((g) => g.stageId === workspaceStageId);
+
   const send = async () => {
     if (!title.trim() || !body.trim() || !user) return;
     await createDoc("announcements", {
@@ -30,6 +35,18 @@ export default function AnnouncementsPage() {
       createdBy: user.uid,
       createdAt: Date.now(),
     });
+    if (workspaceStageId) {
+      const studentUids = await getStudentUidsForStage(
+        workspaceStageId,
+        targetGroupId ? [targetGroupId] : []
+      );
+      await notifyUsers(studentUids, {
+        title: "إعلان من المعلم",
+        body: title,
+        type: "announcement",
+        link: "/student/home",
+      });
+    }
     setTitle(""); setBody("");
   };
 
@@ -46,8 +63,8 @@ export default function AnnouncementsPage() {
             rows={3} className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70" />
           <select value={targetGroupId} onChange={(e) => setTargetGroupId(e.target.value)}
             className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70">
-            <option value="">جميع الطلاب</option>
-            {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+            <option value="">جميع الطلاب (كل الأقسام)</option>
+            {groupsInWorkspace.map((g) => <option key={g.id} value={g.id}>{g.name} — {workspaceStageName}</option>)}
           </select>
           <Button onClick={send}>نشر الإعلان</Button>
         </div>

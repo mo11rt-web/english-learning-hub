@@ -12,14 +12,15 @@ import {
 } from "@/lib/firestore-helpers";
 import { Group, Stage } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
+import { useWorkspace } from "@/hooks/useWorkspace";
 
 export default function GroupsPage() {
   const [stages, setStages] = useState<(Stage & { id: string })[]>([]);
   const [groups, setGroups] = useState<(Group & { id: string })[]>([]);
   const [name, setName] = useState("");
-  const [stageId, setStageId] = useState("");
   const [newStageName, setNewStageName] = useState("");
   const { user } = useAuth();
+  const { stageId, stageName } = useWorkspace();
 
   useEffect(() => {
     const u1 = listenCollection<Stage>("stages", [orderBy("order")], setStages);
@@ -47,6 +48,8 @@ export default function GroupsPage() {
     setName("");
   };
 
+  const groupsInWorkspace = groups.filter((g) => g.stageId === stageId);
+
   return (
     <AppShell requireRole="teacher">
       <h1 className="text-2xl font-bold text-brand-text mb-6">
@@ -55,12 +58,15 @@ export default function GroupsPage() {
 
       <div className="grid md:grid-cols-2 gap-6">
         <GlassCard>
-          <h2 className="font-bold text-brand-text mb-4">المراحل / الصفوف</h2>
+          <h2 className="font-bold text-brand-text mb-4">كل الأقسام/المراحل</h2>
+          <p className="text-brand-textMuted text-xs mb-3">
+            هذه القائمة تشمل كل الأقسام بالمنصة (يمكنك تبديل القسم النشط من القائمة الجانبية).
+          </p>
           <div className="flex gap-2 mb-4">
             <input
               value={newStageName}
               onChange={(e) => setNewStageName(e.target.value)}
-              placeholder="مثال: الصف التاسع"
+              placeholder="مثال: بكالوريا أدبي"
               className="flex-1 px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
             />
             <Button onClick={addStage}>إضافة</Button>
@@ -69,9 +75,12 @@ export default function GroupsPage() {
             {stages.map((s) => (
               <li
                 key={s.id}
-                className="px-3 py-2 rounded-xl bg-white/60 text-brand-text text-sm"
+                className={`px-3 py-2 rounded-xl text-sm flex items-center justify-between ${
+                  s.id === stageId ? "bg-brand-primary/15 text-brand-primary font-medium" : "bg-white/60 text-brand-text"
+                }`}
               >
                 {s.name}
+                {s.id === stageId && <span className="text-xs">القسم النشط</span>}
               </li>
             ))}
             {stages.length === 0 && (
@@ -81,40 +90,28 @@ export default function GroupsPage() {
         </GlassCard>
 
         <GlassCard>
-          <h2 className="font-bold text-brand-text mb-4">المجموعات</h2>
+          <h2 className="font-bold text-brand-text mb-1">
+            مجموعات "{stageName ?? "—"}"
+          </h2>
+          <p className="text-brand-textMuted text-xs mb-4">
+            كل مجموعة تُنشأ هنا تنتمي تلقائيًا للقسم النشط حاليًا.
+          </p>
           <div className="flex flex-col gap-2 mb-4">
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="اسم المجموعة"
+              placeholder="اسم المجموعة (مثال: مجموعة A)"
               className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
             />
-            <select
-              value={stageId}
-              onChange={(e) => setStageId(e.target.value)}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
-            >
-              <option value="">اختر المرحلة</option>
-              {stages.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
             <Button onClick={addGroup}>إضافة مجموعة</Button>
           </div>
           <ul className="flex flex-col gap-2">
-            {groups.map((g) => (
+            {groupsInWorkspace.map((g) => (
               <li
                 key={g.id}
                 className="flex items-center justify-between px-3 py-2 rounded-xl bg-white/60 text-sm"
               >
-                <span className="text-brand-text">
-                  {g.name}{" "}
-                  <span className="text-brand-textMuted">
-                    ({stages.find((s) => s.id === g.stageId)?.name ?? "—"})
-                  </span>
-                </span>
+                <span className="text-brand-text">{g.name}</span>
                 <button
                   onClick={() => deleteDocById("groups", g.id)}
                   className="text-brand-error text-xs"
@@ -123,9 +120,9 @@ export default function GroupsPage() {
                 </button>
               </li>
             ))}
-            {groups.length === 0 && (
+            {groupsInWorkspace.length === 0 && (
               <p className="text-brand-textMuted text-sm">
-                لا توجد مجموعات بعد.
+                لا توجد مجموعات بهذا القسم بعد.
               </p>
             )}
           </ul>

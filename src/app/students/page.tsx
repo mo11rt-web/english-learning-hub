@@ -19,6 +19,7 @@ import { phoneToEmail, normalizePhone } from "@/lib/phone";
 import { computeLevel } from "@/lib/gamification";
 import { publishResultsShare, setShareEnabled } from "@/lib/shareResults";
 import { useAuth } from "@/hooks/useAuth";
+import { useWorkspace } from "@/hooks/useWorkspace";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -70,6 +71,7 @@ export default function StudentsPage() {
   const [passwordInfoTarget, setPasswordInfoTarget] = useState<(StudentProfile & { id: string }) | null>(null);
 
   const { user } = useAuth();
+  const { stageId: workspaceStageId, stageName: workspaceStageName } = useWorkspace();
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
     setToast({ message, type });
@@ -92,8 +94,8 @@ export default function StudentsPage() {
   }, []);
 
   const handleCreate = async () => {
-    if (!form.fullName.trim() || !form.phone.trim() || !form.stageId) {
-      showToast("الاسم ورقم الهاتف والمرحلة حقول إلزامية", "error");
+    if (!form.fullName.trim() || !form.phone.trim() || !workspaceStageId) {
+      showToast("الاسم ورقم الهاتف إلزاميان (وتأكد من اختيار القسم من القائمة الجانبية)", "error");
       return;
     }
     if (form.password.length < 6) {
@@ -118,7 +120,7 @@ export default function StudentsPage() {
         phone,
         address: form.address || "",
         studentNumber,
-        stageId: form.stageId,
+        stageId: workspaceStageId,
         groupIds: form.groupId ? [form.groupId] : [],
         status: "active",
         points: 0,
@@ -213,8 +215,10 @@ export default function StudentsPage() {
     showToast("تم نسخ بيانات الدخول ✅");
   };
 
-  const visibleStudents = students.filter((s) =>
-    showDeleted ? s.status === "deleted" : s.status !== "deleted"
+  const visibleStudents = students.filter(
+    (s) =>
+      s.stageId === workspaceStageId &&
+      (showDeleted ? s.status === "deleted" : s.status !== "deleted")
   );
   const filtered = visibleStudents.filter(
     (s) =>
@@ -261,7 +265,15 @@ export default function StudentsPage() {
       <div className="grid lg:grid-cols-3 gap-6">
         <GlassCard className="lg:col-span-1 h-fit">
           <h2 className="font-bold text-brand-text mb-4">إضافة طالب جديد</h2>
-          <div className="flex flex-col gap-3">
+          <div
+            className="flex flex-col gap-3"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !(e.target as HTMLElement).closest("select")) {
+                e.preventDefault();
+                handleCreate();
+              }
+            }}
+          >
             <input
               placeholder="الاسم الكامل"
               value={form.fullName}
@@ -282,16 +294,9 @@ export default function StudentsPage() {
               onChange={(e) => setForm({ ...form, address: e.target.value })}
               className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
             />
-            <select
-              value={form.stageId}
-              onChange={(e) => setForm({ ...form, stageId: e.target.value })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
-            >
-              <option value="">اختر المرحلة</option>
-              {stages.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
+            <div className="px-3 py-2 rounded-xl bg-brand-primary/10 text-brand-primary text-sm">
+              القسم: {workspaceStageName ?? "—"}
+            </div>
             <select
               value={form.groupId}
               onChange={(e) => setForm({ ...form, groupId: e.target.value })}
@@ -299,7 +304,7 @@ export default function StudentsPage() {
             >
               <option value="">بدون مجموعة (اختياري)</option>
               {groups
-                .filter((g) => g.stageId === form.stageId)
+                .filter((g) => g.stageId === workspaceStageId)
                 .map((g) => (
                   <option key={g.id} value={g.id}>{g.name}</option>
                 ))}
@@ -509,7 +514,15 @@ export default function StudentsPage() {
       </Modal>
 
       <Modal open={!!editing} onClose={() => setEditing(null)} title="تعديل بيانات الطالب">
-        <div className="flex flex-col gap-3">
+        <div
+          className="flex flex-col gap-3"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !(e.target as HTMLElement).closest("select")) {
+              e.preventDefault();
+              saveEdit();
+            }
+          }}
+        >
           <input
             placeholder="الاسم الكامل"
             value={editForm.fullName}

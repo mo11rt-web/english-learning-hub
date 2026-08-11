@@ -13,11 +13,11 @@ import {
 } from "@/lib/firestore-helpers";
 import { PastExamQuestion, Stage } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
+import { useWorkspace } from "@/hooks/useWorkspace";
 
 const emptyForm = {
   year: new Date().getFullYear(),
   subject: "",
-  stageId: "",
   round: "",
   questionText: "",
   imageUrl: "",
@@ -32,6 +32,7 @@ export default function PastExamsPage() {
   const [filterSubject, setFilterSubject] = useState("");
   const [filterYear, setFilterYear] = useState("");
   const { user } = useAuth();
+  const { stageId: workspaceStageId, stageName: workspaceStageName } = useWorkspace();
 
   useEffect(() => {
     const u1 = listenCollection<PastExamQuestion>(
@@ -47,11 +48,11 @@ export default function PastExamsPage() {
   }, []);
 
   const addItem = async () => {
-    if (!form.questionText.trim() || !form.subject.trim() || !form.stageId || !user) return;
+    if (!form.questionText.trim() || !form.subject.trim() || !workspaceStageId || !user) return;
     await createDoc("past_exam_questions", {
       year: Number(form.year),
       subject: form.subject.trim(),
-      stageId: form.stageId,
+      stageId: workspaceStageId,
       round: form.round.trim() || "—",
       questionText: form.questionText,
       imageUrl: form.imageUrl || "",
@@ -60,13 +61,14 @@ export default function PastExamsPage() {
       createdBy: user.uid,
       createdAt: Date.now(),
     });
-    setForm({ ...emptyForm, subject: form.subject, stageId: form.stageId, year: form.year });
+    setForm({ ...emptyForm, subject: form.subject, year: form.year });
   };
 
-  const subjects = Array.from(new Set(items.map((i) => i.subject))).sort();
-  const years = Array.from(new Set(items.map((i) => i.year))).sort((a, b) => b - a);
+  const itemsInWorkspace = items.filter((i) => i.stageId === workspaceStageId);
+  const subjects = Array.from(new Set(itemsInWorkspace.map((i) => i.subject))).sort();
+  const years = Array.from(new Set(itemsInWorkspace.map((i) => i.year))).sort((a, b) => b - a);
 
-  const filtered = items.filter(
+  const filtered = itemsInWorkspace.filter(
     (i) =>
       (!filterSubject || i.subject === filterSubject) &&
       (!filterYear || String(i.year) === filterYear)
@@ -85,16 +87,9 @@ export default function PastExamsPage() {
             onChange={(e) => setForm({ ...form, subject: e.target.value })}
             className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
           />
-          <select
-            value={form.stageId}
-            onChange={(e) => setForm({ ...form, stageId: e.target.value })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
-          >
-            <option value="">اختر المرحلة</option>
-            {stages.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
+          <div className="px-3 py-2 rounded-xl bg-brand-primary/10 text-brand-primary text-sm flex items-center">
+            القسم: {workspaceStageName ?? "—"}
+          </div>
           <input
             type="number"
             placeholder="السنة"
@@ -146,7 +141,7 @@ export default function PastExamsPage() {
       </GlassCard>
 
       <div className="flex items-center gap-3 mb-4 flex-wrap">
-        <h2 className="font-bold text-brand-text">البنك ({filtered.length})</h2>
+        <h2 className="font-bold text-brand-text">بنك "{workspaceStageName ?? "—"}" ({filtered.length})</h2>
         <select
           value={filterSubject}
           onChange={(e) => setFilterSubject(e.target.value)}
