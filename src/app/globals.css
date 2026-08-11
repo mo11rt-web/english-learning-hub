@@ -27,3 +27,31 @@ body {
   outline: 2px solid #18AFC4;
   outline-offset: 2px;
 }
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (min-width: 640px) {
+  @keyframes sheet-in {
+    from {
+      transform: translateY(12px) scale(0.98);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+  }
+}
+
+.animate-sheet-in {
+  animation: sheet-in 0.22s ease-out;
+}

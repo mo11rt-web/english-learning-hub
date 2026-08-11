@@ -46,25 +46,30 @@ export function Modal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center bg-black/40 backdrop-blur-sm p-0 sm:p-4"
       onClick={onClose}
     >
       <div
         ref={contentRef}
         onClick={(e) => e.stopPropagation()}
-        className={`w-full ${maxWidth} bg-white/95 backdrop-blur-xl rounded-glass shadow-glass border border-white/70 max-h-[90vh] overflow-y-auto`}
+        className={`w-full ${maxWidth} bg-white/95 backdrop-blur-xl rounded-t-3xl sm:rounded-glass shadow-glass border border-white/70 max-h-[92dvh] sm:max-h-[90vh] overflow-y-auto animate-sheet-in`}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-black/5 sticky top-0 bg-white/95 backdrop-blur-xl rounded-t-glass">
+        <div
+          className="flex items-center justify-between px-6 py-4 border-b border-black/5 sticky top-0 bg-white/95 backdrop-blur-xl rounded-t-3xl sm:rounded-t-glass"
+          style={{ paddingTop: "calc(1rem + env(safe-area-inset-top, 0px))" }}
+        >
           <h3 className="font-bold text-brand-text">{title}</h3>
           <button
             onClick={onClose}
-            className="text-brand-textMuted hover:text-brand-text text-lg leading-none"
+            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-black/5 text-brand-textMuted hover:text-brand-text text-lg leading-none"
             aria-label="إغلاق"
           >
             ✕
           </button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="p-6" style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))" }}>
+          {children}
+        </div>
       </div>
     </div>,
     document.body
@@ -90,6 +95,13 @@ export function ConfirmDialog({
 }) {
   return (
     <Modal open={open} onClose={onClose} title={title} maxWidth="max-w-sm">
+      <div
+        className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 text-2xl ${
+          danger ? "bg-brand-error/10 text-brand-error" : "bg-brand-warning/15 text-brand-warning"
+        }`}
+      >
+        ⚠️
+      </div>
       <p className="text-brand-text mb-6">{message}</p>
       <div className="flex gap-3 justify-end">
         <button

@@ -4,116 +4,83 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog, Toast } from "@/components/ui/Modal";
 import {
   listenCollection,
   createDoc,
   deleteDocById,
-  orderBy,
 } from "@/lib/firestore-helpers";
-import { Group, Stage } from "@/lib/types";
+import { Group } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
 
 export default function GroupsPage() {
-  const [stages, setStages] = useState<(Stage & { id: string })[]>([]);
   const [groups, setGroups] = useState<(Group & { id: string })[]>([]);
   const [name, setName] = useState("");
-  const [newStageName, setNewStageName] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<(Group & { id: string }) | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
   const { user } = useAuth();
   const { stageId, stageName } = useWorkspace();
 
   useEffect(() => {
-    const u1 = listenCollection<Stage>("stages", [orderBy("order")], setStages);
-    const u2 = listenCollection<Group>("groups", [], setGroups);
-    return () => {
-      u1();
-      u2();
-    };
+    const u = listenCollection<Group>("groups", [], setGroups);
+    return () => u();
   }, []);
 
-  const addStage = async () => {
-    if (!newStageName.trim()) return;
-    await createDoc("stages", { name: newStageName, order: stages.length });
-    setNewStageName("");
+  const showToast = (m: string) => {
+    setToast(m);
+    setTimeout(() => setToast(null), 3000);
   };
 
   const addGroup = async () => {
     if (!name.trim() || !stageId) return;
     await createDoc("groups", {
-      name,
+      name: name.trim(),
       stageId,
       teacherIds: user ? [user.uid] : [],
       createdAt: Date.now(),
     });
     setName("");
+    showToast("تمت إضافة المجموعة ✅");
   };
 
   const groupsInWorkspace = groups.filter((g) => g.stageId === stageId);
 
   return (
     <AppShell requireRole="teacher">
-      <h1 className="text-2xl font-bold text-brand-text mb-6">
-        المراحل والمجموعات
-      </h1>
+      <h1 className="text-2xl font-bold text-brand-text mb-1">المجموعات والصفوف</h1>
+      <p className="text-brand-textMuted text-sm mb-6">
+        فرع "{stageName ?? "—"}" — كل مجموعة تُنشأ هنا خاصة بهذا الفرع فقط.
+      </p>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="max-w-xl">
         <GlassCard>
-          <h2 className="font-bold text-brand-text mb-4">كل الأقسام/المراحل</h2>
-          <p className="text-brand-textMuted text-xs mb-3">
-            هذه القائمة تشمل كل الأقسام بالمنصة (يمكنك تبديل القسم النشط من القائمة الجانبية).
-          </p>
-          <div className="flex gap-2 mb-4">
-            <input
-              value={newStageName}
-              onChange={(e) => setNewStageName(e.target.value)}
-              placeholder="مثال: بكالوريا أدبي"
-              className="flex-1 px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
-            />
-            <Button onClick={addStage}>إضافة</Button>
-          </div>
-          <ul className="flex flex-col gap-2">
-            {stages.map((s) => (
-              <li
-                key={s.id}
-                className={`px-3 py-2 rounded-xl text-sm flex items-center justify-between ${
-                  s.id === stageId ? "bg-brand-primary/15 text-brand-primary font-medium" : "bg-white/60 text-brand-text"
-                }`}
-              >
-                {s.name}
-                {s.id === stageId && <span className="text-xs">القسم النشط</span>}
-              </li>
-            ))}
-            {stages.length === 0 && (
-              <p className="text-brand-textMuted text-sm">لا توجد مراحل بعد.</p>
-            )}
-          </ul>
-        </GlassCard>
-
-        <GlassCard>
-          <h2 className="font-bold text-brand-text mb-1">
-            مجموعات "{stageName ?? "—"}"
-          </h2>
-          <p className="text-brand-textMuted text-xs mb-4">
-            كل مجموعة تُنشأ هنا تنتمي تلقائيًا للقسم النشط حاليًا.
-          </p>
-          <div className="flex flex-col gap-2 mb-4">
+          <div
+            className="flex gap-2 mb-4"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addGroup();
+              }
+            }}
+          >
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="اسم المجموعة (مثال: مجموعة A)"
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+              className="flex-1 px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
             />
-            <Button onClick={addGroup}>إضافة مجموعة</Button>
+            <Button onClick={addGroup}>+ إضافة</Button>
           </div>
           <ul className="flex flex-col gap-2">
             {groupsInWorkspace.map((g) => (
               <li
                 key={g.id}
-                className="flex items-center justify-between px-3 py-2 rounded-xl bg-white/60 text-sm"
+                className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/60 text-sm"
               >
-                <span className="text-brand-text">{g.name}</span>
+                <span className="text-brand-text font-medium">{g.name}</span>
                 <button
-                  onClick={() => deleteDocById("groups", g.id)}
+                  onClick={() => setDeleteTarget(g)}
                   className="text-brand-error text-xs"
                 >
                   حذف
@@ -121,13 +88,28 @@ export default function GroupsPage() {
               </li>
             ))}
             {groupsInWorkspace.length === 0 && (
-              <p className="text-brand-textMuted text-sm">
-                لا توجد مجموعات بهذا القسم بعد.
+              <p className="text-brand-textMuted text-sm text-center py-6">
+                لا توجد مجموعات بهذا الفرع بعد.
               </p>
             )}
           </ul>
         </GlassCard>
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          await deleteDocById("groups", deleteTarget.id);
+          showToast(`تم حذف مجموعة "${deleteTarget.name}"`);
+        }}
+        title="حذف المجموعة"
+        message={`هل أنت متأكد من حذف مجموعة "${deleteTarget?.name ?? ""}"؟ الطلاب المرتبطون فيها لن يُحذفوا، بس رح ينفصلوا عنها.`}
+        confirmLabel="حذف"
+      />
+
+      {toast && <Toast message={toast} />}
     </AppShell>
   );
 }
