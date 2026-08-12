@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
@@ -81,12 +79,12 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <div className="flex bg-black/5 rounded-2xl p-1 mb-6">
+        <div className="flex bg-surfaceBorder/40 rounded-2xl p-1 mb-6">
           <button
             type="button"
             onClick={() => setMode("teacher")}
             className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${
-              mode === "teacher" ? "bg-white shadow text-brand-primary" : "text-brand-textMuted"
+              mode === "teacher" ? "bg-surface shadow text-brand-primary" : "text-brand-textMuted"
             }`}
           >
             معلم / مدير
@@ -95,7 +93,7 @@ export default function LoginPage() {
             type="button"
             onClick={() => setMode("student")}
             className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${
-              mode === "student" ? "bg-white shadow text-brand-primary" : "text-brand-textMuted"
+              mode === "student" ? "bg-surface shadow text-brand-primary" : "text-brand-textMuted"
             }`}
           >
             طالب
@@ -117,7 +115,7 @@ export default function LoginPage() {
               required
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-brand-primary/25 bg-white/70 focus:bg-white outline-none"
+              className="w-full px-4 py-2.5 rounded-xl border border-brand-primary/25 bg-surface/70 focus:bg-surface outline-none"
               placeholder="0912345678"
             />
             {identifier.trim() && (
@@ -139,7 +137,7 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-brand-primary/25 bg-white/70 focus:bg-white outline-none pl-12"
+                className="w-full px-4 py-2.5 rounded-xl border border-brand-primary/25 bg-surface/70 focus:bg-surface outline-none pl-12"
               />
               <button
                 type="button"

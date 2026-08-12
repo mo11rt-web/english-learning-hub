@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -70,7 +68,7 @@ export default function GroupsPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="اسم المجموعة (مثال: مجموعة A)"
-              className="flex-1 px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+              className="flex-1 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
             />
             <Button onClick={addGroup}>+ إضافة</Button>
           </div>
@@ -78,7 +76,7 @@ export default function GroupsPage() {
             {groupsInWorkspace.map((g) => (
               <li
                 key={g.id}
-                className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/60 text-sm"
+                className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-surface/60 text-sm"
               >
                 <span className="text-brand-text font-medium">{g.name}</span>
                 <button

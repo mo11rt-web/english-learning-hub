@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -51,22 +49,22 @@ export default function StudentPastExamsPage() {
       <GlassCard className="mb-6">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
           <select value={filterSubject} onChange={(e) => setFilterSubject(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70 text-sm">
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm">
             <option value="">كل المواد</option>
             {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
           <select value={filterStage} onChange={(e) => setFilterStage(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70 text-sm">
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm">
             <option value="">كل المراحل</option>
             {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           <select value={filterYear} onChange={(e) => setFilterYear(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70 text-sm">
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm">
             <option value="">كل السنوات</option>
             {years.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
           <select value={filterRound} onChange={(e) => setFilterRound(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70 text-sm">
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm">
             <option value="">كل الدورات</option>
             {rounds.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
@@ -75,7 +73,7 @@ export default function StudentPastExamsPage() {
           placeholder="ابحث بنص السؤال..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70 text-sm"
+          className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm"
         />
       </GlassCard>
 

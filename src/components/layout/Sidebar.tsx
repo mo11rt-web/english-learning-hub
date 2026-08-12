@@ -6,6 +6,8 @@ import clsx from "clsx";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useMobileMenu } from "@/hooks/useMobileMenu";
+import { useTheme } from "@/hooks/useTheme";
+import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 
 const teacherLinks = [
   { href: "/dashboard", label: "الرئيسية", icon: "🏠" },
@@ -37,6 +39,7 @@ export function Sidebar() {
   const { profile, signOut } = useAuth();
   const { stageName } = useWorkspace();
   const { setOpen } = useMobileMenu();
+  const { theme, toggleTheme } = useTheme();
   const isStudent = profile?.role === "student";
   const links = isStudent ? studentLinks : teacherLinks;
 
@@ -86,6 +89,13 @@ export function Sidebar() {
         <span>🚪</span>
         <span>تسجيل الخروج</span>
       </button>
+      <div className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-white/85 mt-1">
+        <span className="flex items-center gap-2">
+          <span>{theme === "dark" ? "🌙" : "☀️"}</span>
+          <span>الوضع الداكن</span>
+        </span>
+        <ToggleSwitch checked={theme === "dark"} onChange={toggleTheme} />
+      </div>
     </aside>
   );
 }

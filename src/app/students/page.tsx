@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useState } from "react";
 import { initializeApp, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
@@ -11,6 +9,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { Modal, ConfirmDialog, Toast } from "@/components/ui/Modal";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
   listenCollection,
   updateDocById,
@@ -280,7 +279,7 @@ export default function StudentsPage() {
               placeholder="الاسم الكامل"
               value={form.fullName}
               onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
             />
             <input
               placeholder="رقم هاتف الطالب"
@@ -288,13 +287,13 @@ export default function StudentsPage() {
               type="tel"
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
             />
             <input
               placeholder="العنوان (اختياري)"
               value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
             />
             <div className="px-3 py-2 rounded-xl bg-brand-primary/10 text-brand-primary text-sm">
               القسم: {workspaceStageName ?? "—"}
@@ -302,7 +301,7 @@ export default function StudentsPage() {
             <select
               value={form.groupId}
               onChange={(e) => setForm({ ...form, groupId: e.target.value })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
             >
               <option value="">بدون مجموعة (اختياري)</option>
               {groups
@@ -320,7 +319,7 @@ export default function StudentsPage() {
                   dir="ltr"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className="flex-1 px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+                  className="flex-1 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
                 />
                 <button
                   type="button"
@@ -367,7 +366,7 @@ export default function StudentsPage() {
                 placeholder="بحث بالاسم أو الرقم..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="px-3 py-1.5 rounded-xl border border-brand-primary/25 bg-white/70 text-sm"
+                className="px-3 py-1.5 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm"
               />
             </div>
           </div>
@@ -397,17 +396,10 @@ export default function StudentsPage() {
                       {stages.find((st) => st.id === s.stageId)?.name ?? "—"}
                     </td>
                     <td className="py-2 px-2">
-                      <span
-                        className={
-                          s.status === "active"
-                            ? "text-brand-success"
-                            : s.status === "deleted"
-                            ? "text-brand-textMuted"
-                            : "text-brand-error"
-                        }
-                      >
-                        {s.status === "active" ? "نشط" : s.status === "deleted" ? "محذوف" : "معطّل"}
-                      </span>
+                      <StatusBadge
+                        label={s.status === "active" ? "نشط" : s.status === "deleted" ? "محذوف" : "معطّل"}
+                        tone={s.status === "active" ? "success" : s.status === "deleted" ? "muted" : "error"}
+                      />
                     </td>
                     <td className="py-2 px-2">
                       {s.status === "deleted" ? (
@@ -529,18 +521,18 @@ export default function StudentsPage() {
             placeholder="الاسم الكامل"
             value={editForm.fullName}
             onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
           />
           <input
             placeholder="العنوان"
             value={editForm.address}
             onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
           />
           <select
             value={editForm.stageId}
             onChange={(e) => setEditForm({ ...editForm, stageId: e.target.value })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
           >
             <option value="">اختر المرحلة</option>
             {stages.map((s) => (
@@ -550,7 +542,7 @@ export default function StudentsPage() {
           <select
             value={editForm.groupId}
             onChange={(e) => setEditForm({ ...editForm, groupId: e.target.value })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
           >
             <option value="">بدون مجموعة</option>
             {groups

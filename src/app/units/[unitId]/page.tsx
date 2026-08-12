@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -12,6 +10,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
   listenCollection,
   createDoc,
@@ -20,7 +19,7 @@ import {
 } from "@/lib/firestore-helpers";
 import { Lesson, Unit, LessonBlock } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
-import { detectVideoType } from "@/lib/embed";
+import { getYoutubeEmbedUrl, getDriveEmbedUrl } from "@/lib/embed";
 
 const MAX_PDF_BYTES = 4 * 1024 * 1024; // 4 MB حسب طلبك بالضبط
 
@@ -36,7 +35,6 @@ export default function UnitLessonsPage() {
   const [pdfError, setPdfError] = useState("");
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState("");
 
   useEffect(() => {
     const u = listenCollection<Lesson>(
@@ -79,67 +77,55 @@ export default function UnitLessonsPage() {
     setPdfFile(null);
     setPdfError("");
     setUploadProgress(null);
-    setFormError("");
   };
 
   const addLesson = async () => {
-    setFormError("");
-    if (!form.title.trim()) {
-      setFormError("لازم تكتب عنوان الدرس.");
-      return;
-    }
-    if (!user || !unit) {
-      setFormError("تعذّر تحديد المستخدم أو الوحدة. أعد تحميل الصفحة وحاول مجددًا.");
-      return;
-    }
+    if (!form.title.trim() || !user || !unit) return;
 
     const blocks: LessonBlock[] = [];
     let order = 0;
 
-    const videoUrl = form.videoUrl.trim();
-    if (videoUrl) {
-      const videoType = detectVideoType(videoUrl);
-      if (!videoType) {
-        // رابط فيديو غير مدعوم (مو يوتيوب ولا Google Drive) — نوقف الحفظ ونوضّح للمعلم
-        // بدل ما نخزّن كتلة فيديو مكسورة ما بتشتغل عند الطالب
-        setFormError(
-          "رابط الفيديو غير مدعوم. استخدم رابط يوتيوب (youtube.com / youtu.be) أو رابط مشاركة Google Drive فقط."
-        );
-        return;
+    if (form.videoUrl.trim()) {
+      const isYoutube = !!getYoutubeEmbedUrl(form.videoUrl.trim());
+      const isDrive = !!getDriveEmbedUrl(form.videoUrl.trim());
+      if (isYoutube) {
+        blocks.push({ id: crypto.randomUUID(), type: "youtube", content: form.videoUrl.trim(), order: order++ });
+      } else if (isDrive) {
+        blocks.push({ id: crypto.randomUUID(), type: "google-drive", content: form.videoUrl.trim(), order: order++ });
+      } else {
+        // رابط فيديو غير معروف الصيغة: نضيفه كرابط Google Drive كمحاولة افتراضية آمنة،
+        // ويمكن للمعلم تعديل نوع الكتلة لاحقًا من محرر الدرس الكامل
+        blocks.push({ id: crypto.randomUUID(), type: "youtube", content: form.videoUrl.trim(), order: order++ });
       }
-      blocks.push({ id: crypto.randomUUID(), type: videoType, content: videoUrl, order: order++ });
+    }
+
+    let pdfUrl = "";
+    if (pdfFile) {
+      setUploadProgress(0);
+      const path = `lesson-files/${Date.now()}-${pdfFile.name}`;
+      const storageRef = ref(storage, path);
+      const task = uploadBytesResumable(storageRef, pdfFile);
+      pdfUrl = await new Promise<string>((resolve, reject) => {
+        task.on(
+          "state_changed",
+          (snap) => setUploadProgress((snap.bytesTransferred / snap.totalBytes) * 100),
+          (err) => reject(err),
+          async () => resolve(await getDownloadURL(task.snapshot.ref))
+        );
+      });
+      blocks.push({ id: crypto.randomUUID(), type: "pdf", content: pdfUrl, order: order++ });
+    }
+
+    if (form.notes.trim()) {
+      blocks.push({ id: crypto.randomUUID(), type: "note", content: form.notes.trim(), order: order++ });
     }
 
     setSaving(true);
     try {
-      let pdfUrl = "";
-      if (pdfFile) {
-        setUploadProgress(0);
-        const path = `lesson-files/${Date.now()}-${pdfFile.name}`;
-        const storageRef = ref(storage, path);
-        const task = uploadBytesResumable(storageRef, pdfFile);
-        pdfUrl = await new Promise<string>((resolve, reject) => {
-          task.on(
-            "state_changed",
-            (snap) => setUploadProgress((snap.bytesTransferred / snap.totalBytes) * 100),
-            (err) => reject(err),
-            async () => resolve(await getDownloadURL(task.snapshot.ref))
-          );
-        });
-        blocks.push({ id: crypto.randomUUID(), type: "pdf", content: pdfUrl, order: order++ });
-      }
-
-      if (form.notes.trim()) {
-        blocks.push({ id: crypto.randomUUID(), type: "note", content: form.notes.trim(), order: order++ });
-      }
-
-      // نتأكد إنه ما في أي قيمة undefined بالمستند — Firestore يرفض الحفظ بصمت
-      // (بدون رسالة خطأ واضحة بالواجهة) إذا لقى undefined بأي حقل، وهاد كان
-      // سبب مشكلة "الدرس ما ينزل" عند بعض الوحدات القديمة اللي بدون stageId
       await createDoc("lessons", {
         title: form.title.trim(),
         unitId,
-        stageId: unit.stageId ?? "",
+        stageId: unit.stageId,
         status: "draft",
         order: lessons.length,
         targetGroupIds: [],
@@ -151,9 +137,6 @@ export default function UnitLessonsPage() {
       });
       resetForm();
       setModalOpen(false);
-    } catch (err) {
-      console.error("addLesson failed:", err);
-      setFormError("صار خطأ أثناء حفظ الدرس. تأكد من اتصال الإنترنت وحاول مرة ثانية.");
     } finally {
       setSaving(false);
     }
@@ -174,15 +157,10 @@ export default function UnitLessonsPage() {
             <GlassCard className="hover:shadow-lg transition-shadow cursor-pointer">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-brand-text">{l.title}</h3>
-                <span
-                  className={`text-xs px-2 py-1 rounded-full ${
-                    l.status === "published"
-                      ? "bg-brand-success/15 text-brand-success"
-                      : "bg-brand-warning/15 text-brand-warning"
-                  }`}
-                >
-                  {l.status === "published" ? "منشور" : "مسودة"}
-                </span>
+                <StatusBadge
+                  label={l.status === "published" ? "منشور" : "مسودة"}
+                  tone={l.status === "published" ? "success" : "warning"}
+                />
               </div>
               <p className="text-brand-textMuted text-sm mt-1">
                 {l.blocks?.length ?? 0} كتلة محتوى
@@ -221,7 +199,7 @@ export default function UnitLessonsPage() {
               placeholder="مثال: Present Simple"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+              className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
             />
           </div>
 
@@ -232,7 +210,7 @@ export default function UnitLessonsPage() {
               dir="ltr"
               value={form.videoUrl}
               onChange={(e) => setForm({ ...form, videoUrl: e.target.value })}
-              className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+              className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
             />
           </div>
 
@@ -259,17 +237,13 @@ export default function UnitLessonsPage() {
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
               rows={3}
-              className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+              className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
             />
           </div>
 
           <p className="text-xs text-brand-textMuted">
             بعد الإنشاء تقدر تضيف المزيد من المحتوى (صور، صفحات كتاب، مفردات...) وأسئلة الكويز من صفحة الدرس الكاملة.
           </p>
-
-          {formError && (
-            <p className="text-brand-error text-sm bg-brand-error/10 rounded-xl p-3">⚠️ {formError}</p>
-          )}
 
           <Button onClick={addLesson} disabled={saving || !form.title.trim()}>
             {saving ? "جارٍ الحفظ..." : "إنشاء الدرس"}

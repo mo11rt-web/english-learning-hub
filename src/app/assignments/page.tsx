@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/AppShell";
@@ -112,10 +110,10 @@ export default function AssignmentsPage() {
           <div className="flex flex-col gap-3">
             <textarea placeholder="نص السؤال" value={qForm.text}
               onChange={(e) => setQForm({ ...qForm, text: e.target.value })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70" rows={2} />
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" rows={2} />
             <select value={qForm.type}
               onChange={(e) => setQForm({ ...qForm, type: e.target.value as QuestionType })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70">
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70">
               {(Object.keys(qTypeLabels) as QuestionType[]).map((t) => (
                 <option key={t} value={t}>{qTypeLabels[t]}</option>
               ))}
@@ -123,23 +121,23 @@ export default function AssignmentsPage() {
             {qForm.type === "mcq" && (
               <input placeholder="الخيارات مفصولة بفاصلة عربية (،)" value={qForm.options}
                 onChange={(e) => setQForm({ ...qForm, options: e.target.value })}
-                className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70" />
+                className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
             )}
             {qForm.type === "true-false" ? (
               <select value={qForm.correctAnswer || "true"}
                 onChange={(e) => setQForm({ ...qForm, correctAnswer: e.target.value })}
-                className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70">
+                className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70">
                 <option value="true">صح</option>
                 <option value="false">خطأ</option>
               </select>
             ) : (
               <input placeholder="الإجابة الصحيحة" value={qForm.correctAnswer}
                 onChange={(e) => setQForm({ ...qForm, correctAnswer: e.target.value })}
-                className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70" />
+                className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
             )}
             <input type="number" min={1} placeholder="الدرجة" value={qForm.points}
               onChange={(e) => setQForm({ ...qForm, points: Number(e.target.value) })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70" />
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
             <Button onClick={addQuestion}>إضافة السؤال للبنك</Button>
           </div>
         </GlassCard>
@@ -149,10 +147,10 @@ export default function AssignmentsPage() {
           <div className="flex flex-col gap-3 mb-3">
             <input placeholder="عنوان الواجب" value={aForm.title}
               onChange={(e) => setAForm({ ...aForm, title: e.target.value })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70" />
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
             <select value={aForm.type}
               onChange={(e) => setAForm({ ...aForm, type: e.target.value as any })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70">
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70">
               <option value="practice">تمرين غير محسوب</option>
               <option value="homework">واجب منزلي</option>
               <option value="quiz">اختبار قصير</option>
@@ -160,7 +158,7 @@ export default function AssignmentsPage() {
             </select>
             <select value={aForm.targetGroupId}
               onChange={(e) => setAForm({ ...aForm, targetGroupId: e.target.value })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70">
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70">
               <option value="">كل مجموعات "{workspaceStageName}"</option>
               {groupsInWorkspace.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
@@ -168,7 +166,7 @@ export default function AssignmentsPage() {
           <p className="text-sm text-brand-textMuted mb-2">اختر الأسئلة ({aForm.selectedQ.size}):</p>
           <div className="max-h-48 overflow-y-auto flex flex-col gap-1 mb-3">
             {questionsInWorkspace.map((q) => (
-              <label key={q.id} className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg bg-white/50">
+              <label key={q.id} className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg bg-surface/50">
                 <input type="checkbox" checked={aForm.selectedQ.has(q.id)} onChange={() => toggleQ(q.id)} />
                 <span className="text-brand-text truncate">{q.text}</span>
               </label>

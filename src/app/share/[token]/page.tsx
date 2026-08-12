@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { doc, onSnapshot } from "firebase/firestore";
@@ -86,7 +84,7 @@ export default function ShareResultsPage() {
                   {data.quizResults.map((r, i) => (
                     <div
                       key={i}
-                      className="flex items-center justify-between bg-white/60 rounded-xl px-3 py-2 text-sm"
+                      className="flex items-center justify-between bg-surface/60 rounded-xl px-3 py-2 text-sm"
                     >
                       <span className="text-brand-text">{r.title}</span>
                       <span className="text-brand-primary font-medium">

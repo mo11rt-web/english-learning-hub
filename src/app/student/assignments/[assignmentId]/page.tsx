@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { doc, onSnapshot } from "firebase/firestore";
@@ -185,7 +183,7 @@ export default function TakeAssignmentPage() {
               <textarea
                 value={answers[q.id] ?? ""}
                 onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
-                className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+                className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
                 rows={q.type === "essay" ? 4 : 2}
               />
             )}

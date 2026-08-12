@@ -7,30 +7,33 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          sidebar: "#07596B",
+          sidebar: "rgb(var(--brand-sidebar) / <alpha-value>)",
           primary: "rgb(var(--brand-primary) / <alpha-value>)",
           secondary: "rgb(var(--brand-secondary) / <alpha-value>)",
           success: "rgb(var(--brand-success) / <alpha-value>)",
           warning: "rgb(var(--brand-warning) / <alpha-value>)",
           error: "rgb(var(--brand-error) / <alpha-value>)",
           text: "rgb(var(--brand-text) / <alpha-value>)",
-          textMuted: "rgb(var(--brand-text-muted) / <alpha-value>)",
-          surface: "rgb(var(--brand-surface) / <alpha-value>)",
+          textMuted: "rgb(var(--brand-textMuted) / <alpha-value>)",
+          gold: "rgb(var(--brand-gold) / <alpha-value>)",
+          goldLight: "rgb(var(--brand-goldLight) / <alpha-value>)",
         },
+        surface: "rgb(var(--surface) / <alpha-value>)",
+        surfaceBorder: "rgb(var(--surface-border) / <alpha-value>)",
       },
       fontFamily: {
         arabic: ["var(--font-arabic)", "sans-serif"],
         english: ["var(--font-english)", "sans-serif"],
       },
       backgroundImage: {
-        "app-gradient":
-          "linear-gradient(135deg, var(--app-gradient-1), var(--app-gradient-2), var(--app-gradient-3))",
+        "gold-gradient":
+          "linear-gradient(135deg, rgb(var(--brand-gold)), rgb(var(--brand-goldLight)))",
       },
       borderRadius: {
         glass: "24px",
       },
       boxShadow: {
-        glass: "0 16px 45px rgba(20, 80, 105, 0.12)",
+        glass: "0 16px 45px rgba(15, 145, 158, 0.14)",
       },
     },
   },

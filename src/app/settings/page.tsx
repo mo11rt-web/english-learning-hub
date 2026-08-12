@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -34,7 +32,7 @@ export default function SettingsPage() {
         type="number"
         value={settings[key]}
         onChange={(e) => setSettings({ ...settings, [key]: Number(e.target.value) })}
-        className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+        className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
       />
       {hint && <p className="text-xs text-brand-textMuted mt-1">{hint}</p>}
     </div>
@@ -84,7 +82,7 @@ export default function SettingsPage() {
           {LEVELS.map((lvl) => (
             <div
               key={lvl.name}
-              className="flex items-center justify-between px-3 py-2 rounded-xl bg-white/60 text-sm"
+              className="flex items-center justify-between px-3 py-2 rounded-xl bg-surface/60 text-sm"
             >
               <span className="text-brand-text font-medium">{lvl.name}</span>
               <span className="text-brand-textMuted" dir="ltr">

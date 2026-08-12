@@ -8,7 +8,6 @@ import { Sidebar } from "./Sidebar";
 import { MobileSidebar } from "./MobileSidebar";
 import { BottomNav } from "./BottomNav";
 import { NotificationBell } from "@/components/NotificationBell";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { MobileMenuProvider } from "@/hooks/useMobileMenu";
 
 export function AppShell({
@@ -86,8 +85,7 @@ export function AppShell({
           <Sidebar />
         </div>
         <MobileSidebar />
-        <div className="fixed top-4 left-4 z-40 flex items-center gap-2">
-          <ThemeToggle />
+        <div className="fixed top-4 left-4 z-40">
           <NotificationBell />
         </div>
         <main className="flex-1 p-4 md:p-8 pb-24 md:pb-8 max-w-full overflow-x-hidden">
