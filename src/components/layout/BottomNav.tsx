@@ -28,7 +28,7 @@ export function BottomNav() {
   const tabs = isStudent ? studentTabs : teacherTabs;
 
   return (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-surface/95 backdrop-blur-xl border-t border-surfaceBorder flex items-stretch pb-[env(safe-area-inset-bottom)]">
+    <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-[#0c1f23]/97 backdrop-blur-xl border-t border-black/5 dark:border-white/10 flex items-stretch pb-[env(safe-area-inset-bottom)]">
       {tabs.map((t) => (
         <Link
           key={t.href}

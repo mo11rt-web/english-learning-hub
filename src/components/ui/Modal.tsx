@@ -52,16 +52,16 @@ export function Modal({
       <div
         ref={contentRef}
         onClick={(e) => e.stopPropagation()}
-        className={`w-full ${maxWidth} bg-surface/95 backdrop-blur-xl rounded-t-3xl sm:rounded-glass shadow-glass border border-surfaceBorder max-h-[92dvh] sm:max-h-[90vh] overflow-y-auto animate-sheet-in`}
+        className={`w-full ${maxWidth} bg-white/95 dark:bg-[#0c1f23]/97 backdrop-blur-xl rounded-t-3xl sm:rounded-glass shadow-glass border border-white/70 dark:border-white/10 max-h-[92dvh] sm:max-h-[90vh] overflow-y-auto animate-sheet-in`}
       >
         <div
-          className="flex items-center justify-between px-6 py-4 border-b border-surfaceBorder sticky top-0 bg-surface/95 backdrop-blur-xl rounded-t-3xl sm:rounded-t-glass"
+          className="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10 sticky top-0 bg-white/95 dark:bg-[#0c1f23]/97 backdrop-blur-xl rounded-t-3xl sm:rounded-t-glass"
           style={{ paddingTop: "calc(1rem + env(safe-area-inset-top, 0px))" }}
         >
           <h3 className="font-bold text-brand-text">{title}</h3>
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-surfaceBorder/40 text-brand-textMuted hover:text-brand-text text-lg leading-none"
+            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 text-brand-textMuted hover:text-brand-text text-lg leading-none"
             aria-label="إغلاق"
           >
             ✕
@@ -106,7 +106,7 @@ export function ConfirmDialog({
       <div className="flex gap-3 justify-end">
         <button
           onClick={onClose}
-          className="px-4 py-2 rounded-xl text-sm text-brand-text border border-brand-primary/25 hover:bg-surfaceBorder/40"
+          className="px-4 py-2 rounded-xl text-sm text-brand-text border border-brand-primary/25 hover:bg-black/5"
         >
           إلغاء
         </button>

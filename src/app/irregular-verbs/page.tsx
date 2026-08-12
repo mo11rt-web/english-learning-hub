@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/Modal";
 import { SpeakButton } from "@/components/SpeakButton";
 import {
   listenCollection,
@@ -15,6 +16,7 @@ import {
 import { IrregularVerb } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { IRREGULAR_VERBS_SEED } from "@/lib/irregularVerbsData";
 
 const emptyForm = {
   base: "",
@@ -31,6 +33,9 @@ export default function IrregularVerbsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const { user } = useAuth();
   const { stageId: workspaceStageId, stageName: workspaceStageName } = useWorkspace();
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState("");
+  const [confirmImport, setConfirmImport] = useState(false);
 
   useEffect(() => {
     const u = listenCollection<IrregularVerb>(
@@ -101,12 +106,68 @@ export default function IrregularVerbsPage() {
     easy: "سهل", medium: "متوسط", hard: "صعب",
   };
 
+  // يستورد القائمة الكاملة (٨٠+ فعل شاذ شائع) دفعة وحدة، ويتجاوز أي فعل
+  // موجود مسبقًا بنفس القسم (بالاعتماد على اسم الفعل الأساسي) حتى ما يتكرر
+  const importFullList = async () => {
+    if (!user || !workspaceStageId) return;
+    setImporting(true);
+    setImportMsg("");
+    try {
+      const existingBases = new Set(verbsInWorkspace.map((v) => v.base.trim().toLowerCase()));
+      const toAdd = IRREGULAR_VERBS_SEED.filter((v) => !existingBases.has(v.base.toLowerCase()));
+      for (const v of toAdd) {
+        await createDoc("irregular_verbs", {
+          base: v.base,
+          pastSimple: v.pastSimple,
+          pastParticiple: v.pastParticiple,
+          meaningAr: v.meaningAr,
+          example: "",
+          level: v.level,
+          stageId: workspaceStageId,
+          active: true,
+          createdBy: user.uid,
+          createdAt: Date.now(),
+        });
+      }
+      setImportMsg(
+        toAdd.length > 0
+          ? `✅ تمت إضافة ${toAdd.length} فعل جديد.`
+          : "كل الأفعال بالقائمة موجودة أصلًا بهذا القسم."
+      );
+    } catch (err) {
+      console.error("importFullList failed:", err);
+      setImportMsg("⚠️ صار خطأ أثناء الاستيراد، حاول مرة ثانية.");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <AppShell requireRole="teacher">
-      <h1 className="text-2xl font-bold text-brand-text mb-1">الأفعال الشاذة</h1>
-      <p className="text-brand-textMuted text-sm mb-6">القسم الحالي: {workspaceStageName ?? "—"}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-1">
+        <div>
+          <h1 className="text-2xl font-bold text-brand-text mb-1">الأفعال الشاذة</h1>
+          <p className="text-brand-textMuted text-sm">القسم الحالي: {workspaceStageName ?? "—"}</p>
+        </div>
+        <Button variant="secondary" onClick={() => setConfirmImport(true)} disabled={importing || !workspaceStageId}>
+          {importing ? "جارٍ الاستيراد..." : `📥 استيراد القائمة الكاملة (${IRREGULAR_VERBS_SEED.length} فعل)`}
+        </Button>
+      </div>
+      {importMsg && <p className="text-sm text-brand-textMuted mb-4">{importMsg}</p>}
 
-      <GlassCard className="mb-6">
+      <ConfirmDialog
+        open={confirmImport}
+        onClose={() => setConfirmImport(false)}
+        onConfirm={() => {
+          setConfirmImport(false);
+          importFullList();
+        }}
+        title="استيراد القائمة الكاملة"
+        message={`رح تنضاف ${IRREGULAR_VERBS_SEED.length} فعل شاذ لقسم "${workspaceStageName ?? "الحالي"}" (الأفعال الموجودة مسبقًا ما بتتكرر). تقدر تحذف أي فعل لحاله بعدين لو حبيت. بدك تكمل؟`}
+        confirmLabel="نعم، استورد"
+      />
+
+      <GlassCard className="mb-6 mt-6">
         <h2 className="font-bold text-brand-text mb-4">
           {editingId ? "تعديل فعل" : "إضافة فعل جديد"}
         </h2>
@@ -116,39 +177,39 @@ export default function IrregularVerbsPage() {
             dir="ltr"
             value={form.base}
             onChange={(e) => setForm({ ...form, base: e.target.value })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
           />
           <input
             placeholder="Past Simple (went)"
             dir="ltr"
             value={form.pastSimple}
             onChange={(e) => setForm({ ...form, pastSimple: e.target.value })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
           />
           <input
             placeholder="Past Participle (gone)"
             dir="ltr"
             value={form.pastParticiple}
             onChange={(e) => setForm({ ...form, pastParticiple: e.target.value })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
           />
           <input
             placeholder="المعنى بالعربي (يذهب)"
             value={form.meaningAr}
             onChange={(e) => setForm({ ...form, meaningAr: e.target.value })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
           />
           <input
             placeholder="مثال (اختياري)"
             dir="ltr"
             value={form.example}
             onChange={(e) => setForm({ ...form, example: e.target.value })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
           />
           <select
             value={form.level}
             onChange={(e) => setForm({ ...form, level: e.target.value as IrregularVerb["level"] })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
           >
             <option value="easy">سهل</option>
             <option value="medium">متوسط</option>

@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/Button";
 import { listenCollection, createDoc, orderBy } from "@/lib/firestore-helpers";
 import { Unit } from "@/lib/types";
 import { useWorkspace } from "@/hooks/useWorkspace";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 
 export default function UnitsPage() {
   const [units, setUnits] = useState<(Unit & { id: string })[]>([]);
@@ -48,7 +47,7 @@ export default function UnitsPage() {
             placeholder="اسم الوحدة (Unit 1)"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="flex-1 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
+            className="flex-1 px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
           />
           <Button onClick={addUnit}>إضافة</Button>
         </div>
@@ -60,10 +59,15 @@ export default function UnitsPage() {
             <GlassCard className="hover:shadow-lg transition-shadow cursor-pointer h-full">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-bold text-brand-text">{u.title}</h3>
-                <StatusBadge
-                  label={u.status === "published" ? "منشورة" : "مسودة"}
-                  tone={u.status === "published" ? "success" : "warning"}
-                />
+                <span
+                  className={`text-xs px-2 py-1 rounded-full ${
+                    u.status === "published"
+                      ? "bg-brand-success/15 text-brand-success"
+                      : "bg-brand-warning/15 text-brand-warning"
+                  }`}
+                >
+                  {u.status === "published" ? "منشورة" : "مسودة"}
+                </span>
               </div>
             </GlassCard>
           </Link>

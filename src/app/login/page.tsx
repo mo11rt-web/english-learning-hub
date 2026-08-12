@@ -7,10 +7,34 @@ import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
+import { InstallAppButton } from "@/components/InstallAppButton";
 import { phoneToEmail } from "@/lib/phone";
 
+// نجرب الدخول بحساب "معلم/مدير" أول، وإذا ما كان موجود نجرب "طالب" —
+// هيك المستخدم بس بكتب رقم هاتفه وكلمة السر، والنظام هو يلي يتعرف على
+// نوع حسابه من البيانات، بدون ما يضطر يختار "معلم" أو "طالب" يدويًا
+async function trySignIn(identifier: string, password: string) {
+  const roles: Array<"teacher" | "student"> = ["teacher", "student"];
+  let lastError: any = null;
+  for (const role of roles) {
+    try {
+      const email = phoneToEmail(identifier, role);
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      return cred;
+    } catch (err: any) {
+      lastError = err;
+      // نكمل نجرب الدور التاني بس إذا الخطأ كان "هالحساب مش موجود" —
+      // أي خطأ ثاني (متل كلمة سر غلط أو محاولات كثيرة) نوقف عنده فورًا
+      const code = err?.code ?? "";
+      if (code !== "auth/user-not-found" && code !== "auth/invalid-email" && code !== "auth/invalid-credential") {
+        throw err;
+      }
+    }
+  }
+  throw lastError;
+}
+
 export default function LoginPage() {
-  const [mode, setMode] = useState<"teacher" | "student">("teacher");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -23,8 +47,7 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const email = phoneToEmail(identifier, mode);
-      const cred = await signInWithEmailAndPassword(auth, email, password);
+      const cred = await trySignIn(identifier, password);
       const snap = await getDoc(doc(db, "profiles", cred.user.uid));
       if (!snap.exists()) {
         await auth.signOut();
@@ -49,11 +72,9 @@ export default function LoginPage() {
       router.replace(role === "student" ? "/student/home" : "/dashboard");
     } catch (err: any) {
       const code = err?.code ?? "unknown";
-      if (code === "auth/user-not-found" || code === "auth/invalid-email") {
-        setError(
-          `لا يوجد حساب بهذا الرقم في وضع "${mode === "teacher" ? "معلم/مدير" : "طالب"}". تأكد من رقم الهاتف أو من أنك اخترت النوع الصحيح فوق. (${code})`
-        );
-      } else if (code === "auth/wrong-password" || code === "auth/invalid-credential") {
+      if (code === "auth/user-not-found" || code === "auth/invalid-email" || code === "auth/invalid-credential") {
+        setError(`لا يوجد حساب بهذا الرقم على المنصة. تأكد من كتابة الرقم بشكل صحيح. (${code})`);
+      } else if (code === "auth/wrong-password") {
         setError(`كلمة المرور غير صحيحة. تأكد من كتابتها بالضبط. (${code})`);
       } else if (code === "auth/too-many-requests") {
         setError(`محاولات كثيرة خاطئة متتالية. انتظر دقيقة وحاول مجددًا. (${code})`);
@@ -67,7 +88,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4" dir="rtl">
       <GlassCard className="w-full max-w-md">
-        <div className="text-center mb-6">
+        <div className="text-center mb-4">
           <h1 className="text-2xl font-bold text-brand-text tracking-tight" dir="ltr">
             Learn <span className="text-brand-primary">English</span>
           </h1>
@@ -79,25 +100,8 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <div className="flex bg-surfaceBorder/40 rounded-2xl p-1 mb-6">
-          <button
-            type="button"
-            onClick={() => setMode("teacher")}
-            className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${
-              mode === "teacher" ? "bg-surface shadow text-brand-primary" : "text-brand-textMuted"
-            }`}
-          >
-            معلم / مدير
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("student")}
-            className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${
-              mode === "student" ? "bg-surface shadow text-brand-primary" : "text-brand-textMuted"
-            }`}
-          >
-            طالب
-          </button>
+        <div className="mb-6">
+          <InstallAppButton />
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -115,14 +119,9 @@ export default function LoginPage() {
               required
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-brand-primary/25 bg-surface/70 focus:bg-surface outline-none"
+              className="w-full px-4 py-2.5 rounded-xl border border-brand-primary/25 bg-white/70 focus:bg-white outline-none"
               placeholder="0912345678"
             />
-            {identifier.trim() && (
-              <p dir="ltr" className="text-brand-textMuted text-xs mt-1">
-                {phoneToEmail(identifier, mode)}
-              </p>
-            )}
           </div>
           <div>
             <label className="text-sm text-brand-text block mb-1.5">
@@ -137,7 +136,7 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-brand-primary/25 bg-surface/70 focus:bg-surface outline-none pl-12"
+                className="w-full px-4 py-2.5 rounded-xl border border-brand-primary/25 bg-white/70 focus:bg-white outline-none pl-12"
               />
               <button
                 type="button"

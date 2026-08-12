@@ -72,7 +72,7 @@ export function NotificationBell() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="relative w-10 h-10 rounded-full bg-surface/70 hover:bg-surface flex items-center justify-center shadow-sm"
+        className="relative w-10 h-10 rounded-full bg-white/70 dark:bg-brand-surface/80 hover:bg-white dark:hover:bg-brand-surface flex items-center justify-center shadow-sm"
         aria-label="الإشعارات"
       >
         <span className="text-lg">🔔</span>
@@ -84,8 +84,8 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute left-0 mt-2 w-80 max-h-96 overflow-y-auto bg-surface/95 backdrop-blur-xl rounded-2xl shadow-glass border border-surfaceBorder z-50">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-surfaceBorder">
+        <div className="absolute left-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white/95 dark:bg-[#0c1f23]/97 backdrop-blur-xl rounded-2xl shadow-glass border border-white/70 dark:border-white/10 z-50">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-black/5 dark:border-white/10">
             <h3 className="font-bold text-brand-text text-sm">الإشعارات</h3>
             {items.length > 0 && (
               <button onClick={dismissAll} className="text-xs text-brand-textMuted">
@@ -101,7 +101,7 @@ export function NotificationBell() {
                 <button
                   key={n.id}
                   onClick={() => handleClick(n)}
-                  className="flex items-start gap-3 px-4 py-3 hover:bg-surfaceBorder/40 text-right border-b border-surfaceBorder last:border-0"
+                  className="flex items-start gap-3 px-4 py-3 hover:bg-black/5 dark:hover:bg-white/5 text-right border-b border-black/5 dark:border-white/10 last:border-0"
                 >
                   <span className="text-lg shrink-0">{TYPE_ICON[n.type] ?? "🔔"}</span>
                   <span className="flex-1 min-w-0">

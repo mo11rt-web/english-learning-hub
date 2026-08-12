@@ -3,7 +3,8 @@ import { Cairo, Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/hooks/useAuth";
 import { WorkspaceProvider } from "@/hooks/useWorkspace";
-import { ThemeProvider } from "@/hooks/useTheme";
+import { ThemeProvider } from "@/context/ThemeContext";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 
 const cairo = Cairo({
   subsets: ["arabic", "latin"],
@@ -39,7 +40,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#093A42",
+  themeColor: "#07596B",
 };
 
 export default function RootLayout({
@@ -48,18 +49,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ar" dir="rtl" className={`${cairo.variable} ${inter.variable}`}>
+    <html lang="ar" dir="rtl" className={`${cairo.variable} ${inter.variable}`} suppressHydrationWarning>
       <head>
-        {/* تطبيق الوضع الداكن/الفاتح فورًا قبل أول رسم للصفحة، لتفادي "ومضة"
-            الوضع الخاطئ قبل ما يتحمّل React */}
+        {/* يطبّق تفضيل الوضع الليلي المحفوظ فورًا قبل أي رسم للصفحة —
+            يمنع "ومضة" الوضع النهاري لثانية عند الطلاب اللي مفعّلين الوضع الليلي */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('elh_theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark');}}catch(e){}`,
+            __html: `try{if(localStorage.getItem('english_hub_theme')==='dark'){document.documentElement.classList.add('dark')}}catch(e){}`,
           }}
         />
       </head>
-      <body className="font-arabic bg-app-gradient bg-geo-pattern min-h-screen">
+      <body className="font-arabic bg-app-gradient min-h-screen">
         <ThemeProvider>
+          <ServiceWorkerRegister />
           <AuthProvider>
             <WorkspaceProvider>{children}</WorkspaceProvider>
           </AuthProvider>

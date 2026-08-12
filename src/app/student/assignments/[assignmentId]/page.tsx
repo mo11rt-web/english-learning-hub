@@ -145,11 +145,11 @@ export default function TakeAssignmentPage() {
       <div className="flex flex-col gap-4">
         {assignmentQuestions.map((q, idx) => (
           <GlassCard key={q.id}>
-            <p className="font-medium text-brand-text mb-3">
+            <p dir="ltr" className="font-medium text-brand-text mb-3">
               {idx + 1}. {q.text}
             </p>
             {q.type === "mcq" && q.options ? (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2" dir="ltr">
                 {q.options.map((opt) => (
                   <label key={opt} className="flex items-center gap-2 text-sm text-brand-text">
                     <input
@@ -183,7 +183,8 @@ export default function TakeAssignmentPage() {
               <textarea
                 value={answers[q.id] ?? ""}
                 onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
-                className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
+                dir="ltr"
+                className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
                 rows={q.type === "essay" ? 4 : 2}
               />
             )}

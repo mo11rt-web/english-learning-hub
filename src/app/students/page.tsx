@@ -9,7 +9,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { Modal, ConfirmDialog, Toast } from "@/components/ui/Modal";
-import { StatusBadge } from "@/components/ui/StatusBadge";
+import { ActionMenu } from "@/components/ui/ActionMenu";
 import {
   listenCollection,
   updateDocById,
@@ -19,6 +19,7 @@ import { StudentProfile, Stage, Group } from "@/lib/types";
 import { phoneToEmail, normalizePhone } from "@/lib/phone";
 import { computeLevel } from "@/lib/gamification";
 import { publishResultsShare, setShareEnabled } from "@/lib/shareResults";
+import { adminResetStudentPassword, syncStudentLoginEmail } from "@/lib/adminActions";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
 
@@ -35,41 +36,46 @@ function randomPassword() {
   return Math.random().toString(36).slice(-8);
 }
 
-const PLATFORM_URL =
-  typeof window !== "undefined" ? window.location.origin : "";
+const PLATFORM_URL = typeof window !== "undefined" ? window.location.origin : "";
+
+const AVATAR_COLORS = [
+  "bg-brand-primary", "bg-brand-secondary", "bg-brand-success", "bg-brand-warning", "bg-brand-error",
+];
+function avatarColor(seed: string) {
+  const i = seed.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_COLORS.length;
+  return AVATAR_COLORS[i];
+}
+
+type StatusFilter = "active" | "disabled" | "deleted" | "all";
 
 export default function StudentsPage() {
   const [students, setStudents] = useState<(StudentProfile & { id: string })[]>([]);
   const [stages, setStages] = useState<(Stage & { id: string })[]>([]);
   const [groups, setGroups] = useState<(Group & { id: string })[]>([]);
   const [form, setForm] = useState({
-    fullName: "",
-    phone: "",
-    address: "",
-    stageId: "",
-    groupId: "",
-    password: randomPassword(),
+    fullName: "", phone: "", address: "", stageId: "", groupId: "", password: randomPassword(),
   });
   const [showPassword, setShowPassword] = useState(false);
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState("");
-  const [showDeleted, setShowDeleted] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
+  const [groupFilter, setGroupFilter] = useState("");
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [shareToken, setShareToken] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
-  const [credentialsModal, setCredentialsModal] = useState<{
-    fullName: string;
-    phone: string;
-    password: string;
-  } | null>(null);
+  const [credentialsModal, setCredentialsModal] = useState<{ fullName: string; phone: string; password: string } | null>(null);
 
-  const [editing, setEditing] = useState<(StudentProfile & { id: string }) | null>(null);
-  const [editForm, setEditForm] = useState({ fullName: "", address: "", stageId: "", groupId: "" });
+  const [profileTarget, setProfileTarget] = useState<(StudentProfile & { id: string }) | null>(null);
+  const [profileForm, setProfileForm] = useState({ fullName: "", phone: "", address: "", stageId: "", groupId: "" });
+  const [savingProfile, setSavingProfile] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<(StudentProfile & { id: string }) | null>(null);
-  const [passwordInfoTarget, setPasswordInfoTarget] = useState<(StudentProfile & { id: string }) | null>(null);
+
+  const [passwordTarget, setPasswordTarget] = useState<(StudentProfile & { id: string }) | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   const { user } = useAuth();
   const { stageId: workspaceStageId, stageName: workspaceStageName } = useWorkspace();
@@ -80,18 +86,12 @@ export default function StudentsPage() {
   };
 
   useEffect(() => {
-    const u1 = listenCollection<StudentProfile>(
-      "profiles",
-      [],
-      (all) => setStudents(all.filter((p) => p.role === "student") as any)
+    const u1 = listenCollection<StudentProfile>("profiles", [], (all) =>
+      setStudents(all.filter((p) => p.role === "student") as any)
     );
     const u2 = listenCollection<Stage>("stages", [orderBy("order")], setStages);
     const u3 = listenCollection<Group>("groups", [], setGroups);
-    return () => {
-      u1();
-      u2();
-      u3();
-    };
+    return () => { u1(); u2(); u3(); };
   }, []);
 
   const handleCreate = async () => {
@@ -132,10 +132,9 @@ export default function StudentsPage() {
       setForm({ fullName: "", phone: "", address: "", stageId: "", groupId: "", password: randomPassword() });
       showToast("تم إنشاء حساب الطالب بنجاح ✅");
     } catch (e: any) {
-      const msg =
-        e.code === "auth/email-already-in-use"
-          ? "رقم الهاتف هذا مستخدم بالفعل لحساب طالب آخر"
-          : e.message ?? "خطأ غير معروف";
+      const msg = e.code === "auth/email-already-in-use"
+        ? "رقم الهاتف هذا مستخدم بالفعل لحساب طالب آخر"
+        : e.message ?? "خطأ غير معروف";
       showToast("تعذر إنشاء الحساب: " + msg, "error");
     } finally {
       await secondaryAuth.signOut();
@@ -144,30 +143,50 @@ export default function StudentsPage() {
     }
   };
 
-  const openEdit = (s: StudentProfile & { id: string }) => {
-    setEditing(s);
-    setEditForm({
+  const openProfile = (s: StudentProfile & { id: string }) => {
+    setProfileTarget(s);
+    setProfileForm({
       fullName: s.fullName,
+      phone: s.phone ?? s.username ?? "",
       address: s.address ?? "",
       stageId: s.stageId ?? "",
       groupId: s.groupIds?.[0] ?? "",
     });
   };
 
-  const saveEdit = async () => {
-    if (!editing) return;
-    if (!editForm.fullName.trim() || !editForm.stageId) {
-      showToast("الاسم والمرحلة حقول إلزامية", "error");
+  const saveProfile = async () => {
+    if (!profileTarget) return;
+    if (!profileForm.fullName.trim() || !profileForm.stageId || !profileForm.phone.trim()) {
+      showToast("الاسم ورقم الهاتف والمرحلة حقول إلزامية", "error");
       return;
     }
-    await updateDocById("profiles", editing.id, {
-      fullName: editForm.fullName,
-      address: editForm.address,
-      stageId: editForm.stageId,
-      groupIds: editForm.groupId ? [editForm.groupId] : [],
-    });
-    showToast("تم تحديث بيانات الطالب ✅");
-    setEditing(null);
+    setSavingProfile(true);
+    try {
+      const newPhone = normalizePhone(profileForm.phone);
+      const phoneChanged = newPhone !== normalizePhone(profileTarget.phone ?? profileTarget.username ?? "");
+
+      // لازم نزامن بريد الدخول بـ Firebase Auth الأول لو الرقم تغيّر، قبل
+      // ما نحدّث Firestore — حتى ما نوصل لحالة الرقم اتغيّر بالواجهة بس
+      // تسجيل الدخول القديم بضل شغّال والجديد لأ
+      if (phoneChanged) {
+        await syncStudentLoginEmail(profileTarget.id, newPhone);
+      }
+
+      await updateDocById("profiles", profileTarget.id, {
+        fullName: profileForm.fullName,
+        phone: newPhone,
+        username: newPhone,
+        address: profileForm.address,
+        stageId: profileForm.stageId,
+        groupIds: profileForm.groupId ? [profileForm.groupId] : [],
+      });
+      showToast("تم تحديث بيانات الطالب ✅");
+      setProfileTarget(null);
+    } catch (e: any) {
+      showToast("تعذر الحفظ: " + (e.message ?? "خطأ غير معروف"), "error");
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -198,6 +217,29 @@ export default function StudentsPage() {
     }
   };
 
+  const openPasswordModal = (s: StudentProfile & { id: string }) => {
+    setPasswordTarget(s);
+    setNewPassword(randomPassword());
+  };
+
+  const submitPasswordReset = async () => {
+    if (!passwordTarget) return;
+    if (newPassword.length < 6) {
+      showToast("كلمة المرور يجب أن تكون 6 أحرف على الأقل", "error");
+      return;
+    }
+    setResettingPassword(true);
+    try {
+      await adminResetStudentPassword(passwordTarget.id, newPassword);
+      showToast(`تم تغيير كلمة مرور "${passwordTarget.fullName}" بنجاح ✅`);
+      setPasswordTarget(null);
+    } catch (e: any) {
+      showToast("تعذر تغيير كلمة المرور: " + (e.message ?? "خطأ غير معروف"), "error");
+    } finally {
+      setResettingPassword(false);
+    }
+  };
+
   const buildWhatsappMessage = (fullName: string, phone: string, password: string) => {
     const text =
       `مرحباً ${fullName}،\n\n` +
@@ -216,17 +258,25 @@ export default function StudentsPage() {
     showToast("تم نسخ بيانات الدخول ✅");
   };
 
-  const visibleStudents = students.filter(
-    (s) =>
-      s.stageId === workspaceStageId &&
-      (showDeleted ? s.status === "deleted" : s.status !== "deleted")
-  );
-  const filtered = visibleStudents.filter(
-    (s) =>
-      s.fullName.includes(search) ||
-      s.username?.includes(search) ||
-      s.studentNumber?.includes(search)
-  );
+  const visibleStudents = students.filter((s) => s.stageId === workspaceStageId);
+  const filtered = visibleStudents.filter((s) => {
+    const matchesStatus = statusFilter === "all" || s.status === statusFilter;
+    const matchesGroup = !groupFilter || s.groupIds?.includes(groupFilter);
+    const matchesSearch =
+      !search.trim() ||
+      s.fullName.includes(search) || s.username?.includes(search) || s.studentNumber?.includes(search);
+    return matchesStatus && matchesGroup && matchesSearch;
+  });
+
+  const statusBadge = (status: StudentProfile["status"]) => {
+    const map: Record<string, { label: string; cls: string }> = {
+      active: { label: "نشط", cls: "bg-brand-success/15 text-brand-success" },
+      disabled: { label: "معطّل", cls: "bg-brand-error/15 text-brand-error" },
+      deleted: { label: "محذوف", cls: "bg-black/10 dark:bg-white/10 text-brand-textMuted" },
+    };
+    const v = map[status] ?? map.active;
+    return <span className={`text-xs px-2 py-0.5 rounded-full ${v.cls}`}>{v.label}</span>;
+  };
 
   return (
     <AppShell requireRole="teacher">
@@ -235,11 +285,8 @@ export default function StudentsPage() {
       {shareLink && (
         <GlassCard className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-sm text-brand-text font-medium mb-1">
-              ✅ رابط مشاركة النتائج جاهز (تم نسخه تلقائيًا)
-            </p>
-            <a href={shareLink} target="_blank" rel="noreferrer" dir="ltr"
-              className="text-brand-primary text-sm break-all">
+            <p className="text-sm text-brand-text font-medium mb-1">✅ رابط مشاركة النتائج جاهز (تم نسخه تلقائيًا)</p>
+            <a href={shareLink} target="_blank" rel="noreferrer" dir="ltr" className="text-brand-primary text-sm break-all">
               {shareLink}
             </a>
             <p className="text-xs text-brand-textMuted mt-1">
@@ -275,65 +322,38 @@ export default function StudentsPage() {
               }
             }}
           >
-            <input
-              placeholder="الاسم الكامل"
-              value={form.fullName}
+            <input placeholder="الاسم الكامل" value={form.fullName}
               onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
-            />
-            <input
-              placeholder="رقم هاتف الطالب"
-              dir="ltr"
-              type="tel"
-              value={form.phone}
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70" />
+            <input placeholder="رقم هاتف الطالب" dir="ltr" type="tel" value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
-            />
-            <input
-              placeholder="العنوان (اختياري)"
-              value={form.address}
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70" />
+            <input placeholder="العنوان (اختياري)" value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
-            />
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70" />
             <div className="px-3 py-2 rounded-xl bg-brand-primary/10 text-brand-primary text-sm">
               القسم: {workspaceStageName ?? "—"}
             </div>
-            <select
-              value={form.groupId}
-              onChange={(e) => setForm({ ...form, groupId: e.target.value })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
-            >
+            <select value={form.groupId} onChange={(e) => setForm({ ...form, groupId: e.target.value })}
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70">
               <option value="">بدون مجموعة (اختياري)</option>
-              {groups
-                .filter((g) => g.stageId === workspaceStageId)
-                .map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
-                ))}
+              {groups.filter((g) => g.stageId === workspaceStageId).map((g) => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
             </select>
 
             <div>
               <label className="text-xs text-brand-textMuted block mb-1">كلمة المرور</label>
               <div className="flex gap-2">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  dir="ltr"
-                  value={form.password}
+                <input type={showPassword ? "text" : "password"} dir="ltr" value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className="flex-1 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="px-2 text-xs text-brand-textMuted shrink-0"
-                >
+                  className="flex-1 px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70" />
+                <button type="button" onClick={() => setShowPassword((v) => !v)}
+                  className="px-2 text-xs text-brand-textMuted shrink-0">
                   {showPassword ? "إخفاء" : "إظهار"}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, password: randomPassword() })}
-                  className="px-2 text-xs text-brand-primary shrink-0"
-                  title="توليد كلمة مرور عشوائية"
-                >
+                <button type="button" onClick={() => setForm({ ...form, password: randomPassword() })}
+                  className="px-2 text-xs text-brand-primary shrink-0" title="توليد كلمة مرور عشوائية">
                   🎲
                 </button>
               </div>
@@ -348,124 +368,91 @@ export default function StudentsPage() {
           </div>
         </GlassCard>
 
-        <GlassCard className="lg:col-span-2">
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-            <h2 className="font-bold text-brand-text">
-              قائمة الطلاب ({filtered.length})
-            </h2>
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-1.5 text-xs text-brand-textMuted">
-                <input
-                  type="checkbox"
-                  checked={showDeleted}
-                  onChange={(e) => setShowDeleted(e.target.checked)}
-                />
-                عرض المحذوفين
-              </label>
+        <div className="lg:col-span-2 flex flex-col gap-4">
+          <GlassCard>
+            <div className="flex flex-wrap items-center gap-3">
               <input
-                placeholder="بحث بالاسم أو الرقم..."
+                placeholder="🔍 بحث بالاسم أو رقم الهاتف..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="px-3 py-1.5 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm"
+                className="flex-1 min-w-[180px] px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70 text-sm"
               />
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-brand-textMuted text-right border-b border-brand-primary/10">
-                  <th className="py-2 px-2">الاسم</th>
-                  <th className="py-2 px-2">رقم الهاتف</th>
-                  <th className="py-2 px-2">النقاط / المستوى</th>
-                  <th className="py-2 px-2">المرحلة</th>
-                  <th className="py-2 px-2">الحالة</th>
-                  <th className="py-2 px-2">إجراء</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((s) => (
-                  <tr key={s.id} className="border-b border-brand-primary/5">
-                    <td className="py-2 px-2 text-brand-text">{s.fullName}</td>
-                    <td className="py-2 px-2 text-brand-textMuted" dir="ltr">
-                      {s.username}
-                    </td>
-                    <td className="py-2 px-2 text-brand-textMuted">
-                      {s.points ?? 0} · {computeLevel(s.points ?? 0).name}
-                    </td>
-                    <td className="py-2 px-2 text-brand-textMuted">
-                      {stages.find((st) => st.id === s.stageId)?.name ?? "—"}
-                    </td>
-                    <td className="py-2 px-2">
-                      <StatusBadge
-                        label={s.status === "active" ? "نشط" : s.status === "deleted" ? "محذوف" : "معطّل"}
-                        tone={s.status === "active" ? "success" : s.status === "deleted" ? "muted" : "error"}
-                      />
-                    </td>
-                    <td className="py-2 px-2">
-                      {s.status === "deleted" ? (
-                        <button
-                          onClick={() => handleRestore(s)}
-                          className="text-brand-success text-xs"
-                        >
-                          ↩ استرجاع
-                        </button>
-                      ) : (
-                        <div className="flex flex-wrap gap-2">
-                          <button onClick={() => openEdit(s)} className="text-brand-primary text-xs">
-                            ✎ تعديل
-                          </button>
-                          <button
-                            onClick={() =>
-                              updateDocById("profiles", s.id, {
-                                status: s.status === "active" ? "disabled" : "active",
-                              })
-                            }
-                            className="text-brand-primary text-xs"
-                          >
-                            {s.status === "active" ? "تعطيل" : "تفعيل"}
-                          </button>
-                          <button
-                            onClick={() => setPasswordInfoTarget(s)}
-                            className="text-brand-textMuted text-xs"
-                          >
-                            🔑 كلمة المرور
-                          </button>
-                          <button
-                            onClick={() => handleShare(s)}
-                            disabled={sharingId === s.id}
-                            className="text-brand-secondary text-xs"
-                          >
-                            {sharingId === s.id ? "..." : "🔗 مشاركة النتائج"}
-                          </button>
-                          <button
-                            onClick={() => setDeleteTarget(s)}
-                            className="text-brand-error text-xs"
-                          >
-                            🗑 حذف
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+                className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70 text-sm">
+                <option value="active">نشط</option>
+                <option value="disabled">معطّل</option>
+                <option value="deleted">محذوف</option>
+                <option value="all">الكل</option>
+              </select>
+              <select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)}
+                className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70 text-sm">
+                <option value="">كل المجموعات</option>
+                {groups.filter((g) => g.stageId === workspaceStageId).map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
                 ))}
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="py-6 text-center text-brand-textMuted">
-                      {showDeleted ? "لا يوجد طلاب محذوفون." : "لا يوجد طلاب بعد."}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+              </select>
+            </div>
+            <p className="text-xs text-brand-textMuted mt-3">{filtered.length} طالب</p>
+          </GlassCard>
+
+          <div className="grid sm:grid-cols-2 gap-3">
+            {filtered.map((s) => {
+              const level = computeLevel(s.points ?? 0);
+              const menuItems = s.status === "deleted"
+                ? [{ label: "↩ استرجاع الحساب", icon: "↩", onClick: () => handleRestore(s) }]
+                : [
+                    { label: "عرض / تعديل البيانات", icon: "✎", onClick: () => openProfile(s) },
+                    { label: "تغيير كلمة المرور", icon: "🔑", onClick: () => openPasswordModal(s) },
+                    {
+                      label: s.status === "active" ? "تعطيل الحساب" : "تفعيل الحساب",
+                      icon: s.status === "active" ? "⏸" : "▶",
+                      onClick: () =>
+                        updateDocById("profiles", s.id, { status: s.status === "active" ? "disabled" : "active" }),
+                    },
+                    { label: "مشاركة النتائج", icon: "🔗", onClick: () => handleShare(s) },
+                    { label: "حذف الحساب", icon: "🗑", danger: true, onClick: () => setDeleteTarget(s) },
+                  ];
+              return (
+                <GlassCard
+                  key={s.id}
+                  className="cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => s.status !== "deleted" && openProfile(s)}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-11 h-11 rounded-full shrink-0 flex items-center justify-center text-white font-bold ${avatarColor(s.fullName)}`}>
+                      {s.fullName.trim().charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-brand-text truncate">{s.fullName}</p>
+                      <p dir="ltr" className="text-brand-textMuted text-xs">{s.username}</p>
+                    </div>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <ActionMenu items={menuItems} />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mt-3">
+                    <div className="flex items-center gap-2">
+                      {statusBadge(s.status)}
+                      <span className="text-xs text-brand-textMuted">
+                        {stages.find((st) => st.id === s.stageId)?.name ?? "—"}
+                      </span>
+                    </div>
+                    <span className="text-xs text-brand-primary font-medium">
+                      {s.points ?? 0} نقطة · {level.name}
+                    </span>
+                  </div>
+                </GlassCard>
+              );
+            })}
+            {filtered.length === 0 && (
+              <p className="text-brand-textMuted col-span-2 text-center py-8">لا يوجد طلاب مطابقون.</p>
+            )}
           </div>
-        </GlassCard>
+        </div>
       </div>
 
-      <Modal
-        open={!!credentialsModal}
-        onClose={() => setCredentialsModal(null)}
-        title="مشاركة بيانات الدخول"
-      >
+      {/* بيانات الدخول بعد إنشاء حساب جديد */}
+      <Modal open={!!credentialsModal} onClose={() => setCredentialsModal(null)} title="مشاركة بيانات الدخول">
         {credentialsModal && (
           <div className="flex flex-col gap-3">
             <p className="text-brand-text text-sm">
@@ -475,29 +462,14 @@ export default function StudentsPage() {
               <p className="text-brand-text"><strong>Phone:</strong> {credentialsModal.phone}</p>
               <p className="text-brand-text"><strong>Password:</strong> {credentialsModal.password}</p>
             </div>
-            <p className="text-xs text-brand-textMuted">
-              دوّن كلمة المرور الآن — لن تظهر مجددًا بهذا الوضوح لاحقًا.
-            </p>
+            <p className="text-xs text-brand-textMuted">دوّن كلمة المرور الآن — لن تظهر مجددًا بهذا الوضوح لاحقًا.</p>
             <div className="flex gap-2 flex-wrap">
-              <Button
-                onClick={() =>
-                  copyCredentials(
-                    credentialsModal.fullName,
-                    credentialsModal.phone,
-                    credentialsModal.password
-                  )
-                }
-              >
+              <Button onClick={() => copyCredentials(credentialsModal.fullName, credentialsModal.phone, credentialsModal.password)}>
                 📋 نسخ بيانات الدخول
               </Button>
               <a
-                href={buildWhatsappMessage(
-                  credentialsModal.fullName,
-                  credentialsModal.phone,
-                  credentialsModal.password
-                )}
-                target="_blank"
-                rel="noreferrer"
+                href={buildWhatsappMessage(credentialsModal.fullName, credentialsModal.phone, credentialsModal.password)}
+                target="_blank" rel="noreferrer"
                 className="px-4 py-2.5 rounded-2xl text-sm font-medium bg-brand-success text-white hover:opacity-90 inline-flex items-center"
               >
                 📱 مشاركة عبر واتساب
@@ -507,86 +479,94 @@ export default function StudentsPage() {
         )}
       </Modal>
 
-      <Modal open={!!editing} onClose={() => setEditing(null)} title="تعديل بيانات الطالب">
-        <div
-          className="flex flex-col gap-3"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !(e.target as HTMLElement).closest("select")) {
-              e.preventDefault();
-              saveEdit();
-            }
-          }}
-        >
-          <input
-            placeholder="الاسم الكامل"
-            value={editForm.fullName}
-            onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
-          />
-          <input
-            placeholder="العنوان"
-            value={editForm.address}
-            onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
-          />
-          <select
-            value={editForm.stageId}
-            onChange={(e) => setEditForm({ ...editForm, stageId: e.target.value })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
+      {/* الملف الكامل — عرض وتعديل كل بيانات الطالب */}
+      <Modal open={!!profileTarget} onClose={() => setProfileTarget(null)} title="ملف الطالب">
+        {profileTarget && (
+          <div
+            className="flex flex-col gap-3"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !(e.target as HTMLElement).closest("select")) {
+                e.preventDefault();
+                saveProfile();
+              }
+            }}
           >
-            <option value="">اختر المرحلة</option>
-            {stages.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-          <select
-            value={editForm.groupId}
-            onChange={(e) => setEditForm({ ...editForm, groupId: e.target.value })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
-          >
-            <option value="">بدون مجموعة</option>
-            {groups
-              .filter((g) => g.stageId === editForm.stageId)
-              .map((g) => (
+            <div className="flex items-center gap-3 mb-1">
+              <div className={`w-14 h-14 rounded-full shrink-0 flex items-center justify-center text-white text-xl font-bold ${avatarColor(profileTarget.fullName)}`}>
+                {profileTarget.fullName.trim().charAt(0)}
+              </div>
+              <div>
+                <p className="text-xs text-brand-textMuted">{profileTarget.studentNumber}</p>
+                <p className="text-xs text-brand-primary">
+                  {(profileTarget.points ?? 0)} نقطة · {computeLevel(profileTarget.points ?? 0).name}
+                </p>
+              </div>
+            </div>
+
+            <label className="text-xs text-brand-textMuted">الاسم الكامل</label>
+            <input value={profileForm.fullName} onChange={(e) => setProfileForm({ ...profileForm, fullName: e.target.value })}
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70" />
+
+            <label className="text-xs text-brand-textMuted">رقم الهاتف (اسم الدخول)</label>
+            <input dir="ltr" value={profileForm.phone} onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70" />
+
+            <label className="text-xs text-brand-textMuted">العنوان</label>
+            <input value={profileForm.address} onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70" />
+
+            <label className="text-xs text-brand-textMuted">المرحلة</label>
+            <select value={profileForm.stageId} onChange={(e) => setProfileForm({ ...profileForm, stageId: e.target.value })}
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70">
+              <option value="">اختر المرحلة</option>
+              {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+
+            <label className="text-xs text-brand-textMuted">المجموعة</label>
+            <select value={profileForm.groupId} onChange={(e) => setProfileForm({ ...profileForm, groupId: e.target.value })}
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70">
+              <option value="">بدون مجموعة</option>
+              {groups.filter((g) => g.stageId === profileForm.stageId).map((g) => (
                 <option key={g.id} value={g.id}>{g.name}</option>
               ))}
-          </select>
-          <p className="text-xs text-brand-textMuted">
-            رقم الهاتف (اسم الدخول) وكلمة المرور لا يمكن تعديلهما من هنا — استخدم زر "🔑 كلمة المرور" بجدول الطلاب.
-          </p>
-          <Button onClick={saveEdit}>حفظ التعديلات</Button>
-        </div>
+            </select>
+
+            <div className="flex gap-2 mt-1">
+              <Button onClick={saveProfile} disabled={savingProfile} className="flex-1">
+                {savingProfile ? "جارٍ الحفظ..." : "حفظ التعديلات"}
+              </Button>
+              <Button variant="secondary" onClick={() => openPasswordModal(profileTarget)}>
+                🔑 كلمة المرور
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
 
-      <Modal
-        open={!!passwordInfoTarget}
-        onClose={() => setPasswordInfoTarget(null)}
-        title="تغيير كلمة المرور"
-      >
-        {passwordInfoTarget && (
-          <div className="flex flex-col gap-3 text-sm text-brand-text">
-            <p>
-              لأسباب أمان في Firebase، لا يمكن لأي حساب (حتى حساب المدير) تغيير كلمة مرور حساب آخر
-              مباشرة من المتصفح — هذا قيد من Firebase نفسه وليس نقصًا بالتصميم.
+      {/* تغيير كلمة المرور — فعلي بالكامل عبر API route بصلاحيات Admin */}
+      <Modal open={!!passwordTarget} onClose={() => setPasswordTarget(null)} title="تغيير كلمة المرور">
+        {passwordTarget && (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-brand-text">
+              كلمة مرور جديدة لـ <strong>{passwordTarget.fullName}</strong>:
             </p>
-            <p className="font-medium">لتغيير كلمة مرور "{passwordInfoTarget.fullName}" لديك خياران:</p>
-            <div className="bg-brand-primary/5 rounded-xl p-3">
-              <p className="font-medium mb-1">الخيار الأول (يدوي، متاح الآن):</p>
-              <p className="text-brand-textMuted">
-                من Firebase Console → Authentication → ابحث عن البريد{" "}
-                <span dir="ltr" className="font-mono">{phoneToEmail(passwordInfoTarget.phone ?? "", "student")}</span>{" "}
-                → احذف الحساب → أنشئه من جديد بنفس البريد وكلمة مرور جديدة → حدّث الحقل المرتبط
-                بالطالب في Firestore (خطوة تحتاج دقة، اطلب مساعدتي عند التنفيذ).
-              </p>
+            <div className="flex gap-2">
+              <input dir="ltr" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+                className="flex-1 px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70" />
+              <button type="button" onClick={() => setNewPassword(randomPassword())}
+                className="px-2 text-xs text-brand-primary shrink-0" title="توليد كلمة مرور عشوائية">
+                🎲
+              </button>
             </div>
-            <div className="bg-brand-primary/5 rounded-xl p-3">
-              <p className="font-medium mb-1">الخيار الثاني (تلقائي بالكامل، يحتاج ترقية بسيطة):</p>
-              <p className="text-brand-textMuted">
-                ترقية مشروع Firebase إلى خطة Blaze (لا تعني دفع فلوس فعليًا لمنصة صغيرة — فيها حصة مجانية
-                سخية تكفي مشروعك) لتفعيل Cloud Function واحدة تسمح لك بتغيير كلمة مرور أي طالب بضغطة زر
-                من هذه الصفحة مباشرة. إذا اخترت هذا الخيار، قلي وبجهزلك الكود والخطوات.
-              </p>
-            </div>
+            <Button onClick={submitPasswordReset} disabled={resettingPassword}>
+              {resettingPassword ? "جارٍ التحديث..." : "تحديث كلمة المرور الآن"}
+            </Button>
+            <button
+              onClick={() => copyCredentials(passwordTarget.fullName, passwordTarget.phone ?? "", newPassword)}
+              className="text-brand-primary text-xs"
+            >
+              📋 نسخ بيانات الدخول الجديدة
+            </button>
           </div>
         )}
       </Modal>
@@ -596,7 +576,7 @@ export default function StudentsPage() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         title="حذف الطالب"
-        message={`هل أنت متأكد من حذف الطالب "${deleteTarget?.fullName ?? ""}"؟ سيتم إخفاء بياناته ووقف وصوله للمنصة فورًا. يمكنك استرجاعه لاحقًا من قائمة "عرض المحذوفين".`}
+        message={`هل أنت متأكد من حذف الطالب "${deleteTarget?.fullName ?? ""}"؟ سيتم إخفاء بياناته ووقف وصوله للمنصة فورًا. يمكنك استرجاعه لاحقًا من فلتر "محذوف".`}
         confirmLabel="حذف"
       />
 
