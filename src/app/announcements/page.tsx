@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -58,11 +60,11 @@ export default function AnnouncementsPage() {
         <h2 className="font-bold text-brand-text mb-4">إعلان جديد</h2>
         <div className="flex flex-col gap-3">
           <input placeholder="العنوان" value={title} onChange={(e) => setTitle(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70" />
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
           <textarea placeholder="نص الإعلان" value={body} onChange={(e) => setBody(e.target.value)}
-            rows={3} className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70" />
+            rows={3} className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
           <select value={targetGroupId} onChange={(e) => setTargetGroupId(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70">
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70">
             <option value="">جميع الطلاب (كل الأقسام)</option>
             {groupsInWorkspace.map((g) => <option key={g.id} value={g.id}>{g.name} — {workspaceStageName}</option>)}
           </select>

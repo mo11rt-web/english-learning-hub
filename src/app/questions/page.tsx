@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -84,11 +86,10 @@ export default function QuestionsPage() {
         <h2 className="font-bold text-brand-text mb-4">إضافة سؤال جديد</h2>
         <div className="grid md:grid-cols-2 gap-3">
           <textarea
-            placeholder="نص السؤال (English question text)"
+            placeholder="نص السؤال"
             value={form.text}
             onChange={(e) => setForm({ ...form, text: e.target.value })}
-            dir="ltr"
-            className="md:col-span-2 px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+            className="md:col-span-2 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
             rows={2}
           />
           <select
@@ -96,7 +97,7 @@ export default function QuestionsPage() {
             onChange={(e) =>
               setForm({ ...form, type: e.target.value as QuestionType, correctAnswer: "" })
             }
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
           >
             {(Object.keys(typeLabels) as QuestionType[]).map((t) => (
               <option key={t} value={t}>
@@ -110,14 +111,13 @@ export default function QuestionsPage() {
                 <input
                   key={i}
                   placeholder={`الخيار ${i + 1}`}
-                  dir="ltr"
                   value={opt}
                   onChange={(e) => {
                     const options = [...form.options];
                     options[i] = e.target.value;
                     setForm({ ...form, options });
                   }}
-                  className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+                  className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
                 />
               ))}
             </div>
@@ -127,7 +127,7 @@ export default function QuestionsPage() {
             <select
               value={form.correctAnswer}
               onChange={(e) => setForm({ ...form, correctAnswer: e.target.value })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
             >
               <option value="true">صح</option>
               <option value="false">خطأ</option>
@@ -138,10 +138,9 @@ export default function QuestionsPage() {
                 placeholder={
                   form.type === "mcq" ? "الإجابة الصحيحة (طابق أحد الخيارات)" : "الإجابة الصحيحة"
                 }
-                dir="ltr"
                 value={form.correctAnswer as string}
                 onChange={(e) => setForm({ ...form, correctAnswer: e.target.value })}
-                className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+                className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
               />
             )
           )}
@@ -152,12 +151,12 @@ export default function QuestionsPage() {
             placeholder="الدرجة"
             value={form.points}
             onChange={(e) => setForm({ ...form, points: Number(e.target.value) })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
           />
           <select
             value={form.difficulty}
             onChange={(e) => setForm({ ...form, difficulty: e.target.value as any })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
           >
             <option value="easy">سهل</option>
             <option value="medium">متوسط</option>
@@ -179,7 +178,7 @@ export default function QuestionsPage() {
         {filtered.map((q) => (
           <GlassCard key={q.id} className="flex items-start justify-between gap-3">
             <div>
-              <p dir="ltr" className="text-brand-text font-medium">{q.text}</p>
+              <p className="text-brand-text font-medium">{q.text}</p>
               <p className="text-xs text-brand-textMuted mt-1">
                 {typeLabels[q.type]} · {q.points} درجة ·{" "}
                 {stages.find((s) => s.id === q.stageId)?.name ?? "—"}

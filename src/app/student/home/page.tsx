@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/AppShell";
@@ -79,7 +81,7 @@ export default function StudentHomePage() {
                     <span>{lvl.name}</span>
                     <span>{lvl.next}</span>
                   </div>
-                  <div className="w-full bg-black/5 rounded-full h-2">
+                  <div className="w-full bg-surfaceBorder/40 rounded-full h-2">
                     <div
                       className="bg-brand-primary h-2 rounded-full transition-all"
                       style={{ width: `${lvl.progressToNext}%` }}
@@ -101,7 +103,7 @@ export default function StudentHomePage() {
           <div className="flex flex-col gap-2">
             {lessons.slice(0, 5).map((l) => (
               <Link key={l.id} href={`/student/lessons/${l.id}`}
-                className="px-3 py-2 rounded-xl bg-white/60 hover:bg-white text-sm text-brand-text">
+                className="px-3 py-2 rounded-xl bg-surface/60 hover:bg-surface text-sm text-brand-text">
                 {l.title}
               </Link>
             ))}
@@ -114,7 +116,7 @@ export default function StudentHomePage() {
           <div className="flex flex-col gap-2">
             {assignments.slice(0, 5).map((a) => (
               <Link key={a.id} href={`/student/assignments/${a.id}`}
-                className="px-3 py-2 rounded-xl bg-white/60 hover:bg-white text-sm text-brand-text">
+                className="px-3 py-2 rounded-xl bg-surface/60 hover:bg-surface text-sm text-brand-text">
                 {a.title}
               </Link>
             ))}
@@ -126,7 +128,7 @@ export default function StudentHomePage() {
           <h2 className="font-bold text-brand-text mb-4">📣 الإعلانات</h2>
           <div className="flex flex-col gap-2">
             {announcements.slice(0, 3).map((a) => (
-              <div key={a.id} className="px-3 py-2 rounded-xl bg-white/60 text-sm">
+              <div key={a.id} className="px-3 py-2 rounded-xl bg-surface/60 text-sm">
                 <p className="font-medium text-brand-text">{a.title}</p>
                 <p className="text-brand-textMuted">{a.body}</p>
               </div>

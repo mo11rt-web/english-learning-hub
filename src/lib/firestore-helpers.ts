@@ -15,24 +15,12 @@ import { db } from "@/lib/firebase";
 export function listenCollection<T>(
   path: string,
   constraints: QueryConstraint[],
-  cb: (items: (T & { id: string })[]) => void,
-  onError?: (err: Error) => void
+  cb: (items: (T & { id: string })[]) => void
 ) {
   const q = query(collection(db, path), ...constraints);
-  return onSnapshot(
-    q,
-    (snap) => {
-      cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as T) })));
-    },
-    (err) => {
-      // بدون هالسطر، أي استعلام محتاج فهرس مركّب (composite index) غير موجود
-      // بـ Firestore كان يفشل بصمت تمامًا — القائمة تضل فاضية للأبد بدون أي
-      // رسالة خطأ بالواجهة ولا حتى بالـ console، وهاد كان سبب حقيقي وراء
-      // شكوى "الدروس ما بتنزل" (استعلام lessons بحاجة فهرس unitId+order)
-      console.error(`listenCollection("${path}") failed:`, err);
-      onError?.(err);
-    }
-  );
+  return onSnapshot(q, (snap) => {
+    cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as T) })));
+  });
 }
 
 export async function createDoc<T extends object>(path: string, data: T) {

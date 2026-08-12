@@ -1,38 +1,23 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, type AuthError } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
-import { InstallAppButton } from "@/components/InstallAppButton";
-import { phoneToEmail } from "@/lib/phone";
+import { Modal } from "@/components/ui/Modal";
+import { normalizePhone } from "@/lib/phone";
+import { usePwaInstall } from "@/lib/usePwaInstall";
 
-// نجرب الدخول بحساب "معلم/مدير" أول، وإذا ما كان موجود نجرب "طالب" —
-// هيك المستخدم بس بكتب رقم هاتفه وكلمة السر، والنظام هو يلي يتعرف على
-// نوع حسابه من البيانات، بدون ما يضطر يختار "معلم" أو "طالب" يدويًا
-async function trySignIn(identifier: string, password: string) {
-  const roles: Array<"teacher" | "student"> = ["teacher", "student"];
-  let lastError: any = null;
-  for (const role of roles) {
-    try {
-      const email = phoneToEmail(identifier, role);
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      return cred;
-    } catch (err: any) {
-      lastError = err;
-      // نكمل نجرب الدور التاني بس إذا الخطأ كان "هالحساب مش موجود" —
-      // أي خطأ ثاني (متل كلمة سر غلط أو محاولات كثيرة) نوقف عنده فورًا
-      const code = err?.code ?? "";
-      if (code !== "auth/user-not-found" && code !== "auth/invalid-email" && code !== "auth/invalid-credential") {
-        throw err;
-      }
-    }
-  }
-  throw lastError;
-}
+// المنصة ما بتسأل المستخدم "معلم ولا طالب" — بتكتشف نوع الحساب تلقائياً.
+// كل رقم هاتف مسجّل ببريد وهمي واحد بس (إما @teacher.com أو @student.com)،
+// فنجرب النوعين بالترتيب لحد ما ندخل، ورسالة الخطأ النهائية موحّدة حتى ما
+// نكشف لأي حد (شخص بيحاول يخمّن) إذا الرقم أصلاً مسجل كمعلم أو كطالب.
+const EMAIL_DOMAINS = ["student.com", "teacher.com"] as const;
 
 export default function LoginPage() {
   const [identifier, setIdentifier] = useState("");
@@ -40,55 +25,81 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showInstallHelp, setShowInstallHelp] = useState(false);
   const router = useRouter();
+  const { canInstall, promptInstall, showManualIosInstructions, installed } = usePwaInstall();
+
+  const handleInstallClick = async () => {
+    if (canInstall) {
+      const accepted = await promptInstall();
+      if (!accepted) setShowInstallHelp(true);
+      return;
+    }
+    setShowInstallHelp(true);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-    try {
-      const cred = await trySignIn(identifier, password);
-      const snap = await getDoc(doc(db, "profiles", cred.user.uid));
-      if (!snap.exists()) {
-        await auth.signOut();
-        setError("لا يوجد حساب مرتبط بهذا المستخدم.");
-        setLoading(false);
-        return;
+
+    const phone = normalizePhone(identifier);
+    let lastError: AuthError | null = null;
+
+    for (const domain of EMAIL_DOMAINS) {
+      const email = `${phone}@${domain}`;
+      try {
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        const snap = await getDoc(doc(db, "profiles", cred.user.uid));
+        if (!snap.exists()) {
+          await auth.signOut();
+          setError("لا يوجد حساب مرتبط بهذا المستخدم.");
+          setLoading(false);
+          return;
+        }
+        const profileData = snap.data();
+        if (profileData.status === "disabled") {
+          await auth.signOut();
+          setError("تم تعطيل هذا الحساب. تواصل مع المعلم لإعادة تفعيله.");
+          setLoading(false);
+          return;
+        }
+        if (profileData.status === "deleted") {
+          await auth.signOut();
+          setError("هذا الحساب لم يعد موجودًا على المنصة.");
+          setLoading(false);
+          return;
+        }
+        // النظام بيتعرف على نوع الحساب مباشرة من بيانات المستخدم بقاعدة
+        // البيانات (role) — مش من أي اختيار دوّي المستخدم.
+        const role = profileData.role;
+        router.replace(role === "student" ? "/student/home" : "/dashboard");
+        return; // نجح الدخول، ما في داعي نجرب الدومين الثاني
+      } catch (err) {
+        lastError = err as AuthError;
+        // نجرب الدومين التاني بس إذا كان سبب الفشل إنه ما في حساب بهاد
+        // البريد أصلاً. أي سبب تاني (مثلاً كثرة محاولات) نوقف فوراً.
+        const code = lastError?.code ?? "";
+        if (code === "auth/too-many-requests") break;
       }
-      const profileData = snap.data();
-      if (profileData.status === "disabled") {
-        await auth.signOut();
-        setError("تم تعطيل هذا الحساب من قبل المعلم. تواصل مع المعلم لإعادة تفعيله.");
-        setLoading(false);
-        return;
-      }
-      if (profileData.status === "deleted") {
-        await auth.signOut();
-        setError("هذا الحساب لم يعد موجودًا على المنصة.");
-        setLoading(false);
-        return;
-      }
-      const role = profileData.role;
-      router.replace(role === "student" ? "/student/home" : "/dashboard");
-    } catch (err: any) {
-      const code = err?.code ?? "unknown";
-      if (code === "auth/user-not-found" || code === "auth/invalid-email" || code === "auth/invalid-credential") {
-        setError(`لا يوجد حساب بهذا الرقم على المنصة. تأكد من كتابة الرقم بشكل صحيح. (${code})`);
-      } else if (code === "auth/wrong-password") {
-        setError(`كلمة المرور غير صحيحة. تأكد من كتابتها بالضبط. (${code})`);
-      } else if (code === "auth/too-many-requests") {
-        setError(`محاولات كثيرة خاطئة متتالية. انتظر دقيقة وحاول مجددًا. (${code})`);
-      } else {
-        setError(`بيانات الدخول غير صحيحة، يرجى المحاولة مجددًا. (${code})`);
-      }
-      setLoading(false);
     }
+
+    const code = lastError?.code ?? "unknown";
+    if (code === "auth/too-many-requests") {
+      setError(`محاولات كثيرة خاطئة متتالية. انتظر دقيقة وحاول مجددًا. (${code})`);
+    } else {
+      // ما منفرّق بالرسالة بين "الرقم غير مسجل" و"كلمة المرور غلط" — Firebase
+      // نفسه صار يوحّد هالخطأين تحت auth/invalid-credential لأسباب أمنية،
+      // وهاد أفضل تجربة برضو حتى ما نكشف معلومات عن الحسابات.
+      setError(`رقم الهاتف أو كلمة المرور غير صحيحة. تأكد من كتابتها بالضبط. (${code})`);
+    }
+    setLoading(false);
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4" dir="rtl">
       <GlassCard className="w-full max-w-md">
-        <div className="text-center mb-4">
+        <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-brand-text tracking-tight" dir="ltr">
             Learn <span className="text-brand-primary">English</span>
           </h1>
@@ -98,10 +109,6 @@ export default function LoginPage() {
           <p className="text-brand-textMuted text-sm mt-2">
             تعلّم. احترف. انجح.
           </p>
-        </div>
-
-        <div className="mb-6">
-          <InstallAppButton />
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -119,7 +126,7 @@ export default function LoginPage() {
               required
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-brand-primary/25 bg-white/70 focus:bg-white outline-none"
+              className="w-full px-4 py-2.5 rounded-xl border border-brand-primary/25 bg-surface/70 focus:bg-surface outline-none"
               placeholder="0912345678"
             />
           </div>
@@ -136,7 +143,7 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-brand-primary/25 bg-white/70 focus:bg-white outline-none pl-12"
+                className="w-full px-4 py-2.5 rounded-xl border border-brand-primary/25 bg-surface/70 focus:bg-surface outline-none pl-12"
               />
               <button
                 type="button"
@@ -157,7 +164,42 @@ export default function LoginPage() {
             {loading ? "جاري الدخول..." : "تسجيل الدخول"}
           </Button>
         </form>
+
+        {!installed && (
+          <button
+            type="button"
+            onClick={handleInstallClick}
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl border border-brand-primary/25 bg-surface/70 px-4 py-3 text-sm font-bold text-brand-text backdrop-blur transition hover:bg-surface active:scale-[0.99]"
+          >
+            <span aria-hidden>⬇</span>
+            تحميل التطبيق (Install App)
+          </button>
+        )}
       </GlassCard>
+
+      <Modal open={showInstallHelp} onClose={() => setShowInstallHelp(false)} title="تثبيت التطبيق" maxWidth="max-w-sm">
+        {showManualIosInstructions ? (
+          <div className="flex items-start gap-2.5 text-sm text-brand-text">
+            <span aria-hidden className="mt-0.5 shrink-0">⬆</span>
+            <span>
+              دوس زر <b>المشاركة</b> بالمتصفح (أسفل الشاشة)، ثم اختر <b>&quot;إضافة إلى الشاشة الرئيسية&quot;</b>.
+            </span>
+          </div>
+        ) : (
+          <div className="space-y-3 text-sm text-brand-text">
+            <p>لم يعرض متصفحك خيار التثبيت المباشر بعد. يمكنك تثبيت التطبيق يدوياً:</p>
+            <div className="flex items-start gap-2.5 rounded-xl bg-surfaceBorder/30 p-3">
+              <span aria-hidden className="mt-0.5 shrink-0">⬇</span>
+              <span>
+                افتح قائمة المتصفح (⋮ أو ⋯ أعلى أو أسفل الشاشة) وابحث عن <b>&quot;تثبيت التطبيق&quot;</b> أو <b>&quot;إضافة إلى الشاشة الرئيسية&quot;</b>.
+              </span>
+            </div>
+            <p className="text-xs text-brand-textMuted">
+              ملاحظة: بعض المتصفحات (مثل فايرفوكس) لا تدعم التثبيت المباشر للتطبيقات — استخدم Chrome أو Edge لأفضل تجربة تثبيت.
+            </p>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

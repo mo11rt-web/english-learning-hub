@@ -5,7 +5,6 @@
  */
 import admin from "firebase-admin";
 import "dotenv/config";
-import crypto from "node:crypto";
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -26,18 +25,14 @@ async function main() {
   // 1) حساب المعلم/المدير (تسجيل الدخول برقم الهاتف)
   const teacherPhone = "0900000000";
   const teacherEmail = `${teacherPhone}@teacher.com`;
-  // كلمة مرور عشوائية بكل مرة تشغيل، بدل ما تكون مكتوبة بالكود (كانت خطر أمني
-  // لو الملف انرفع لمكان عام) — تنطبع بالنهاية مرة وحدة وقت الإنشاء فقط
-  const teacherPassword = crypto.randomUUID().slice(0, 12);
+  const teacherPassword = "Teacher@123";
   let teacherUid: string;
-  let teacherCreatedNow = false;
   try {
     const existing = await auth.getUserByEmail(teacherEmail);
     teacherUid = existing.uid;
   } catch {
     const user = await auth.createUser({ email: teacherEmail, password: teacherPassword });
     teacherUid = user.uid;
-    teacherCreatedNow = true;
   }
   await db.collection("profiles").doc(teacherUid).set({
     uid: teacherUid,
@@ -48,11 +43,7 @@ async function main() {
     status: "active",
     createdAt: Date.now(),
   });
-  if (teacherCreatedNow) {
-    console.log(`✅ حساب المعلم الجديد: هاتف ${teacherPhone} / كلمة المرور: ${teacherPassword}`);
-  } else {
-    console.log(`ℹ️ حساب المعلم موجود مسبقًا (${teacherPhone}) — كلمة المرور لم تتغيّر.`);
-  }
+  console.log(`✅ حساب المعلم: هاتف ${teacherPhone} / ${teacherPassword}`);
 
   // 2) المراحل
   const stageRef = await db.collection("stages").add({ name: "الصف التاسع", order: 0 });

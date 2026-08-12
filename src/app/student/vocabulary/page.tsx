@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -31,13 +33,13 @@ export default function StudentVocabularyPage() {
     <AppShell requireRole="student">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-brand-text">الكلمات</h1>
-        <div className="flex bg-black/5 rounded-2xl p-1">
+        <div className="flex bg-surfaceBorder/40 rounded-2xl p-1">
           <button onClick={() => setMode("browse")}
-            className={`px-3 py-1.5 rounded-xl text-sm ${mode === "browse" ? "bg-white shadow text-brand-primary" : "text-brand-textMuted"}`}>
+            className={`px-3 py-1.5 rounded-xl text-sm ${mode === "browse" ? "bg-surface shadow text-brand-primary" : "text-brand-textMuted"}`}>
             تصفح
           </button>
           <button onClick={() => setMode("flashcards")}
-            className={`px-3 py-1.5 rounded-xl text-sm ${mode === "flashcards" ? "bg-white shadow text-brand-primary" : "text-brand-textMuted"}`}>
+            className={`px-3 py-1.5 rounded-xl text-sm ${mode === "flashcards" ? "bg-surface shadow text-brand-primary" : "text-brand-textMuted"}`}>
             بطاقات Flashcards
           </button>
         </div>
@@ -53,7 +55,6 @@ export default function StudentVocabularyPage() {
               </div>
               <p className="text-brand-text mb-1">{item.translation}</p>
               {item.example && <p dir="ltr" className="text-sm text-brand-textMuted italic">{item.example}</p>}
-              {item.exampleTranslation && <p className="text-sm text-brand-textMuted">{item.exampleTranslation}</p>}
             </GlassCard>
           ))}
           {items.length === 0 && <p className="text-brand-textMuted">لا توجد كلمات بعد.</p>}

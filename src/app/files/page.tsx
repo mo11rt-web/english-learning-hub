@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState, useRef } from "react";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { storage } from "@/lib/firebase";
@@ -88,7 +90,7 @@ export default function FilesPage() {
           </label>
         </div>
         {progress !== null && (
-          <div className="mt-3 w-full bg-black/5 rounded-full h-2">
+          <div className="mt-3 w-full bg-surfaceBorder/40 rounded-full h-2">
             <div
               className="bg-brand-primary h-2 rounded-full transition-all"
               style={{ width: `${progress}%` }}

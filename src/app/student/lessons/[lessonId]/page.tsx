@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { doc, onSnapshot, setDoc, getDoc } from "firebase/firestore";
@@ -179,7 +181,7 @@ export default function StudentLessonViewPage() {
             {quizQuestions[qIndex].options.map((opt, i) => {
               const isCorrect = i === quizQuestions[qIndex].correctIndex;
               const isSelected = i === selected;
-              let borderClass = "border-brand-primary/20 bg-white/70";
+              let borderClass = "border-brand-primary/20 bg-surface/70";
               if (selected !== null) {
                 if (isCorrect) borderClass = "border-brand-success bg-brand-success/10";
                 else if (isSelected) borderClass = "border-brand-error bg-brand-error/10";

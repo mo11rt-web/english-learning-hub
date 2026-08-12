@@ -3,8 +3,7 @@ import { Cairo, Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/hooks/useAuth";
 import { WorkspaceProvider } from "@/hooks/useWorkspace";
-import { ThemeProvider } from "@/context/ThemeContext";
-import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { ThemeProvider } from "@/hooks/useTheme";
 
 const cairo = Cairo({
   subsets: ["arabic", "latin"],
@@ -40,7 +39,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#07596B",
+  themeColor: "#093A42",
 };
 
 export default function RootLayout({
@@ -49,19 +48,25 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ar" dir="rtl" className={`${cairo.variable} ${inter.variable}`} suppressHydrationWarning>
+    <html lang="ar" dir="rtl" className={`${cairo.variable} ${inter.variable}`}>
       <head>
-        {/* يطبّق تفضيل الوضع الليلي المحفوظ فورًا قبل أي رسم للصفحة —
-            يمنع "ومضة" الوضع النهاري لثانية عند الطلاب اللي مفعّلين الوضع الليلي */}
+        {/* تطبيق الوضع الداكن/الفاتح فورًا قبل أول رسم للصفحة، لتفادي "ومضة"
+            الوضع الخاطئ قبل ما يتحمّل React */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{if(localStorage.getItem('english_hub_theme')==='dark'){document.documentElement.classList.add('dark')}}catch(e){}`,
+            __html: `try{var t=localStorage.getItem('elh_theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark');}}catch(e){}`,
+          }}
+        />
+        {/* التقاط حدث تثبيت التطبيق (PWA) بأبكر وقت ممكن، قبل ما React
+            يشتغل، حتى ما يفوتنا الحدث إذا صار بدري */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.__pwaInstallEvent=null;window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__pwaInstallEvent=e;window.dispatchEvent(new Event('pwa-install-ready'));});`,
           }}
         />
       </head>
-      <body className="font-arabic bg-app-gradient min-h-screen">
+      <body className="font-arabic bg-app-gradient bg-geo-pattern min-h-screen">
         <ThemeProvider>
-          <ServiceWorkerRegister />
           <AuthProvider>
             <WorkspaceProvider>{children}</WorkspaceProvider>
           </AuthProvider>

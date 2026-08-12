@@ -1,44 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 
-// يغيّر كلمة مرور طالب من جلسة معلم/مدير — هاي العملية الوحيدة اللي محتاجة
-// صلاحيات Admin SDK (المتصفح ما بيقدر يغيّر كلمة سر حساب مش حسابه). الأمان
-// هون قائم على التحقق من idToken الحقيقي للمعلم + التأكد من دوره بـ Firestore،
-// مش بس الثقة بالبيانات المرسلة من المتصفح.
+// نقطة API آمنة لتغيير كلمة مرور أي طالب من لوحة تحكم المعلم/المدير —
+// بضغطة زر، بدل الحل اليدوي القديم. الأمان هون بجزئين:
+// 1) لازم Authorization: Bearer <idToken> صحيح.
+// 2) لازم حساب صاحب التوكن يكون role = teacher أو admin بقاعدة البيانات
+//    (نتحقق من Firestore نفسه، مش من أي شي قادم من المتصفح).
 export async function POST(req: NextRequest) {
   try {
-    const { idToken, targetUid, newPassword } = await req.json();
-
-    if (!idToken || !targetUid || !newPassword) {
-      return NextResponse.json({ error: "بيانات ناقصة" }, { status: 400 });
-    }
-    if (String(newPassword).length < 6) {
-      return NextResponse.json({ error: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" }, { status: 400 });
+    const authHeader = req.headers.get("authorization") ?? "";
+    const idToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!idToken) {
+      return NextResponse.json({ error: "يجب تسجيل الدخول." }, { status: 401 });
     }
 
-    const decoded = await adminAuth.verifyIdToken(idToken).catch(() => null);
-    if (!decoded) {
-      return NextResponse.json({ error: "جلستك غير صالحة، سجّل الدخول من جديد" }, { status: 401 });
-    }
-
-    const callerSnap = await adminDb.collection("profiles").doc(decoded.uid).get();
-    const callerRole = callerSnap.data()?.role;
+    const decoded = await adminAuth().verifyIdToken(idToken);
+    const callerSnap = await adminDb().doc(`profiles/${decoded.uid}`).get();
+    const callerRole = callerSnap.exists ? callerSnap.data()?.role : null;
     if (callerRole !== "teacher" && callerRole !== "admin") {
-      return NextResponse.json({ error: "هذه العملية للمعلمين فقط" }, { status: 403 });
+      return NextResponse.json(
+        { error: "غير مصرح — هذه الميزة للمعلم/المدير فقط." },
+        { status: 403 }
+      );
     }
 
-    // لازم نتأكد إنه الهدف طالب فعلاً (وليس مثلاً معلم ثاني)، حتى معلم واحد
-    // ما يقدر يغيّر كلمة سر معلم/مدير آخر من هالمسار
-    const targetSnap = await adminDb.collection("profiles").doc(targetUid).get();
-    if (!targetSnap.exists || targetSnap.data()?.role !== "student") {
-      return NextResponse.json({ error: "الحساب المستهدف غير موجود أو ليس حساب طالب" }, { status: 404 });
+    const body = await req.json();
+    const { uid, newPassword } = body as { uid?: string; newPassword?: string };
+    if (!uid || !newPassword) {
+      return NextResponse.json({ error: "بيانات ناقصة." }, { status: 400 });
+    }
+    if (newPassword.length < 6) {
+      return NextResponse.json(
+        { error: "كلمة المرور يجب أن تكون 6 أحرف/أرقام على الأقل." },
+        { status: 400 }
+      );
     }
 
-    await adminAuth.updateUser(targetUid, { password: newPassword });
-
+    await adminAuth().updateUser(uid, { password: newPassword });
     return NextResponse.json({ ok: true });
   } catch (err: any) {
-    console.error("reset-password failed:", err);
-    return NextResponse.json({ error: err?.message ?? "خطأ غير متوقع" }, { status: 500 });
+    console.error("[reset-password] error:", err);
+    const message =
+      err?.code === "auth/id-token-expired"
+        ? "انتهت صلاحية جلستك، سجّل الدخول من جديد."
+        : "حدث خطأ أثناء تغيير كلمة المرور.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

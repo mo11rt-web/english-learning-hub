@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -85,7 +87,7 @@ export default function PastExamsPage() {
             placeholder="المادة (مثلاً: اللغة الإنجليزية، الرياضيات...)"
             value={form.subject}
             onChange={(e) => setForm({ ...form, subject: e.target.value })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
           />
           <div className="px-3 py-2 rounded-xl bg-brand-primary/10 text-brand-primary text-sm flex items-center">
             القسم: {workspaceStageName ?? "—"}
@@ -95,29 +97,28 @@ export default function PastExamsPage() {
             placeholder="السنة"
             value={form.year}
             onChange={(e) => setForm({ ...form, year: Number(e.target.value) })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
           />
           <input
             placeholder="الدورة (مثلاً: الدورة الأولى)"
             value={form.round}
             onChange={(e) => setForm({ ...form, round: e.target.value })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
           />
           <input
             type="number"
             placeholder="العلامة"
             value={form.marks}
             onChange={(e) => setForm({ ...form, marks: Number(e.target.value) })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70"
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
           />
         </div>
 
         <textarea
-          placeholder="نص السؤال (English question text)"
+          placeholder="نص السؤال"
           value={form.questionText}
           onChange={(e) => setForm({ ...form, questionText: e.target.value })}
-          dir="ltr"
-          className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70 mb-3"
+          className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 mb-3"
           rows={2}
         />
 
@@ -131,11 +132,10 @@ export default function PastExamsPage() {
         </div>
 
         <textarea
-          placeholder="الحل / الإجابة النموذجية (English answer)"
+          placeholder="الحل / الإجابة النموذجية"
           value={form.answerText}
           onChange={(e) => setForm({ ...form, answerText: e.target.value })}
-          dir="ltr"
-          className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70 mb-3"
+          className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 mb-3"
           rows={2}
         />
 
@@ -147,7 +147,7 @@ export default function PastExamsPage() {
         <select
           value={filterSubject}
           onChange={(e) => setFilterSubject(e.target.value)}
-          className="px-3 py-1.5 rounded-xl border border-brand-primary/25 bg-white/70 text-sm"
+          className="px-3 py-1.5 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm"
         >
           <option value="">كل المواد</option>
           {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -155,7 +155,7 @@ export default function PastExamsPage() {
         <select
           value={filterYear}
           onChange={(e) => setFilterYear(e.target.value)}
-          className="px-3 py-1.5 rounded-xl border border-brand-primary/25 bg-white/70 text-sm"
+          className="px-3 py-1.5 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm"
         >
           <option value="">كل السنوات</option>
           {years.map((y) => <option key={y} value={y}>{y}</option>)}
@@ -169,7 +169,7 @@ export default function PastExamsPage() {
               <p className="text-xs text-brand-primary mb-1">
                 {q.subject} · {stages.find((s) => s.id === q.stageId)?.name ?? "—"} · {q.year} · {q.round} · {q.marks} علامة
               </p>
-              <p dir="ltr" className="text-brand-text font-medium">{q.questionText}</p>
+              <p className="text-brand-text font-medium">{q.questionText}</p>
               {q.imageUrl && <p className="text-xs text-brand-textMuted mt-1">📎 يحتوي ملف مرفق</p>}
             </div>
             <button

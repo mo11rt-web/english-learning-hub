@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -72,17 +74,19 @@ export default function DashboardPage() {
       <p className="text-brand-textMuted text-sm mb-6">القسم الحالي: {stageName ?? "—"}</p>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <StatCard label="الطلاب النشطون" value={counts.students} icon="🎓" />
-        <StatCard label="المجموعات" value={counts.groups} icon="👥" />
+        <StatCard label="الطلاب النشطون" value={counts.students} icon="🎓" tone={0} />
+        <StatCard label="المجموعات" value={counts.groups} icon="👥" tone={1} />
         <StatCard
           label="الدروس المنشورة"
           value={counts.publishedLessons}
           icon="📚"
+          tone={2}
         />
         <StatCard
           label="واجبات تنتظر التصحيح"
           value={counts.ungradedAnswers}
           icon="✏️"
+          tone={3}
         />
       </div>
 
@@ -93,7 +97,7 @@ export default function DashboardPage() {
             <Link
               key={s.href}
               href={s.href}
-              className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/60 hover:bg-white transition-colors text-center"
+              className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-surface/60 hover:bg-surface transition-colors text-center"
             >
               <span className="text-2xl">{s.icon}</span>
               <span className="text-sm text-brand-text font-medium">

@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
@@ -30,15 +32,8 @@ const blockLabels: Record<LessonBlockType, string> = {
   "book-page": "صفحة من الكتاب",
   "vocabulary-word": "كلمة مفردة",
   "vocabulary-list": "قائمة مفردات",
-  "quiz-question": "سؤال داخل الدرس (قديم)",
+  "quiz-question": "سؤال داخل الدرس",
 };
-
-// أزرار "إضافة كتلة محتوى" المعروضة فعليًا للمعلم — استبعدنا "quiz-question"
-// لأن أسئلة الكويز الحقيقية تُدار من قسم "أسئلة الكويز" بالأسفل (نظام منفصل
-// ومكتمل)، وترك الزر كان يُنشئ كتلة نص عادية بلا وظيفة كويز فعلية
-const ADDABLE_BLOCK_TYPES = (Object.keys(blockLabels) as LessonBlockType[]).filter(
-  (t) => t !== "quiz-question"
-);
 
 // كتل المحتوى اللي بتاخذ ملف مرفوع (رفع مباشر) بدل نص عادي
 const UPLOAD_TYPES: LessonBlockType[] = ["image", "pdf", "audio", "book-page"];
@@ -211,7 +206,7 @@ export default function LessonEditorPage() {
         <GlassCard className="mb-6">
           <h2 className="font-bold text-brand-text mb-3">إضافة كتلة محتوى</h2>
           <div className="flex flex-wrap gap-2">
-            {ADDABLE_BLOCK_TYPES.map((type) => (
+            {(Object.keys(blockLabels) as LessonBlockType[]).map((type) => (
               <button
                 key={type}
                 onClick={() => addBlock(type)}
@@ -262,7 +257,7 @@ export default function LessonEditorPage() {
                     onBlur={() => commitBlock(block.id)}
                     dir="ltr"
                     placeholder="أو الصق رابط مباشر هنا"
-                    className="w-full px-3 py-2 rounded-xl border border-brand-primary/20 bg-white/70 outline-none text-xs"
+                    className="w-full px-3 py-2 rounded-xl border border-brand-primary/20 bg-surface/70 outline-none text-xs"
                   />
                   {block.content && (
                     <p className="text-xs text-brand-success">✅ تم إرفاق ملف — اضغط "معاينة كطالب" لمشاهدته</p>
@@ -279,17 +274,7 @@ export default function LessonEditorPage() {
                       ? "الصق رابط فيديو يوتيوب (youtube.com أو youtu.be)"
                       : "الصق رابط مشاركة Google Drive"
                   }
-                  className="w-full px-3 py-2 rounded-xl border border-brand-primary/20 bg-white/70 outline-none"
-                />
-              ) : block.type === "vocabulary-list" ? (
-                <textarea
-                  value={block.content}
-                  onChange={(e) => updateBlockContent(block.id, e.target.value)}
-                  onBlur={() => commitBlock(block.id)}
-                  dir="ltr"
-                  rows={5}
-                  placeholder={"كل سطر كلمة: word | الترجمة\nمثال:\napple | تفاحة\nrun | يجري"}
-                  className="w-full px-3 py-2 rounded-xl border border-brand-primary/20 bg-white/70 outline-none font-mono text-sm"
+                  className="w-full px-3 py-2 rounded-xl border border-brand-primary/20 bg-surface/70 outline-none"
                 />
               ) : (
                 <textarea
@@ -299,7 +284,7 @@ export default function LessonEditorPage() {
                   dir={block.type.includes("en") || block.type === "vocabulary-word" ? "ltr" : "rtl"}
                   rows={block.type === "heading" || block.type === "subheading" ? 1 : 3}
                   placeholder="اكتب المحتوى هنا..."
-                  className="w-full px-3 py-2 rounded-xl border border-brand-primary/20 bg-white/70 outline-none"
+                  className="w-full px-3 py-2 rounded-xl border border-brand-primary/20 bg-surface/70 outline-none"
                 />
               )}
             </GlassCard>
@@ -320,7 +305,7 @@ export default function LessonEditorPage() {
 
           <div className="flex flex-col gap-2 mb-6">
             {quizQuestions.map((q, idx) => (
-              <div key={q.id} className="bg-white/60 rounded-xl p-3">
+              <div key={q.id} className="bg-surface/60 rounded-xl p-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-brand-text font-medium">
                     {idx + 1}. {q.text}
@@ -338,7 +323,7 @@ export default function LessonEditorPage() {
                       className={`text-xs px-2 py-1 rounded-lg ${
                         i === q.correctIndex
                           ? "bg-brand-success/15 text-brand-success"
-                          : "bg-black/5 text-brand-textMuted"
+                          : "bg-surfaceBorder/40 text-brand-textMuted"
                       }`}
                     >
                       {opt} {i === q.correctIndex && "✓"}
@@ -352,21 +337,21 @@ export default function LessonEditorPage() {
             )}
           </div>
 
-          <div className="border-t border-black/5 pt-4">
+          <div className="border-t border-surfaceBorder pt-4">
             <p className="text-sm font-medium text-brand-text mb-2">+ إضافة سؤال</p>
             <textarea
               placeholder="نص السؤال"
               value={qText}
               onChange={(e) => setQText(e.target.value)}
               rows={2}
-              className="w-full px-3 py-2 rounded-xl border border-brand-primary/20 bg-white/70 outline-none mb-2"
+              className="w-full px-3 py-2 rounded-xl border border-brand-primary/20 bg-surface/70 outline-none mb-2"
             />
             <div className="grid grid-cols-2 gap-2 mb-2">
               {qOptions.map((opt, i) => (
                 <label
                   key={i}
                   className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm ${
-                    qCorrect === i ? "border-brand-success bg-brand-success/5" : "border-brand-primary/20 bg-white/70"
+                    qCorrect === i ? "border-brand-success bg-brand-success/5" : "border-brand-primary/20 bg-surface/70"
                   }`}
                 >
                   <input

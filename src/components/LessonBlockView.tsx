@@ -6,19 +6,6 @@ function isPdfUrl(url: string) {
   return /\.pdf(\?|#|$)/i.test(url) || url.includes("application/pdf");
 }
 
-// يحوّل نص قائمة المفردات (كل سطر: "word | الترجمة") إلى عناصر قابلة للعرض
-function parseVocabularyList(content: string) {
-  return content
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [word, translation] = line.split("|").map((s) => s?.trim() ?? "");
-      return { word, translation: translation || "" };
-    })
-    .filter((item) => item.word);
-}
-
 export function LessonBlockView({ block }: { block: LessonBlock }) {
   switch (block.type) {
     case "heading":
@@ -43,33 +30,6 @@ export function LessonBlockView({ block }: { block: LessonBlock }) {
           <SpeakButton text={block.content} />
         </div>
       );
-    case "vocabulary-list": {
-      const items = parseVocabularyList(block.content);
-      if (items.length === 0) {
-        return <p className="text-brand-textMuted text-sm">لا توجد مفردات بعد</p>;
-      }
-      return (
-        <div className="flex flex-col divide-y divide-black/5">
-          {items.map((item, i) => (
-            <div key={i} className="flex items-center justify-between gap-3 py-2">
-              <div className="flex items-center gap-2" dir="ltr">
-                <span className="font-bold text-brand-primary">{item.word}</span>
-                <SpeakButton text={item.word} size="sm" />
-              </div>
-              <span dir="rtl" className="text-brand-text text-sm">{item.translation}</span>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    // نوع قديم غير مستخدم بالمحرر الحالي (أسئلة الكويز الحقيقية تُدار من
-    // قسم "أسئلة الكويز" المنفصل) — نعرضه كملاحظة بسيطة حتى لا ينكسر أي درس قديم
-    case "quiz-question":
-      return block.content ? (
-        <p className="text-brand-text bg-brand-warning/10 rounded-xl p-3">❓ {block.content}</p>
-      ) : null;
-
     case "note":
       return <p className="text-brand-text bg-brand-primary/5 rounded-xl p-3">💡 {block.content}</p>;
     case "alert":

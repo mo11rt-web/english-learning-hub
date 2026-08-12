@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -49,22 +51,22 @@ export default function StudentPastExamsPage() {
       <GlassCard className="mb-6">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
           <select value={filterSubject} onChange={(e) => setFilterSubject(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70 text-sm">
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm">
             <option value="">كل المواد</option>
             {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
           <select value={filterStage} onChange={(e) => setFilterStage(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70 text-sm">
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm">
             <option value="">كل المراحل</option>
             {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           <select value={filterYear} onChange={(e) => setFilterYear(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70 text-sm">
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm">
             <option value="">كل السنوات</option>
             {years.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
           <select value={filterRound} onChange={(e) => setFilterRound(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70 text-sm">
+            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm">
             <option value="">كل الدورات</option>
             {rounds.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
@@ -73,7 +75,7 @@ export default function StudentPastExamsPage() {
           placeholder="ابحث بنص السؤال..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70 text-sm"
+          className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm"
         />
       </GlassCard>
 
@@ -84,7 +86,7 @@ export default function StudentPastExamsPage() {
               {q.subject} · {stages.find((s) => s.id === q.stageId)?.name ?? "—"} · {q.year} · {q.round}
               {q.marks ? ` · ${q.marks} علامة` : ""}
             </p>
-            <p dir="ltr" className="text-brand-text font-medium mb-2">{q.questionText}</p>
+            <p className="text-brand-text font-medium mb-2">{q.questionText}</p>
             {q.imageUrl && (
               q.imageUrl.match(/\.pdf(\?|#|$)/i) ? (
                 <a href={q.imageUrl} target="_blank" rel="noreferrer" className="text-brand-primary text-sm">
@@ -97,7 +99,7 @@ export default function StudentPastExamsPage() {
             {revealedAnswers[q.id] ? (
               <div className="mt-2 bg-brand-success/10 rounded-xl p-3 text-sm text-brand-text">
                 <p className="font-medium mb-1">الحل:</p>
-                <p dir="ltr" className="whitespace-pre-wrap">{q.answerText}</p>
+                <p className="whitespace-pre-wrap">{q.answerText}</p>
               </div>
             ) : (
               <button

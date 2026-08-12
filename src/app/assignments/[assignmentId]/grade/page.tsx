@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { doc, onSnapshot } from "firebase/firestore";
@@ -83,13 +85,10 @@ export default function GradeAssignmentPage() {
                 {Object.entries(att.answers ?? {}).map(([qId, ans]) => {
                   const q = questions.find((qq) => qq.id === qId);
                   return (
-                    <div key={qId} className="bg-white/50 rounded-xl p-3 text-sm">
-                      <p dir="ltr" className="text-brand-text font-medium">{q?.text ?? qId}</p>
+                    <div key={qId} className="bg-surface/50 rounded-xl p-3 text-sm">
+                      <p className="text-brand-text font-medium">{q?.text ?? qId}</p>
                       <p className="text-brand-textMuted">
-                        إجابة الطالب:{" "}
-                        <span dir="ltr" className="inline-block">
-                          {Array.isArray(ans) ? ans.join("، ") : ans}
-                        </span>
+                        إجابة الطالب: {Array.isArray(ans) ? ans.join("، ") : ans}
                       </p>
                       {q && (
                         <p className="text-brand-success text-xs">
@@ -107,13 +106,13 @@ export default function GradeAssignmentPage() {
                   placeholder="الدرجة النهائية"
                   defaultValue={att.finalScore ?? att.autoScore}
                   onBlur={(e) => setManualScore(att, Number(e.target.value))}
-                  className="w-32 px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70 text-sm"
+                  className="w-32 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm"
                 />
                 <input
                   placeholder="ملاحظة للطالب"
                   defaultValue={att.teacherFeedback}
                   onBlur={(e) => setFeedback(att.id, e.target.value)}
-                  className="flex-1 px-3 py-2 rounded-xl border border-brand-primary/25 bg-white/70 text-sm"
+                  className="flex-1 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm"
                 />
               </div>
             </GlassCard>
