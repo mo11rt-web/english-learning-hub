@@ -1,0 +1,162 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   نظام ألوان "Learn English" — هوية جديدة مستقلة، مستوحاة من:
+   - الفيروزي التعليمي الأصلي (وضوح، هدوء، مناسب للطلاب)
+   - لمسة ذهبية دافئة من allawi-net (للنقاط والإنجازات والتميّز)
+   القيم مخزّنة كمتغيرات CSS (R G B بدون فواصل) حتى تدعم Tailwind
+   شفافية الألوان (bg-brand-primary/10 مثلًا)، وحتى يتحول التطبيق
+   كامل لـ Dark Mode بتبديل صف واحد (.dark) بدون لمس أي مكوّن.
+   ============================================================ */
+:root {
+  color-scheme: light;
+
+  --brand-primary: 15 145 158;      /* #0F919E */
+  --brand-secondary: 74 191 199;    /* #4ABFC7 */
+  --brand-sidebar: 9 58 66;         /* #093A42 */
+  --brand-success: 45 158 107;      /* #2D9E6B */
+  --brand-warning: 214 158 44;      /* #D69E2C */
+  --brand-error: 217 87 87;         /* #D95757 */
+  --brand-text: 21 41 45;           /* #15292D */
+  --brand-textMuted: 100 122 125;   /* #647A7D */
+
+  /* الذهبي: لون تمييز مخصص للنقاط والمستويات والإنجازات فقط */
+  --brand-gold: 196 154 58;         /* #C49A3A */
+  --brand-goldLight: 232 208 140;   /* #E8D08C */
+
+  --surface: 255 255 255;
+  --surface-border: 210 224 225;
+
+  --app-gradient: linear-gradient(135deg, #F6FAF9, #E9F4F2, #DEEEEC);
+  --geo-stroke: #0F919E;
+  --geo-opacity: 0.05;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --brand-primary: 62 199 209;      /* #3EC7D1 */
+  --brand-secondary: 105 215 222;   /* #69D7DE */
+  --brand-sidebar: 6 18 20;         /* #061214 */
+  --brand-success: 72 191 140;      /* #48BF8C */
+  --brand-warning: 230 189 99;      /* #E6BD63 */
+  --brand-error: 232 118 118;       /* #E87676 */
+  --brand-text: 226 240 239;        /* #E2F0EF */
+  --brand-textMuted: 143 168 168;   /* #8FA8A8 */
+
+  --brand-gold: 224 189 105;        /* #E0BD69 */
+  --brand-goldLight: 240 220 168;   /* #F0DCA8 */
+
+  --surface: 19 31 33;              /* #131F21 */
+  --surface-border: 45 66 69;
+
+  --app-gradient: linear-gradient(135deg, #0A1516, #0D1B1C, #0B1817);
+  --geo-stroke: #E0BD69;
+  --geo-opacity: 0.06;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  color: rgb(var(--brand-text));
+  background-image: var(--app-gradient);
+  background-attachment: fixed;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.bg-app-gradient {
+  background-image: var(--app-gradient);
+}
+
+/* زخرفة هندسية خفيفة جدًا (نجمة ثمانية متكررة) — تراث تعليمي/فني بسيط
+   بدون ما ينافس المحتوى، ويتغيّر لونها تلقائيًا بين الوضع الفاتح والداكن.
+   نستخدم mask-image بدل background-image حتى يقدر background-color ياخذ
+   قيمته من متغيّر CSS حي (data-URI ثابت وما بيقدر يقرأ var() مباشرة). */
+.bg-geo-pattern {
+  position: relative;
+}
+.bg-geo-pattern::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: rgb(var(--brand-primary));
+  opacity: var(--geo-opacity);
+  -webkit-mask-repeat: repeat;
+  mask-repeat: repeat;
+  -webkit-mask-size: 84px 84px;
+  mask-size: 84px 84px;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='84' height='84' viewBox='0 0 84 84'%3E%3Cg fill='none' stroke='%23000' stroke-width='1.4'%3E%3Cpolygon points='42,4 49,21 66,14 59,31 76,38 59,45 66,62 49,55 42,72 35,55 18,62 25,45 8,38 25,31 18,14 35,21'/%3E%3C/g%3E%3Cg fill='%23000'%3E%3Ccircle cx='0' cy='0' r='4'/%3E%3Ccircle cx='84' cy='0' r='4'/%3E%3Ccircle cx='0' cy='84' r='4'/%3E%3Ccircle cx='84' cy='84' r='4'/%3E%3C/g%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='84' height='84' viewBox='0 0 84 84'%3E%3Cg fill='none' stroke='%23000' stroke-width='1.4'%3E%3Cpolygon points='42,4 49,21 66,14 59,31 76,38 59,45 66,62 49,55 42,72 35,55 18,62 25,45 8,38 25,31 18,14 35,21'/%3E%3C/g%3E%3Cg fill='%23000'%3E%3Ccircle cx='0' cy='0' r='4'/%3E%3Ccircle cx='84' cy='0' r='4'/%3E%3Ccircle cx='0' cy='84' r='4'/%3E%3Ccircle cx='84' cy='84' r='4'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* نص إنجليزي داخل سياق عربي RTL */
+[dir="ltr"] {
+  unicode-bidi: isolate;
+}
+
+::selection {
+  background: rgb(var(--brand-goldLight));
+  color: rgb(var(--brand-text));
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--brand-primary) / 0.55);
+  border-radius: 999px;
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--brand-primary));
+  outline-offset: 2px;
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (min-width: 640px) {
+  @keyframes sheet-in {
+    from {
+      transform: translateY(12px) scale(0.98);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+  }
+}
+
+.animate-sheet-in {
+  animation: sheet-in 0.22s ease-out;
+}
+
+@keyframes fade-up {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.35s ease-out both;
+}
