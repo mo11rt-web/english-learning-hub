@@ -6,13 +6,14 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
+import { SpeakButton } from "@/components/SpeakButton";
 import { listenCollection, where } from "@/lib/firestore-helpers";
 import { IrregularVerb, StudentProfile } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
 
 type Mode = "past-simple" | "past-participle" | "sentence";
 type Level = "easy" | "medium" | "hard" | "all";
-type Stage = "setup" | "playing" | "summary";
+type Stage = "study" | "setup" | "playing" | "summary";
 
 interface Question {
   verb: IrregularVerb & { id: string };
@@ -79,7 +80,7 @@ export default function IrregularVerbsTrainerPage() {
   const stageId = (profile as StudentProfile | null)?.stageId;
   const [verbs, setVerbs] = useState<(IrregularVerb & { id: string })[]>([]);
 
-  const [stage, setStage] = useState<Stage>("setup");
+  const [stage, setStage] = useState<Stage>("study");
   const [mode, setMode] = useState<Mode>("past-simple");
   const [level, setLevel] = useState<Level>("all");
 
@@ -135,8 +136,76 @@ export default function IrregularVerbsTrainerPage() {
   return (
     <AppShell requireRole="student">
       <h1 className="text-2xl font-bold text-brand-text mb-6">
-        تدريب الأفعال الشاذة 🎮
+        الأفعال الشاذة 📖
       </h1>
+
+      <div className="flex bg-surfaceBorder/40 rounded-2xl p-1 mb-6 max-w-xs">
+        <button
+          onClick={() => setStage("study")}
+          className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${
+            stage === "study" ? "bg-surface shadow text-brand-primary" : "text-brand-textMuted"
+          }`}
+        >
+          📖 قائمة الدراسة
+        </button>
+        <button
+          onClick={() => setStage("setup")}
+          className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${
+            stage !== "study" ? "bg-surface shadow text-brand-primary" : "text-brand-textMuted"
+          }`}
+        >
+          🎮 اختبار نفسك
+        </button>
+      </div>
+
+      {stage === "study" && (
+        <div className="flex flex-col gap-3">
+          <p className="text-brand-textMuted text-sm">
+            {availableVerbs.length} فعل — اضغط 🔊 لسماع النطق الصحيح لأي شكل من أشكال الفعل (الأمريكي أو البريطاني)، أو 🐢 لسماعه ببطء.
+          </p>
+          {availableVerbs.map((v) => (
+            <GlassCard key={v.id}>
+              <div className="grid sm:grid-cols-3 gap-3" dir="ltr">
+                <div>
+                  <p className="text-xs text-brand-textMuted mb-1">Base</p>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-brand-primary text-lg">{v.base}</span>
+                    <SpeakButton text={v.base} size="sm" />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-brand-textMuted mb-1">Past Simple</p>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-brand-text text-lg">{v.pastSimple}</span>
+                    <SpeakButton text={v.pastSimple} size="sm" />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-brand-textMuted mb-1">Past Participle</p>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-brand-text text-lg">{v.pastParticiple}</span>
+                    <SpeakButton text={v.pastParticiple} size="sm" />
+                  </div>
+                </div>
+              </div>
+              <p dir="rtl" className="text-sm text-brand-textMuted mt-3">
+                المعنى: {v.meaningAr}
+              </p>
+              {v.example && (
+                <div className="flex items-center gap-2 mt-1" dir="ltr">
+                  <p className="text-xs text-brand-textMuted italic">{v.example}</p>
+                  <SpeakButton text={v.example} size="sm" />
+                </div>
+              )}
+            </GlassCard>
+          ))}
+          {availableVerbs.length === 0 && (
+            <GlassCard>
+              <p className="text-brand-textMuted text-sm">لا توجد أفعال شاذة مضافة لمرحلتك بعد.</p>
+            </GlassCard>
+          )}
+        </div>
+      )}
 
       {stage === "setup" && (
         <GlassCard>

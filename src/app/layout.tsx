@@ -1,21 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Cairo, Inter } from "next/font/google";
+// TEMP disabled for sandbox test
 import "./globals.css";
 import { AuthProvider } from "@/hooks/useAuth";
 import { WorkspaceProvider } from "@/hooks/useWorkspace";
 import { ThemeProvider } from "@/hooks/useTheme";
 
-const cairo = Cairo({
-  subsets: ["arabic", "latin"],
-  variable: "--font-arabic",
-  weight: ["400", "500", "600", "700", "800"],
-});
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-english",
-  weight: ["400", "500", "600", "700"],
-});
+const cairo = { variable: "" };
+const inter = { variable: "" };
 
 export const metadata: Metadata = {
   title: "Learn English | with Mohanad Allawi",

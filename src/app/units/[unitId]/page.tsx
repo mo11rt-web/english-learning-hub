@@ -11,8 +11,9 @@ import { db, storage } from "@/lib/firebase";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
-import { Modal } from "@/components/ui/Modal";
+import { Modal, Toast } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { LessonBlockView } from "@/components/LessonBlockView";
 import {
   listenCollection,
   createDoc,
@@ -37,6 +38,13 @@ export default function UnitLessonsPage() {
   const [pdfError, setPdfError] = useState("");
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [previewLesson, setPreviewLesson] = useState<(Lesson & { id: string }) | null>(null);
+
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   useEffect(() => {
     const u = listenCollection<Lesson>(
@@ -82,48 +90,51 @@ export default function UnitLessonsPage() {
   };
 
   const addLesson = async () => {
-    if (!form.title.trim() || !user || !unit) return;
-
-    const blocks: LessonBlock[] = [];
-    let order = 0;
-
-    if (form.videoUrl.trim()) {
-      const isYoutube = !!getYoutubeEmbedUrl(form.videoUrl.trim());
-      const isDrive = !!getDriveEmbedUrl(form.videoUrl.trim());
-      if (isYoutube) {
-        blocks.push({ id: crypto.randomUUID(), type: "youtube", content: form.videoUrl.trim(), order: order++ });
-      } else if (isDrive) {
-        blocks.push({ id: crypto.randomUUID(), type: "google-drive", content: form.videoUrl.trim(), order: order++ });
-      } else {
-        // رابط فيديو غير معروف الصيغة: نضيفه كرابط Google Drive كمحاولة افتراضية آمنة،
-        // ويمكن للمعلم تعديل نوع الكتلة لاحقًا من محرر الدرس الكامل
-        blocks.push({ id: crypto.randomUUID(), type: "youtube", content: form.videoUrl.trim(), order: order++ });
-      }
-    }
-
-    let pdfUrl = "";
-    if (pdfFile) {
-      setUploadProgress(0);
-      const path = `lesson-files/${Date.now()}-${pdfFile.name}`;
-      const storageRef = ref(storage, path);
-      const task = uploadBytesResumable(storageRef, pdfFile);
-      pdfUrl = await new Promise<string>((resolve, reject) => {
-        task.on(
-          "state_changed",
-          (snap) => setUploadProgress((snap.bytesTransferred / snap.totalBytes) * 100),
-          (err) => reject(err),
-          async () => resolve(await getDownloadURL(task.snapshot.ref))
-        );
-      });
-      blocks.push({ id: crypto.randomUUID(), type: "pdf", content: pdfUrl, order: order++ });
-    }
-
-    if (form.notes.trim()) {
-      blocks.push({ id: crypto.randomUUID(), type: "note", content: form.notes.trim(), order: order++ });
+    if (!form.title.trim() || !user) return;
+    if (!unit) {
+      showToast("لسا بيانات الوحدة ما تحمّلت، انتظر ثانية وجرب مجددًا", "error");
+      return;
     }
 
     setSaving(true);
     try {
+      const blocks: LessonBlock[] = [];
+      let order = 0;
+
+      if (form.videoUrl.trim()) {
+        const isYoutube = !!getYoutubeEmbedUrl(form.videoUrl.trim());
+        const isDrive = !!getDriveEmbedUrl(form.videoUrl.trim());
+        if (isYoutube) {
+          blocks.push({ id: crypto.randomUUID(), type: "youtube", content: form.videoUrl.trim(), order: order++ });
+        } else if (isDrive) {
+          blocks.push({ id: crypto.randomUUID(), type: "google-drive", content: form.videoUrl.trim(), order: order++ });
+        } else {
+          // رابط فيديو غير معروف الصيغة: نضيفه كرابط يوتيوب كمحاولة افتراضية،
+          // ويمكن للمعلم تعديل نوع الكتلة لاحقًا من محرر الدرس الكامل
+          blocks.push({ id: crypto.randomUUID(), type: "youtube", content: form.videoUrl.trim(), order: order++ });
+        }
+      }
+
+      if (pdfFile) {
+        setUploadProgress(0);
+        const path = `lesson-files/${Date.now()}-${pdfFile.name}`;
+        const storageRef = ref(storage, path);
+        const task = uploadBytesResumable(storageRef, pdfFile);
+        const pdfUrl = await new Promise<string>((resolve, reject) => {
+          task.on(
+            "state_changed",
+            (snap) => setUploadProgress((snap.bytesTransferred / snap.totalBytes) * 100),
+            (err) => reject(err),
+            async () => resolve(await getDownloadURL(task.snapshot.ref))
+          );
+        });
+        blocks.push({ id: crypto.randomUUID(), type: "pdf", content: pdfUrl, order: order++ });
+      }
+
+      if (form.notes.trim()) {
+        blocks.push({ id: crypto.randomUUID(), type: "note", content: form.notes.trim(), order: order++ });
+      }
+
       await createDoc("lessons", {
         title: form.title.trim(),
         unitId,
@@ -137,10 +148,17 @@ export default function UnitLessonsPage() {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
+      showToast("تم إنشاء الدرس بنجاح ✅");
       resetForm();
       setModalOpen(false);
+    } catch (err) {
+      // قبل هيك ما كان في أي رسالة للمعلم لما يفشل الحفظ — كان الدرس
+      // "بيختفي" بصمت بدون أي تفسير. هلق بنعرض السبب الحقيقي مباشرة.
+      const msg = err instanceof Error ? err.message : String(err);
+      showToast(`تعذّر حفظ الدرس: ${msg}`, "error");
     } finally {
       setSaving(false);
+      setUploadProgress(null);
     }
   };
 
@@ -155,9 +173,9 @@ export default function UnitLessonsPage() {
 
       <div className="grid md:grid-cols-2 gap-4">
         {lessons.map((l) => (
-          <Link key={l.id} href={`/lessons/${l.id}`}>
-            <GlassCard className="hover:shadow-lg transition-shadow cursor-pointer">
-              <div className="flex items-center justify-between">
+          <GlassCard key={l.id} className="hover:shadow-lg transition-shadow">
+            <Link href={`/lessons/${l.id}`}>
+              <div className="flex items-center justify-between cursor-pointer">
                 <h3 className="font-bold text-brand-text">{l.title}</h3>
                 <StatusBadge
                   label={l.status === "published" ? "منشور" : "مسودة"}
@@ -168,8 +186,17 @@ export default function UnitLessonsPage() {
                 {l.blocks?.length ?? 0} كتلة محتوى
                 {l.quizQuestions?.length ? ` · ${l.quizQuestions.length} سؤال كويز` : ""}
               </p>
-            </GlassCard>
-          </Link>
+            </Link>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setPreviewLesson(l);
+              }}
+              className="mt-3 text-xs text-brand-primary font-medium flex items-center gap-1"
+            >
+              👁️ معاينة كطالب
+            </button>
+          </GlassCard>
         ))}
         {lessons.length === 0 && (
           <p className="text-brand-textMuted">لا توجد دروس بعد.</p>
@@ -247,11 +274,47 @@ export default function UnitLessonsPage() {
             بعد الإنشاء تقدر تضيف المزيد من المحتوى (صور، صفحات كتاب، مفردات...) وأسئلة الكويز من صفحة الدرس الكاملة.
           </p>
 
-          <Button onClick={addLesson} disabled={saving || !form.title.trim()}>
-            {saving ? "جارٍ الحفظ..." : "إنشاء الدرس"}
+          <Button onClick={addLesson} disabled={saving || !form.title.trim() || !unit}>
+            {saving ? "جارٍ الحفظ..." : !unit ? "جارٍ تحميل بيانات الوحدة..." : "إنشاء الدرس"}
           </Button>
         </div>
       </Modal>
+
+      {/* معاينة الدرس بالضبط متل ما رح يشوفه الطالب — بنفس المكوّن يلي
+          الطالب نفسه يشوفه (LessonBlockView)، جوا نافذة منبثقة داخل
+          التطبيق نفسه، بدون ما نضطر نفتح حساب طالب تجريبي أو صفحة منفصلة. */}
+      <Modal
+        open={!!previewLesson}
+        onClose={() => setPreviewLesson(null)}
+        title={previewLesson ? `معاينة كطالب — ${previewLesson.title}` : "معاينة"}
+        maxWidth="max-w-2xl"
+      >
+        {previewLesson && (
+          <div className="flex flex-col gap-5">
+            <p className="text-xs text-brand-textMuted bg-brand-primary/5 rounded-xl p-2.5">
+              هيك بالضبط رح يشوف الطالب هالدرس — نفس الترتيب ونفس المحتوى. هاي معاينة فقط، ما بتأثر على شي.
+            </p>
+            {(previewLesson.blocks ?? [])
+              .slice()
+              .sort((a, b) => a.order - b.order)
+              .map((block) => (
+                <LessonBlockView key={block.id} block={block} />
+              ))}
+            {(!previewLesson.blocks || previewLesson.blocks.length === 0) && (
+              <p className="text-brand-textMuted text-sm">هذا الدرس ما فيه محتوى مضاف بعد.</p>
+            )}
+            {previewLesson.quizQuestions && previewLesson.quizQuestions.length > 0 && (
+              <div className="border-t border-brand-primary/10 pt-4">
+                <p className="text-sm font-medium text-brand-text mb-2">
+                  🧠 كويز الدرس ({previewLesson.quizQuestions.length} سؤال) — بيظهر للطالب بعد ما يخلص المحتوى
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {toast && <Toast message={toast.message} type={toast.type} />}
     </AppShell>
   );
 }
