@@ -233,6 +233,9 @@ export interface ShareSnapshot {
   lessonsCompleted: number;
   lessonsTotal: number;
   completionPercentage: number;
+  quizAveragePercentage?: number;
+  rank?: number | null;
+  totalInGroup?: number | null;
   quizResults: { title: string; score: number; maxScore: number; date: number }[];
   lastActivityAt?: number;
   enabled: boolean;

@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { ProgressDonut } from "@/components/ProgressDonut";
 import { ShareSnapshot } from "@/lib/types";
 
 export default function ShareResultsPage() {
@@ -70,12 +71,35 @@ export default function ShareResultsPage() {
                 <p className="text-brand-textMuted text-xs mt-1">نقطة · {data.levelName}</p>
               </GlassCard>
               <GlassCard className="text-center">
-                <p className="text-3xl font-bold text-brand-primary">{data.completionPercentage}%</p>
-                <p className="text-brand-textMuted text-xs mt-1">
-                  نسبة الإنجاز ({data.lessonsCompleted}/{data.lessonsTotal} درس)
-                </p>
+                {data.rank && data.totalInGroup ? (
+                  <>
+                    <p className="text-3xl font-bold text-brand-primary">#{data.rank}</p>
+                    <p className="text-brand-textMuted text-xs mt-1">الترتيب من {data.totalInGroup}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-3xl font-bold text-brand-textMuted">—</p>
+                    <p className="text-brand-textMuted text-xs mt-1">الترتيب غير متاح</p>
+                  </>
+                )}
               </GlassCard>
             </div>
+
+            <GlassCard>
+              <div className="flex flex-wrap justify-center gap-8">
+                <ProgressDonut
+                  percentage={data.completionPercentage}
+                  label="نسبة إنجاز الدروس"
+                  subLabel={`${data.lessonsCompleted}/${data.lessonsTotal} درس`}
+                  colorVar="--brand-primary"
+                />
+                <ProgressDonut
+                  percentage={data.quizAveragePercentage ?? 0}
+                  label="متوسط نتائج الاختبارات"
+                  colorVar="--brand-success"
+                />
+              </div>
+            </GlassCard>
 
             <GlassCard>
               <h3 className="font-bold text-brand-text mb-3">آخر نتائج الاختبارات</h3>

@@ -26,7 +26,7 @@ export async function publishResultsShare(
   if (!studentSnap.exists()) throw new Error("الطالب غير موجود");
   const student = studentSnap.data() as StudentProfile;
 
-  const [stageSnap, groupsSnap, lessonsSnap, progressSnap, attemptsSnap] = await Promise.all([
+  const [stageSnap, groupsSnap, lessonsSnap, progressSnap, attemptsSnap, groupPeersSnap] = await Promise.all([
     student.stageId ? getDoc(doc(db, "stages", student.stageId)) : Promise.resolve(null),
     getDocs(collection(db, "groups")),
     student.stageId
@@ -40,6 +40,17 @@ export async function publishResultsShare(
       : Promise.resolve(null),
     getDocs(query(collection(db, "lesson_progress"), where("studentId", "==", studentId))),
     getDocs(query(collection(db, "attempts"), where("studentId", "==", studentId))),
+    // المعلم/المدير مسموح له يقرأ بروفايلات كل الطلاب (خلافًا للطالب نفسه)،
+    // فهون منقدر نحسب الترتيب مباشرة من المتصفح بدون الحاجة لـ API خاص.
+    student.groupIds?.length
+      ? getDocs(
+          query(
+            collection(db, "profiles"),
+            where("role", "==", "student"),
+            where("groupIds", "array-contains", student.groupIds[0])
+          )
+        )
+      : Promise.resolve(null),
   ]);
 
   const stageName = (stageSnap?.data() as Stage | undefined)?.name ?? "—";
@@ -76,6 +87,34 @@ export async function publishResultsShare(
       date: a.submittedAt ?? 0,
     }));
 
+  const gradedForAverage = attemptsSnap.docs
+    .map((d) => d.data() as Attempt)
+    .filter((a) => (a.status === "submitted" || a.status === "graded") && (a.maxScore ?? 0) > 0);
+  const quizAveragePercentage =
+    gradedForAverage.length > 0
+      ? Math.round(
+          (gradedForAverage.reduce(
+            (sum, a) => sum + (a.finalScore ?? a.autoScore ?? 0) / (a.maxScore ?? 1),
+            0
+          ) /
+            gradedForAverage.length) *
+            100
+        )
+      : 0;
+
+  let rank: number | null = null;
+  let totalInGroup: number | null = null;
+  if (groupPeersSnap) {
+    const peers = groupPeersSnap.docs.map((d) => ({
+      id: d.id,
+      points: (d.data() as StudentProfile & { points?: number }).points ?? 0,
+    }));
+    const sorted = peers.sort((a, b) => b.points - a.points);
+    const idx = sorted.findIndex((p) => p.id === studentId);
+    rank = idx >= 0 ? idx + 1 : null;
+    totalInGroup = sorted.length;
+  }
+
   const lastActivityAt = Math.max(
     0,
     ...progressSnap.docs.map((d) => d.data().lastOpenedAt ?? 0)
@@ -94,6 +133,9 @@ export async function publishResultsShare(
     lessonsCompleted,
     lessonsTotal,
     completionPercentage,
+    quizAveragePercentage,
+    rank,
+    totalInGroup,
     quizResults,
     lastActivityAt: lastActivityAt || undefined,
     enabled: true,
