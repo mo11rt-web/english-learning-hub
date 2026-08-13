@@ -44,8 +44,14 @@ service cloud.firestore {
     match /units/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
 
     match /lessons/{id} {
+      // منشور بس ما بيكفي — لازم كمان الدرس يكون بدون تحديد مجموعات
+      // (يفتح لكل الطلاب) أو الطالب يكون فعليًا بواحدة من المجموعات
+      // المستهدفة. هيك تحديد "لأي مجموعة يفتح الدرس ولأي مجموعة لا" بيصير
+      // مطبّق فعليًا كأمان بقاعدة البيانات، مش بس إخفاء بالواجهة.
       allow read: if isTeacherOrAdmin() ||
-        (isActive() && resource.data.status == 'published');
+        (isActive() && resource.data.status == 'published' &&
+         (resource.data.targetGroupIds.size() == 0 ||
+          resource.data.targetGroupIds.hasAny(myProfile().groupIds)));
       allow write: if isTeacherOrAdmin();
     }
 
@@ -107,13 +113,9 @@ service cloud.firestore {
     match /notifications/{id} {
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      // الطالب قادر ينشئ إشعار للمعلم/المدير بس، وبس لنوعين محددين:
-      // 'submission' (تسليم واجب) و'alert' (مثلاً تنبيه 3 رسوبات متتالية) —
-      // أي نوع إشعار ثاني (متل new-lesson أو announcement) يبقى مقصور على
-      // المعلم/المدير فقط، حتى ما يقدر أي طالب ينشئ إشعارات وهمية لطلاب تانيين
       allow create: if isTeacherOrAdmin() ||
         (isActive() &&
-         request.resource.data.type in ['submission', 'alert'] &&
+         request.resource.data.type == 'submission' &&
          get(/databases/$(database)/documents/profiles/$(request.resource.data.userId)).data.role in ['admin', 'teacher']);
     }
   }

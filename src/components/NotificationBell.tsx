@@ -15,7 +15,6 @@ const TYPE_ICON: Record<Notification["type"], string> = {
   "new-exam": "📝",
   announcement: "📣",
   submission: "📥",
-  alert: "⚠️",
   system: "🔔",
 };
 

@@ -13,51 +13,48 @@
 :root {
   color-scheme: light;
 
-  /* لوحة "علاوي نت" الأصلية (Olive/Leaf/Gold) — بديل مباشر للفيروزي
-     القديم، بنفس بنية متغيرات CSS، فكل الألوان بكل صفحات المنصة تتحول
-     تلقائيًا بدون لمس أي مكوّن */
-  --brand-primary: 85 107 47;       /* #556B2F olive-600 */
-  --brand-secondary: 46 125 50;     /* #2E7D32 leaf-600 */
-  --brand-sidebar: 28 32 22;        /* #1C2016 ink-900 */
-  --brand-success: 46 125 50;       /* #2E7D32 leaf-600 */
-  --brand-warning: 212 175 55;      /* #D4AF37 gold-500 */
-  --brand-error: 192 57 43;         /* #C0392B أحمر دافئ متناسق مع اللوحة */
-  --brand-text: 28 32 22;           /* #1C2016 ink-900 */
-  --brand-textMuted: 107 101 81;    /* #6B6551 */
+  --brand-primary: 15 145 158;      /* #0F919E */
+  --brand-secondary: 74 191 199;    /* #4ABFC7 */
+  --brand-sidebar: 9 58 66;         /* #093A42 */
+  --brand-success: 45 158 107;      /* #2D9E6B */
+  --brand-warning: 214 158 44;      /* #D69E2C */
+  --brand-error: 217 87 87;         /* #D95757 */
+  --brand-text: 21 41 45;           /* #15292D */
+  --brand-textMuted: 100 122 125;   /* #647A7D */
 
   /* الذهبي: لون تمييز مخصص للنقاط والمستويات والإنجازات فقط */
-  --brand-gold: 212 175 55;         /* #D4AF37 gold-500 */
-  --brand-goldLight: 236 213 138;   /* #ECD58A gold-300 */
+  --brand-gold: 196 154 58;         /* #C49A3A */
+  --brand-goldLight: 232 208 140;   /* #E8D08C */
 
   --surface: 255 255 255;
-  --surface-border: 224 205 159;    /* #E0CD9F beige-300 */
+  --surface-border: 210 224 225;
 
-  --app-gradient: linear-gradient(135deg, #FDFBF6, #F5EBD7, #ECDFC0);
-  --geo-stroke: #556B2F;
-  --geo-opacity: 0.09;
+  --app-gradient: linear-gradient(135deg, #F6FAF9, #E9F4F2, #DEEEEC);
+  --geo-stroke: #0F919E;
+  --geo-opacity: 0.05;
 }
 
 .dark {
   color-scheme: dark;
 
-  --brand-primary: 77 163 84;       /* #4DA354 leaf-400 */
-  --brand-secondary: 121 193 126;   /* #79C17E leaf-300 */
-  --brand-sidebar: 32 38 26;        /* #20261A ink-800 */
-  --brand-success: 121 193 126;     /* #79C17E leaf-300 */
-  --brand-warning: 226 194 104;     /* #E2C268 gold-400 */
-  --brand-error: 229 115 115;       /* #E57373 */
-  --brand-text: 245 235 215;        /* #F5EBD7 beige-100 */
-  --brand-textMuted: 183 177 145;   /* #B7B191 */
+  --brand-primary: 62 199 209;      /* #3EC7D1 */
+  --brand-secondary: 105 215 222;   /* #69D7DE */
+  --brand-sidebar: 6 18 20;         /* #061214 */
+  --brand-success: 72 191 140;      /* #48BF8C */
+  --brand-warning: 230 189 99;      /* #E6BD63 */
+  --brand-error: 232 118 118;       /* #E87676 */
+  --brand-text: 226 240 239;        /* #E2F0EF */
+  --brand-textMuted: 143 168 168;   /* #8FA8A8 */
 
-  --brand-gold: 226 194 104;        /* #E2C268 gold-400 */
+  --brand-gold: 224 189 105;        /* #E0BD69 */
   --brand-goldLight: 240 220 168;   /* #F0DCA8 */
 
-  --surface: 32 38 26;              /* #20261A ink-800 */
-  --surface-border: 51 57 37;       /* #333925 */
+  --surface: 19 31 33;              /* #131F21 */
+  --surface-border: 45 66 69;
 
-  --app-gradient: linear-gradient(135deg, #161B10, #1B2114, #20261A);
-  --geo-stroke: #E2C268;
-  --geo-opacity: 0.09;
+  --app-gradient: linear-gradient(135deg, #0A1516, #0D1B1C, #0B1817);
+  --geo-stroke: #E0BD69;
+  --geo-opacity: 0.06;
 }
 
 html {
@@ -162,29 +159,4 @@ body {
 
 .animate-fade-up {
   animation: fade-up 0.35s ease-out both;
-}
-
-/* تصدير PDF لتقرير ولي الأمر — بيستخدم طباعة المتصفح (Save as PDF) بدل
-   أي مكتبة PDF خارجية، فهو مجاني بالكامل ومافي أي اعتماديات إضافية.
-   بوضع الطباعة: نلغي أي تأثير زجاجي/شفافية/ظل حتى تطلع الصفحة نظيفة
-   بالأبيض والأسود على الورق، ونخفي أي عنصر مو جزء من التقرير نفسه. */
-@media print {
-  .no-print {
-    display: none !important;
-  }
-  body {
-    background: #fff !important;
-    color: #000 !important;
-  }
-  .printable-report {
-    background: #fff !important;
-    box-shadow: none !important;
-    border: 1px solid #ddd !important;
-    backdrop-filter: none !important;
-    color: #000 !important;
-    break-inside: avoid;
-  }
-  .printable-report * {
-    color: #000 !important;
-  }
 }

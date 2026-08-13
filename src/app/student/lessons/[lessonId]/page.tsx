@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, onSnapshot, setDoc, getDoc, collection, query, where as fbWhere, orderBy as fbOrderBy, limit, getDocs } from "firebase/firestore";
+import { doc, onSnapshot, setDoc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -13,19 +13,17 @@ import { LessonBlockView } from "@/components/LessonBlockView";
 import {
   listenCollection,
   where,
-  orderBy as fsOrderBy,
 } from "@/lib/firestore-helpers";
 import { Lesson } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
 import { awardPoints, getPointsSettings } from "@/lib/gamification";
-import { notifyUsers, getTeacherUids } from "@/lib/notifications";
 
 type Stage = "content" | "quiz" | "summary";
 
 export default function StudentLessonViewPage() {
   const { lessonId } = useParams<{ lessonId: string }>();
   const router = useRouter();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const [lesson, setLesson] = useState<(Lesson & { id: string }) | null>(null);
   const [siblingLessons, setSiblingLessons] = useState<(Lesson & { id: string })[]>([]);
   const [stage, setStage] = useState<Stage>("content");
@@ -47,8 +45,8 @@ export default function StudentLessonViewPage() {
     if (!lesson) return;
     const u = listenCollection<Lesson>(
       "lessons",
-      [where("unitId", "==", lesson.unitId), fsOrderBy("order")],
-      setSiblingLessons
+      [where("unitId", "==", lesson.unitId)],
+      (items) => setSiblingLessons(items.slice().sort((a, b) => a.order - b.order))
     );
     return () => u();
   }, [lesson?.unitId]);
@@ -120,63 +118,19 @@ export default function StudentLessonViewPage() {
     }
   };
 
-  const FAIL_THRESHOLD = 60; // نفس نسبة النجاح الافتراضية المستخدمة بباقي المنصة (الواجبات)
-
-  // يفحص آخر ٤ محاولات كويز للطالب (عبر كل الدروس)، ولو آخر ٣ منهم فاشلة
-  // (وين "فاشل" = تحت ٦٠٪) بينبّه المعلم مرة وحدة بالضبط لحظة ما توصل
-  // السلسلة لـ٣ — مو مع كل رسوب إضافي بعدها (لتجنب إزعاج المعلم بإشعارات
-  // متكررة لنفس الطالب المستمر بالرسوب)
-  const checkConsecutiveFailuresAndNotify = async (studentUid: string, studentName: string) => {
-    try {
-      const q = query(
-        collection(db, "lesson_progress"),
-        fbWhere("studentId", "==", studentUid),
-        fbOrderBy("quizCompletedAt", "desc"),
-        limit(4)
-      );
-      const snap = await getDocs(q);
-      const attempts = snap.docs.map((d) => d.data());
-      if (attempts.length < 3) return;
-
-      const lastThreeFailed = attempts.slice(0, 3).every((a) => (a.quizScore ?? 0) < FAIL_THRESHOLD);
-      if (!lastThreeFailed) return;
-
-      // لو في محاولة رابعة أقدم وهي كمان كانت فاشلة، معناها الإشعار
-      // انبعت أصلًا بمحاولة سابقة (السلسلة تجاوزت ٣ من قبل) — منتجنب التكرار
-      const fourthAlsoFailed = attempts.length >= 4 && (attempts[3].quizScore ?? 0) < FAIL_THRESHOLD;
-      if (fourthAlsoFailed) return;
-
-      const teacherUids = await getTeacherUids();
-      await notifyUsers(teacherUids, {
-        title: "⚠️ طالب يحتاج متابعة",
-        body: `الطالب ${studentName} رسب بـ 3 اختبارات دروس متتالية (أقل من ${FAIL_THRESHOLD}٪). ممكن يحتاج مراجعة أو مساعدة إضافية.`,
-        type: "alert",
-        link: `/students`,
-      });
-    } catch (err) {
-      // ما منوقف تجربة الطالب لو فشل الإشعار لأي سبب (مثلاً فهرس Firestore
-      // ناقص) — بس منسجل الخطأ بالـ console للمراجعة
-      console.error("checkConsecutiveFailuresAndNotify failed:", err);
-    }
-  };
-
   const finishQuiz = async () => {
     if (user) {
-      const score = Math.round((correctCount / quizQuestions.length) * 100);
       await setDoc(
         doc(db, "lesson_progress", `${user.uid}_${lessonId}`),
         {
           quizCompleted: true,
           quizCorrect: correctCount,
           quizTotal: quizQuestions.length,
-          quizScore: score,
+          quizScore: Math.round((correctCount / quizQuestions.length) * 100),
           quizCompletedAt: Date.now(),
         },
         { merge: true }
       );
-      if (score < FAIL_THRESHOLD) {
-        checkConsecutiveFailuresAndNotify(user.uid, user.displayName ?? profile?.fullName ?? "طالب");
-      }
     }
     setStage("summary");
   };
@@ -192,28 +146,35 @@ export default function StudentLessonViewPage() {
 
   return (
     <AppShell requireRole="student">
-      <h1 className="text-2xl font-bold text-brand-text mb-1">{lesson.title}</h1>
-      {lesson.description && (
-        <p className="text-brand-textMuted text-sm mb-5">{lesson.description}</p>
-      )}
+      <h1 className="text-2xl font-bold text-brand-text mb-6">{lesson.title}</h1>
 
       {stage === "content" && (
         <>
-          <div className="flex flex-col gap-4">
-            {lesson.blocks
+          {lesson.description && (
+            <p className="text-brand-textMuted mb-4">{lesson.description}</p>
+          )}
+          <div className="flex flex-col gap-4 pb-24">
+            {(lesson.blocks ?? [])
+              .slice()
               .sort((a, b) => a.order - b.order)
               .map((block) => (
                 <GlassCard key={block.id}>
                   <LessonBlockView block={block} />
                 </GlassCard>
               ))}
-            {lesson.blocks.length === 0 && (
+            {(!lesson.blocks || lesson.blocks.length === 0) && (
               <p className="text-brand-textMuted">لا يوجد محتوى بهذا الدرس بعد.</p>
             )}
           </div>
-          <Button onClick={handleNextFromContent} className="mt-6">
-            {quizQuestions.length > 0 ? "التالي ← الكويز" : "✅ أنهيت هذا الدرس"}
-          </Button>
+          {/* زر ثابت بأسفل الشاشة دائمًا — حتى لو الفيديو أو محتوى الدرس
+              طويل، الطالب لازم يشوف الزر بدون ما يحتاج يدور عليه بالتمرير */}
+          <div className="fixed bottom-0 inset-x-0 z-40 bg-surface/95 backdrop-blur-xl border-t border-surfaceBorder p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
+            <div className="max-w-2xl mx-auto">
+              <Button onClick={handleNextFromContent} className="w-full">
+                {quizQuestions.length > 0 ? "التالي ← الكويز 🧠" : "✅ أنهيت هذا الدرس"}
+              </Button>
+            </div>
+          </div>
         </>
       )}
 

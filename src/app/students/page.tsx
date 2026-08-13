@@ -12,6 +12,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { Modal, ConfirmDialog, Toast } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import ActionsDropdown from "@/components/ui/ActionsDropdown";
 import {
   listenCollection,
   updateDocById,
@@ -20,7 +21,8 @@ import {
 import { StudentProfile, Stage, Group } from "@/lib/types";
 import { phoneToEmail, normalizePhone } from "@/lib/phone";
 import { computeLevel } from "@/lib/gamification";
-import { publishResultsShare, setShareEnabled } from "@/lib/shareResults";
+import { publishResultsShare, setShareEnabled, computeStudentReportSnapshot, StudentReportSnapshot } from "@/lib/shareResults";
+import { exportHtmlToPdf, downloadOrShareFile } from "@/lib/pdfExport";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
 
@@ -54,7 +56,6 @@ export default function StudentsPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [addModalOpen, setAddModalOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [showDeleted, setShowDeleted] = useState(false);
   const [sharingId, setSharingId] = useState<string | null>(null);
@@ -135,7 +136,6 @@ export default function StudentsPage() {
       } as StudentProfile);
       setCredentialsModal({ fullName: form.fullName, phone, password });
       setForm({ fullName: "", phone: "", address: "", stageId: "", groupId: "", password: randomPassword() });
-      setAddModalOpen(false);
       showToast("تم إنشاء حساب الطالب بنجاح ✅");
     } catch (e: any) {
       const msg =
@@ -236,6 +236,36 @@ export default function StudentsPage() {
     }
   };
 
+  // تصدير كشف نتائج PDF لمشاركته مع الأهل — نفس طريقة علاوي نت بالضبط:
+  // بنعبّي قالب مخفي خارج الشاشة ببيانات الطالب، وبعدين نحوّله لصورة عالية
+  // الدقة (html2canvas) وندمجها بملف PDF (jsPDF). هاي الطريقة ضرورية هون
+  // لأنه jsPDF نفسه ما بيدعم رسم الخط العربي، فلازم نمرّ عبر محرك عرض
+  // النصوص تبع المتصفح نفسه حتى يطلع العربي صحيح مش مربعات فاضية.
+  const [pdfExportTarget, setPdfExportTarget] = useState<
+    (StudentProfile & { id: string; report: StudentReportSnapshot }) | null
+  >(null);
+  const [exportingPdfId, setExportingPdfId] = useState<string | null>(null);
+
+  const handleExportPdf = async (student: StudentProfile & { id: string }) => {
+    setExportingPdfId(student.id);
+    try {
+      const report = await computeStudentReportSnapshot(student.id);
+      setPdfExportTarget({ ...student, report });
+      // منستنى فريم واحد حتى القالب المخفي ينرسم فعليًا بالـ DOM قبل ما نلتقطه
+      await new Promise((r) => setTimeout(r, 50));
+      const el = document.getElementById("student-pdf-template");
+      if (!el) throw new Error("تعذّر تجهيز قالب الطباعة");
+      const file = await exportHtmlToPdf(el, `تقرير-${student.fullName}.pdf`);
+      await downloadOrShareFile(file);
+      showToast("تم تصدير التقرير PDF ✅");
+    } catch (e: any) {
+      showToast("تعذر تصدير PDF: " + (e.message ?? "خطأ غير معروف"), "error");
+    } finally {
+      setExportingPdfId(null);
+      setPdfExportTarget(null);
+    }
+  };
+
   const buildWhatsappMessage = (fullName: string, phone: string, password: string) => {
     const text =
       `مرحباً ${fullName}،\n\n` +
@@ -268,10 +298,7 @@ export default function StudentsPage() {
 
   return (
     <AppShell requireRole="teacher">
-      <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
-        <h1 className="text-2xl font-bold text-brand-text">إدارة الطلاب</h1>
-        <Button onClick={() => setAddModalOpen(true)}>+ إضافة طالب جديد</Button>
-      </div>
+      <h1 className="text-2xl font-bold text-brand-text mb-6">إدارة الطلاب</h1>
 
       {shareLink && (
         <GlassCard className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -304,205 +331,201 @@ export default function StudentsPage() {
         </GlassCard>
       )}
 
-      <div className="grid grid-cols-1 gap-6">
-        <GlassCard>
+      <div className="grid lg:grid-cols-3 gap-6">
+        <GlassCard className="lg:col-span-1 h-fit">
+          <h2 className="font-bold text-brand-text mb-4">إضافة طالب جديد</h2>
+          <div
+            className="flex flex-col gap-3"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !(e.target as HTMLElement).closest("select")) {
+                e.preventDefault();
+                handleCreate();
+              }
+            }}
+          >
+            <input
+              placeholder="الاسم الكامل"
+              value={form.fullName}
+              onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
+            />
+            <input
+              placeholder="رقم هاتف الطالب"
+              dir="ltr"
+              type="tel"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
+            />
+            <input
+              placeholder="العنوان (اختياري)"
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
+            />
+            <div className="px-3 py-2 rounded-xl bg-brand-primary/10 text-brand-primary text-sm">
+              القسم: {workspaceStageName ?? "—"}
+            </div>
+            <select
+              value={form.groupId}
+              onChange={(e) => setForm({ ...form, groupId: e.target.value })}
+              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
+            >
+              <option value="">بدون مجموعة (اختياري)</option>
+              {groups
+                .filter((g) => g.stageId === workspaceStageId)
+                .map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+            </select>
+
+            <div>
+              <label className="text-xs text-brand-textMuted block mb-1">كلمة المرور</label>
+              <div className="flex gap-2">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  dir="ltr"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  className="flex-1 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="px-2 text-xs text-brand-textMuted shrink-0"
+                >
+                  {showPassword ? "إخفاء" : "إظهار"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, password: randomPassword() })}
+                  className="px-2 text-xs text-brand-primary shrink-0"
+                  title="توليد كلمة مرور عشوائية"
+                >
+                  🎲
+                </button>
+              </div>
+              <p className="text-xs text-brand-textMuted mt-1">
+                يمكنك كتابة كلمة مرور خاصة بك أو استخدام المولّدة تلقائيًا.
+              </p>
+            </div>
+
+            <Button onClick={handleCreate} disabled={creating}>
+              {creating ? "جاري الإنشاء..." : "إنشاء حساب الطالب"}
+            </Button>
+          </div>
+        </GlassCard>
+
+        <GlassCard className="lg:col-span-2">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <h2 className="font-bold text-brand-text">
               قائمة الطلاب ({filtered.length})
             </h2>
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-1.5 text-xs text-brand-textMuted">
-                <input
-                  type="checkbox"
-                  checked={showDeleted}
-                  onChange={(e) => setShowDeleted(e.target.checked)}
-                />
-                عرض المحذوفين
-              </label>
+            <label className="flex items-center gap-1.5 text-xs text-brand-textMuted">
               <input
-                placeholder="بحث بالاسم أو الرقم..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="px-3 py-1.5 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm"
+                type="checkbox"
+                checked={showDeleted}
+                onChange={(e) => setShowDeleted(e.target.checked)}
               />
-            </div>
+              عرض المحذوفين
+            </label>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-brand-textMuted text-right border-b border-brand-primary/10">
-                  <th className="py-2 px-2">الاسم</th>
-                  <th className="py-2 px-2">رقم الهاتف</th>
-                  <th className="py-2 px-2">النقاط / المستوى</th>
-                  <th className="py-2 px-2">المرحلة</th>
-                  <th className="py-2 px-2">الحالة</th>
-                  <th className="py-2 px-2">إجراء</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((s) => (
-                  <tr key={s.id} className="border-b border-brand-primary/5">
-                    <td className="py-2 px-2 text-brand-text">{s.fullName}</td>
-                    <td className="py-2 px-2 text-brand-textMuted" dir="ltr">
-                      {s.username}
-                    </td>
-                    <td className="py-2 px-2 text-brand-textMuted">
-                      {s.points ?? 0} · {computeLevel(s.points ?? 0).name}
-                    </td>
-                    <td className="py-2 px-2 text-brand-textMuted">
-                      {stages.find((st) => st.id === s.stageId)?.name ?? "—"}
-                    </td>
-                    <td className="py-2 px-2">
-                      <StatusBadge
-                        label={s.status === "active" ? "نشط" : s.status === "deleted" ? "محذوف" : "معطّل"}
-                        tone={s.status === "active" ? "success" : s.status === "deleted" ? "muted" : "error"}
-                      />
-                    </td>
-                    <td className="py-2 px-2">
-                      {s.status === "deleted" ? (
-                        <button
-                          onClick={() => handleRestore(s)}
-                          className="text-brand-success text-xs"
-                        >
-                          ↩ استرجاع
-                        </button>
-                      ) : (
-                        <div className="flex flex-wrap gap-2">
-                          <button onClick={() => openEdit(s)} className="text-brand-primary text-xs">
-                            ✎ تعديل
-                          </button>
-                          <button
-                            onClick={() =>
+
+          <div className="relative mb-4">
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-textMuted text-sm pointer-events-none">
+              🔍
+            </span>
+            <input
+              placeholder="بحث بالاسم أو رقم الهاتف..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pr-9 pl-3 py-2.5 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm"
+            />
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {filtered.map((s) => {
+              const stageName = stages.find((st) => st.id === s.stageId)?.name ?? "—";
+              return (
+                <div
+                  key={s.id}
+                  className="flex flex-col gap-3 rounded-2xl border border-surfaceBorder/60 bg-surface/60 p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand-primary to-brand-secondary font-extrabold text-white">
+                      {s.fullName?.[0] ?? "?"}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-bold text-brand-text">{s.fullName}</p>
+                      <p className="truncate text-xs text-brand-textMuted" dir="ltr">
+                        {s.phone ?? s.username}
+                      </p>
+                      <p className="truncate text-xs text-brand-textMuted">
+                        {stageName} · {s.points ?? 0} نقطة · {computeLevel(s.points ?? 0).name}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 sm:shrink-0">
+                    <StatusBadge
+                      label={s.status === "active" ? "نشط" : s.status === "deleted" ? "محذوف" : "معطّل"}
+                      tone={s.status === "active" ? "success" : s.status === "deleted" ? "muted" : "error"}
+                    />
+                    {s.status === "deleted" ? (
+                      <button
+                        onClick={() => handleRestore(s)}
+                        className="text-brand-success text-xs font-semibold px-2"
+                      >
+                        ↩ استرجاع
+                      </button>
+                    ) : (
+                      <ActionsDropdown
+                        actions={[
+                          { label: "تعديل بيانات الطالب", icon: <span>✎</span>, onClick: () => openEdit(s) },
+                          {
+                            label: s.status === "active" ? "تعطيل الحساب" : "تفعيل الحساب",
+                            icon: <span>{s.status === "active" ? "⏸" : "▶️"}</span>,
+                            onClick: () =>
                               updateDocById("profiles", s.id, {
                                 status: s.status === "active" ? "disabled" : "active",
-                              })
-                            }
-                            className="text-brand-primary text-xs"
-                          >
-                            {s.status === "active" ? "تعطيل" : "تفعيل"}
-                          </button>
-                          <button
-                            onClick={() => setPasswordInfoTarget(s)}
-                            className="text-brand-textMuted text-xs"
-                          >
-                            🔑 كلمة المرور
-                          </button>
-                          <button
-                            onClick={() => handleShare(s)}
-                            disabled={sharingId === s.id}
-                            className="text-brand-secondary text-xs"
-                          >
-                            {sharingId === s.id ? "..." : "🔗 مشاركة النتائج"}
-                          </button>
-                          <button
-                            onClick={() => setDeleteTarget(s)}
-                            className="text-brand-error text-xs"
-                          >
-                            🗑 حذف
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="py-6 text-center text-brand-textMuted">
-                      {showDeleted ? "لا يوجد طلاب محذوفون." : "لا يوجد طلاب بعد."}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                              }),
+                          },
+                          {
+                            label: "تغيير كلمة المرور",
+                            icon: <span>🔑</span>,
+                            onClick: () => setPasswordInfoTarget(s),
+                          },
+                          {
+                            label: sharingId === s.id ? "جارٍ إنشاء الرابط..." : "مشاركة النتائج (رابط)",
+                            icon: <span>🔗</span>,
+                            onClick: () => handleShare(s),
+                          },
+                          {
+                            label: exportingPdfId === s.id ? "جارٍ التصدير..." : "تصدير تقرير PDF",
+                            icon: <span>🖨</span>,
+                            onClick: () => handleExportPdf(s),
+                          },
+                          {
+                            label: "حذف الطالب",
+                            icon: <span>🗑</span>,
+                            onClick: () => setDeleteTarget(s),
+                            danger: true,
+                          },
+                        ]}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {filtered.length === 0 && (
+              <p className="text-center text-brand-textMuted py-6">
+                {showDeleted ? "لا يوجد طلاب محذوفون." : "لا يوجد طلاب بعد."}
+              </p>
+            )}
           </div>
         </GlassCard>
       </div>
-
-      {/* نافذة "إضافة طالب جديد" — نفس الحقول والمنطق يلي كانوا بالبطاقة
-          الجانبية بالضبط، بس هلق داخل نافذة منبثقة متل "إضافة مشترك جديد"
-          بعلاوي نت، بدل ما تكون بطاقة ثابتة تاخذ مساحة دايمة بالصفحة */}
-      <Modal open={addModalOpen} onClose={() => setAddModalOpen(false)} title="إضافة طالب جديد">
-        <div
-          className="flex flex-col gap-3"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !(e.target as HTMLElement).closest("select")) {
-              e.preventDefault();
-              handleCreate();
-            }
-          }}
-        >
-          <input
-            placeholder="الاسم الكامل"
-            value={form.fullName}
-            onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
-          />
-          <input
-            placeholder="رقم هاتف الطالب"
-            dir="ltr"
-            type="tel"
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
-          />
-          <input
-            placeholder="العنوان (اختياري)"
-            value={form.address}
-            onChange={(e) => setForm({ ...form, address: e.target.value })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
-          />
-          <div className="px-3 py-2 rounded-xl bg-brand-primary/10 text-brand-primary text-sm">
-            القسم: {workspaceStageName ?? "—"}
-          </div>
-          <select
-            value={form.groupId}
-            onChange={(e) => setForm({ ...form, groupId: e.target.value })}
-            className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
-          >
-            <option value="">بدون مجموعة (اختياري)</option>
-            {groups
-              .filter((g) => g.stageId === workspaceStageId)
-              .map((g) => (
-                <option key={g.id} value={g.id}>{g.name}</option>
-              ))}
-          </select>
-
-          <div>
-            <label className="text-xs text-brand-textMuted block mb-1">كلمة المرور</label>
-            <div className="flex gap-2">
-              <input
-                type={showPassword ? "text" : "password"}
-                dir="ltr"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="flex-1 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                className="px-2 text-xs text-brand-textMuted shrink-0"
-              >
-                {showPassword ? "إخفاء" : "إظهار"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setForm({ ...form, password: randomPassword() })}
-                className="px-2 text-xs text-brand-primary shrink-0"
-                title="توليد كلمة مرور عشوائية"
-              >
-                🎲
-              </button>
-            </div>
-            <p className="text-xs text-brand-textMuted mt-1">
-              يمكنك كتابة كلمة مرور خاصة بك أو استخدام المولّدة تلقائيًا.
-            </p>
-          </div>
-
-          <Button onClick={handleCreate} disabled={creating}>
-            {creating ? "جاري الإنشاء..." : "إنشاء حساب الطالب"}
-          </Button>
-        </div>
-      </Modal>
 
       <Modal
         open={!!credentialsModal}
@@ -653,6 +676,88 @@ export default function StudentsPage() {
         message={`هل أنت متأكد من حذف الطالب "${deleteTarget?.fullName ?? ""}"؟ سيتم إخفاء بياناته ووقف وصوله للمنصة فورًا. يمكنك استرجاعه لاحقًا من قائمة "عرض المحذوفين".`}
         confirmLabel="حذف"
       />
+
+      {/* قالب طباعة مخفي لتصدير PDF — نفس أسلوب علاوي نت بالضبط: عنصر
+          فعلي بالـ DOM (مش مجرد نص) لأنه html2canvas محتاج يرسمه فعليًا،
+          بس موضوع برا حدود الشاشة المرئية حتى المستخدم ما يشوفه. */}
+      {pdfExportTarget && (
+        <div style={{ position: "fixed", left: -99999, top: 0 }}>
+          <div
+            id="student-pdf-template"
+            style={{
+              width: 800,
+              padding: 32,
+              background: "#fff",
+              fontFamily: "Cairo, sans-serif",
+              direction: "rtl",
+            }}
+          >
+            <h1 style={{ color: "#07596B", fontSize: 24, fontWeight: 800, margin: 0 }}>
+              تقرير نتائج الطالب
+            </h1>
+            <p style={{ color: "#6b7280", fontSize: 13, marginTop: 4 }}>
+              {pdfExportTarget.fullName} — {pdfExportTarget.report.stageName} — {pdfExportTarget.report.groupName}
+            </p>
+            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 20, fontSize: 13 }}>
+              <tbody>
+                {[
+                  ["النقاط", `${pdfExportTarget.report.points} نقطة`],
+                  ["المستوى", pdfExportTarget.report.levelName],
+                  [
+                    "نسبة إنجاز الدروس",
+                    `${pdfExportTarget.report.completionPercentage}% (${pdfExportTarget.report.lessonsCompleted}/${pdfExportTarget.report.lessonsTotal})`,
+                  ],
+                  ["متوسط نتائج الاختبارات", `${pdfExportTarget.report.quizAveragePercentage}%`],
+                  [
+                    "الترتيب بالمجموعة",
+                    pdfExportTarget.report.rank && pdfExportTarget.report.totalInGroup
+                      ? `#${pdfExportTarget.report.rank} من ${pdfExportTarget.report.totalInGroup}`
+                      : "—",
+                  ],
+                ].map(([label, value]) => (
+                  <tr key={label} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                    <td style={{ padding: "8px 4px", color: "#6b7280", width: "40%" }}>{label}</td>
+                    <td style={{ padding: "8px 4px", fontWeight: 700, color: "#111827" }}>{value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <h2 style={{ fontSize: 16, fontWeight: 800, color: "#07596B", marginTop: 24 }}>
+              آخر النتائج
+            </h2>
+            {pdfExportTarget.report.quizResults.length === 0 ? (
+              <p style={{ color: "#6b7280", fontSize: 13 }}>لا توجد نتائج بعد.</p>
+            ) : (
+              <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "#f3f4f6" }}>
+                    <th style={{ padding: "8px 4px", textAlign: "right" }}>الواجب/الاختبار</th>
+                    <th style={{ padding: "8px 4px", textAlign: "right" }}>النتيجة</th>
+                    <th style={{ padding: "8px 4px", textAlign: "right" }}>النسبة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pdfExportTarget.report.quizResults.map((r, i) => (
+                    <tr key={i} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                      <td style={{ padding: "8px 4px" }}>{r.title}</td>
+                      <td style={{ padding: "8px 4px" }}>
+                        {r.score}/{r.maxScore}
+                      </td>
+                      <td style={{ padding: "8px 4px" }}>
+                        {r.maxScore > 0 ? Math.round((r.score / r.maxScore) * 100) : 0}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <p style={{ color: "#9ca3af", fontSize: 11, marginTop: 24 }}>
+              تم إصدار هذا التقرير بتاريخ {new Date().toLocaleDateString("ar-EG")}
+            </p>
+          </div>
+        </div>
+      )}
 
       {toast && <Toast message={toast.message} type={toast.type} />}
     </AppShell>

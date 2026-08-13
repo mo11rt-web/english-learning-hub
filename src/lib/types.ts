@@ -271,7 +271,6 @@ export interface Notification {
     | "new-exam"
     | "announcement"
     | "submission" // للمعلم: طالب سلّم واجب
-    | "alert" // للمعلم: تنبيه متابعة (مثلاً طالب رسب 3 مرات متتالية)
     | "system";
   link?: string; // رابط داخلي يفتح عند الضغط
   createdAt: number;

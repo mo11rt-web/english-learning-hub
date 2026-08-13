@@ -17,15 +17,17 @@ export function Modal({
   maxWidth?: string;
 }) {
   const contentRef = useRef<HTMLDivElement>(null);
-  // نخزّن onClose بـ ref بدل ما نحطه بـ dependency array الأسفل — لأنه
-  // onClose غالبًا arrow function جديدة بكل مرة يعيد فيها المكوّن الأب
-  // رسمه (متل كل ضغطة حرف بحقل إدخال جوا النافذة). لو حطيناه بالـ deps،
-  // الـ effect كان يعيد التشغيل مع كل حرف يكتبه المستخدم، وبما إنه الـ
-  // effect فيه setTimeout يعيد التركيز (focus) لأول حقل بالنافذة (العنوان
-  // بحالة نموذج الدرس) — هيك كان التركيز يرجع لحقل العنوان تلقائيًا كل
-  // ما المستخدم يكتب حرف بأي حقل تاني. هاد كان السبب الجذري الحقيقي وراء
-  // مشكلة "قفز التركيز" — مش مجرد عرض، كان فعليًا يمنع الكتابة الطبيعية
-  // بأي حقل غير العنوان، وبالتالي يفسد بيانات الدرس المُدخلة قبل الحفظ.
+  // نحتفظ بأحدث نسخة من onClose بمرجع (ref) بدل ما نعتمد عليها كـ dependency
+  // بالأثر (useEffect) تحت. هاد هو السبب الجذري الحقيقي لمشكلة "التركيز
+  // بيرجع لعنوان الدرس فجأة أثناء الكتابة": كل نافذة منبثقة بالمنصة (مش بس
+  // نافذة إضافة الدرس) كانت تستقبل onClose كدالة جديدة بكل مرة الأب يعيد
+  // الرندر (وهاد بيصير مع كل ضغطة حرف لأنه onChange بيحدّث الـ state).
+  // useEffect تحت كان معتمد على [open, onClose] كـ dependencies، فكل ما
+  // onClose تتغيّر (حتى لو المحتوى المنطقي نفسه) كان الأثر يعيد التشغيل،
+  // وبالتالي كان يعيد جدولة التركيز التلقائي (focus) على أول حقل (عنوان
+  // الدرس) من جديد — حرفيًا بمنتصف الكتابة بأي حقل تاني. الحل الصحيح:
+  // الأثر (useEffect) الآن يعتمد على [open] فقط، فما يعيد التشغيل إلا لما
+  // النافذة تنفتح أو تنسكر فعليًا، مش مع كل تغيير بالـ state.
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -37,8 +39,8 @@ export function Modal({
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
 
-    // تركيز تلقائي على أول حقل إدخال داخل النافذة — بس أول ما تنفتح
-    // (مرة وحدة لكل فتحة)، مش مع كل إعادة رسم للمكوّن الأب
+    // تركيز تلقائي على أول حقل إدخال داخل النافذة — يصير مرة وحدة فقط عند
+    // الفتح الفعلي، مش مع كل تحديث حالة بالأب
     const t = setTimeout(() => {
       const firstField = contentRef.current?.querySelector<HTMLElement>(
         "input:not([type=hidden]):not([disabled]), textarea:not([disabled]), select:not([disabled])"
@@ -51,7 +53,6 @@ export function Modal({
       document.body.style.overflow = "";
       clearTimeout(t);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   if (!open || typeof document === "undefined") return null;

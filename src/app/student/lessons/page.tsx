@@ -25,11 +25,15 @@ export default function StudentLessonsPage() {
     return () => u();
   }, [student]);
 
+  const visibleLessons = lessons.filter(
+    (l) => l.targetGroupIds.length === 0 || l.targetGroupIds.some((g) => student?.groupIds?.includes(g))
+  );
+
   return (
     <AppShell requireRole="student">
       <h1 className="text-2xl font-bold text-brand-text mb-6">دروسي</h1>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {lessons.map((l) => (
+        {visibleLessons.map((l) => (
           <Link key={l.id} href={`/student/lessons/${l.id}`}>
             <GlassCard className="hover:shadow-lg transition-shadow cursor-pointer h-full">
               <h3 className="font-bold text-brand-text mb-1">{l.title}</h3>
@@ -37,7 +41,7 @@ export default function StudentLessonsPage() {
             </GlassCard>
           </Link>
         ))}
-        {lessons.length === 0 && <p className="text-brand-textMuted">لا توجد دروس منشورة بعد.</p>}
+        {visibleLessons.length === 0 && <p className="text-brand-textMuted">لا توجد دروس منشورة بعد.</p>}
       </div>
     </AppShell>
   );

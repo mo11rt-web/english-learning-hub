@@ -25,10 +25,10 @@ export function listenCollection<T>(
       cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as T) })));
     },
     (err) => {
-      // بدون هالسطر، أي استعلام محتاج فهرس مركّب (composite index) غير
-      // موجود بـ Firestore كان يفشل بصمت — القائمة تضل فاضية للأبد بدون
-      // أي رسالة خطأ ولا حتى بالـ console. راجع firestore.indexes.json.
-      console.error(`listenCollection("${path}") failed:`, err);
+      // قبل هيك أي خطأ هون (مثلاً فهرس Firestore ناقص) كان يختفي بصمت
+      // بالكونسول، والواجهة تبقى فاضية للأبد بدون أي تفسير. هلق أي مستدعي
+      // يقدر يمرر onError ليعرض تنبيه واضح للمستخدم بدل الصمت.
+      console.error(`[listenCollection:${path}] `, err);
       onError?.(err);
     }
   );
