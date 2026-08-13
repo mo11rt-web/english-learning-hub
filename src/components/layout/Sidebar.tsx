@@ -27,6 +27,7 @@ const teacherLinks = [
 const studentLinks = [
   { href: "/student/home", label: "الرئيسية", icon: "🏠" },
   { href: "/student/lessons", label: "دروسي", icon: "📚" },
+  { href: "/student/quick-review", label: "مراجعة سريعة", icon: "🚀" },
   { href: "/student/vocabulary", label: "الكلمات", icon: "🔤" },
   { href: "/student/irregular-verbs", label: "الأفعال الشاذة", icon: "🔁" },
   { href: "/student/assignments", label: "الواجبات", icon: "📝" },

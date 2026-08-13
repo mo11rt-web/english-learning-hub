@@ -10,7 +10,7 @@ export function Button({ variant = "primary", className, ...props }: Props) {
     <button
       {...props}
       className={clsx(
-        "px-4 py-2.5 rounded-xl font-arabic text-sm font-bold transition-all",
+        "px-4 py-2.5 rounded-2xl font-arabic text-sm font-medium transition-all",
         "disabled:opacity-50 disabled:cursor-not-allowed",
         variant === "primary" &&
           "bg-brand-primary text-white hover:bg-brand-secondary shadow-md",

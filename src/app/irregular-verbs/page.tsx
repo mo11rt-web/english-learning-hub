@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
@@ -44,16 +44,41 @@ export default function IrregularVerbsPage() {
     setTimeout(() => setToast(null), 4000);
   };
 
+  const [verbsLoaded, setVerbsLoaded] = useState(false);
+
   useEffect(() => {
     const u = listenCollection<IrregularVerb>(
       "irregular_verbs",
       [orderBy("createdAt", "desc")],
-      setVerbs
+      (items) => {
+        setVerbs(items);
+        setVerbsLoaded(true); // أول رد فعلي من Firestore وصل (حتى لو فاضي)
+      }
     );
     return () => u();
   }, []);
 
   const verbsInWorkspace = verbs.filter((v) => v.stageId === workspaceStageId);
+
+  // الأفعال الشاذة صارت "جزء من النظام" افتراضيًا — أول ما معلم يفتح هالصفحة
+  // لقسم ما عنده ولا فعل واحد بعد (يعني أول زيارة)، منستورد القائمة الكاملة
+  // تلقائيًا بالخلفية (معطّلة افتراضيًا، يفعّل المعلم يلي بدو ياه بس). هيك
+  // المعلم ما بيحتاج يدخل الأفعال يدويًا ولا حتى يدور على زر الاستيراد.
+  //
+  // مهم: منعتمد على verbsLoaded (مش verbs.length) لنعرف إذا القائمة "وصلت
+  // فعليًا وفاضية" أو "لسا ما وصلت" — لأنه لو اعتمدنا على الطول بس، أول
+  // نظام جديد بالكامل (صفر أفعال بأي قسم) كان رح يفضل يعتبر "لسا ما حمّل"
+  // للأبد، ومايصير الاستيراد التلقائي أبدًا بالضبط بالحالة يلي المفروض تصير فيها.
+  const autoSeedAttempted = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!workspaceStageId || !user || !verbsLoaded) return;
+    if (verbsInWorkspace.length > 0) return; // في أفعال أصلًا بهالقسم
+    if (autoSeedAttempted.current.has(workspaceStageId)) return;
+    autoSeedAttempted.current.add(workspaceStageId);
+    importFullList(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceStageId, user, verbsLoaded, verbsInWorkspace.length]);
+
   const visibleVerbs = verbsInWorkspace.filter((v) =>
     filterActive === "all" ? true : filterActive === "active" ? v.active : !v.active
   );
@@ -67,7 +92,7 @@ export default function IrregularVerbsPage() {
   // "معطّل" افتراضيًا (active: false) — المعلم بعدين بيراجعهم ويفعّل بس
   // يلي بدو يعرضهم فعليًا للطلاب، بضغطة "تفعيل" لكل فعل (موجودة بالأسفل).
   // ما منكرر أي فعل عنده أصلاً بنفس القسم (مطابقة بالاسم base).
-  const importFullList = async () => {
+  const importFullList = async (silent = false) => {
     if (!user || !workspaceStageId) return;
     setImporting(true);
     try {
@@ -90,12 +115,18 @@ export default function IrregularVerbsPage() {
         });
       }
       const skipped = IRREGULAR_VERBS_SEED.length - toImport.length;
-      showToast(
-        `تم استيراد ${toImport.length} فعل جديد (معطّل افتراضيًا)${
-          skipped ? ` — تم تخطي ${skipped} موجود مسبقًا` : ""
-        } ✅`
-      );
-      setFilterActive("inactive");
+      if (silent) {
+        if (toImport.length > 0) {
+          showToast(`📚 تمت إضافة ${toImport.length} فعل شاذ تلقائيًا لهذا القسم (معطّلة، فعّل يلي بدك ياه) ✅`);
+        }
+      } else {
+        showToast(
+          `تم استيراد ${toImport.length} فعل جديد (معطّل افتراضيًا)${
+            skipped ? ` — تم تخطي ${skipped} موجود مسبقًا` : ""
+          } ✅`
+        );
+        setFilterActive("inactive");
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       showToast(`تعذّر الاستيراد: ${msg}`, "error");
@@ -164,7 +195,7 @@ export default function IrregularVerbsPage() {
           <h1 className="text-2xl font-bold text-brand-text">الأفعال الشاذة</h1>
           <p className="text-brand-textMuted text-sm">القسم الحالي: {workspaceStageName ?? "—"}</p>
         </div>
-        <Button onClick={importFullList} disabled={importing || !workspaceStageId}>
+        <Button onClick={() => importFullList(false)} disabled={importing || !workspaceStageId}>
           {importing ? "جارٍ الاستيراد..." : `📥 استيراد القائمة الكاملة (${IRREGULAR_VERBS_SEED.length} فعل)`}
         </Button>
       </div>

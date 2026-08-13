@@ -57,8 +57,17 @@ export default function ShareResultsPage() {
         )}
 
         {!loading && data && (
-          <div className="flex flex-col gap-4">
-            <GlassCard>
+          <div id="report-content" className="flex flex-col gap-4">
+            <div className="flex justify-end no-print">
+              <button
+                onClick={() => window.print()}
+                className="text-sm px-4 py-2 rounded-xl bg-brand-primary text-white hover:bg-brand-secondary"
+              >
+                🖨️ تصدير / طباعة PDF
+              </button>
+            </div>
+
+            <GlassCard className="printable-report">
               <h2 className="text-lg font-bold text-brand-text mb-1">{data.studentName}</h2>
               <p className="text-brand-textMuted text-sm">
                 {data.stageName} · {data.groupName}
@@ -66,11 +75,11 @@ export default function ShareResultsPage() {
             </GlassCard>
 
             <div className="grid grid-cols-2 gap-4">
-              <GlassCard className="text-center">
+              <GlassCard className="text-center printable-report">
                 <p className="text-3xl font-bold text-brand-primary">{data.points}</p>
                 <p className="text-brand-textMuted text-xs mt-1">نقطة · {data.levelName}</p>
               </GlassCard>
-              <GlassCard className="text-center">
+              <GlassCard className="text-center printable-report">
                 {data.rank && data.totalInGroup ? (
                   <>
                     <p className="text-3xl font-bold text-brand-primary">#{data.rank}</p>
@@ -85,7 +94,7 @@ export default function ShareResultsPage() {
               </GlassCard>
             </div>
 
-            <GlassCard>
+            <GlassCard className="printable-report">
               <div className="flex flex-wrap justify-center gap-8">
                 <ProgressDonut
                   percentage={data.completionPercentage}
@@ -101,7 +110,7 @@ export default function ShareResultsPage() {
               </div>
             </GlassCard>
 
-            <GlassCard>
+            <GlassCard className="printable-report">
               <h3 className="font-bold text-brand-text mb-3">آخر نتائج الاختبارات</h3>
               {data.quizResults.length === 0 ? (
                 <p className="text-brand-textMuted text-sm">لا توجد نتائج بعد.</p>

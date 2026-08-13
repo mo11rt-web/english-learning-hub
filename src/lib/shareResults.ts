@@ -16,29 +16,12 @@ function randomToken() {
   return crypto.randomUUID().replace(/-/g, "").slice(0, 20);
 }
 
-export interface StudentReportSnapshot {
-  studentId: string;
-  studentName: string;
-  stageName: string;
-  groupName: string;
-  points: number;
-  levelName: string;
-  lessonsCompleted: number;
-  lessonsTotal: number;
-  completionPercentage: number;
-  quizAveragePercentage: number;
-  rank: number | null;
-  totalInGroup: number | null;
-  quizResults: { title: string; score: number; maxScore: number; date: number }[];
-  lastActivityAt?: number;
-}
-
-// الحساب الفعلي لكل بيانات تقرير الطالب — دالة "قراءة فقط" بدون أي كتابة
-// بقاعدة البيانات، حتى تقدر تُستخدم من أكثر من مكان (رابط المشاركة العام
-// وتصدير PDF) بدون تكرار نفس المنطق مرتين.
-export async function computeStudentReportSnapshot(
-  studentId: string
-): Promise<StudentReportSnapshot> {
+// يبني لقطة (Snapshot) عامة للنتائج ويحفظها بمستند shares/{token} — لا يتطلب
+// من ولي الأمر تسجيل الدخول لاحقًا لقراءتها
+export async function publishResultsShare(
+  studentId: string,
+  teacherUid: string
+): Promise<string> {
   const studentSnap = await getDoc(doc(db, "profiles", studentId));
   if (!studentSnap.exists()) throw new Error("الطالب غير موجود");
   const student = studentSnap.data() as StudentProfile;
@@ -132,10 +115,15 @@ export async function computeStudentReportSnapshot(
     totalInGroup = sorted.length;
   }
 
-  const lastActivityAt = Math.max(0, ...progressSnap.docs.map((d) => d.data().lastOpenedAt ?? 0));
+  const lastActivityAt = Math.max(
+    0,
+    ...progressSnap.docs.map((d) => d.data().lastOpenedAt ?? 0)
+  );
+
+  const token = student.shareToken || randomToken();
   const level = computeLevel(student.points ?? 0);
 
-  return {
+  await setDoc(doc(db, "shares", token), {
     studentId,
     studentName: student.fullName,
     stageName,
@@ -150,23 +138,6 @@ export async function computeStudentReportSnapshot(
     totalInGroup,
     quizResults,
     lastActivityAt: lastActivityAt || undefined,
-  };
-}
-
-// يبني لقطة (Snapshot) عامة للنتائج ويحفظها بمستند shares/{token} — لا يتطلب
-// من ولي الأمر تسجيل الدخول لاحقًا لقراءتها
-export async function publishResultsShare(
-  studentId: string,
-  teacherUid: string
-): Promise<string> {
-  const snapshot = await computeStudentReportSnapshot(studentId);
-  const studentSnap = await getDoc(doc(db, "profiles", studentId));
-  const student = studentSnap.data() as StudentProfile;
-
-  const token = student.shareToken || randomToken();
-
-  await setDoc(doc(db, "shares", token), {
-    ...snapshot,
     enabled: true,
     createdBy: teacherUid,
     createdAt: Date.now(),
