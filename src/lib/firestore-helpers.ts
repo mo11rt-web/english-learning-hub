@@ -15,12 +15,23 @@ import { db } from "@/lib/firebase";
 export function listenCollection<T>(
   path: string,
   constraints: QueryConstraint[],
-  cb: (items: (T & { id: string })[]) => void
+  cb: (items: (T & { id: string })[]) => void,
+  onError?: (err: Error) => void
 ) {
   const q = query(collection(db, path), ...constraints);
-  return onSnapshot(q, (snap) => {
-    cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as T) })));
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as T) })));
+    },
+    (err) => {
+      // قبل هيك أي خطأ هون (مثلاً فهرس Firestore ناقص) كان يختفي بصمت
+      // بالكونسول، والواجهة تبقى فاضية للأبد بدون أي تفسير. هلق أي مستدعي
+      // يقدر يمرر onError ليعرض تنبيه واضح للمستخدم بدل الصمت.
+      console.error(`[listenCollection:${path}] `, err);
+      onError?.(err);
+    }
+  );
 }
 
 export async function createDoc<T extends object>(path: string, data: T) {

@@ -13,7 +13,6 @@ import { LessonBlockView } from "@/components/LessonBlockView";
 import {
   listenCollection,
   where,
-  orderBy as fsOrderBy,
 } from "@/lib/firestore-helpers";
 import { Lesson } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
@@ -46,8 +45,8 @@ export default function StudentLessonViewPage() {
     if (!lesson) return;
     const u = listenCollection<Lesson>(
       "lessons",
-      [where("unitId", "==", lesson.unitId), fsOrderBy("order")],
-      setSiblingLessons
+      [where("unitId", "==", lesson.unitId)],
+      (items) => setSiblingLessons(items.slice().sort((a, b) => a.order - b.order))
     );
     return () => u();
   }, [lesson?.unitId]);

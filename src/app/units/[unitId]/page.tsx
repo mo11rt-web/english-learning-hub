@@ -18,7 +18,6 @@ import {
   listenCollection,
   createDoc,
   where,
-  orderBy,
 } from "@/lib/firestore-helpers";
 import { Lesson, Unit, LessonBlock } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
@@ -49,8 +48,13 @@ export default function UnitLessonsPage() {
   useEffect(() => {
     const u = listenCollection<Lesson>(
       "lessons",
-      [where("unitId", "==", unitId), orderBy("order")],
-      setLessons
+      [where("unitId", "==", unitId)],
+      // الترتيب صار محليًا بالجافاسكربت بدل orderBy بالاستعلام، حتى ما
+      // نحتاج نطلب من Firebase إنشاء فهرس مركّب (composite index) يدويًا —
+      // هاد بالضبط كان سبب اختفاء الدروس رغم ظهور "تم الحفظ بنجاح": كان
+      // Firestore يرفض الاستعلام بصمت لأنه الفهرس المطلوب ما كان موجود.
+      (items) => setLessons(items.slice().sort((a, b) => a.order - b.order)),
+      (err) => showToast(`تعذّر تحميل قائمة الدروس: ${err.message}`, "error")
     );
     getDoc(doc(db, "units", unitId)).then((snap) => {
       if (snap.exists()) setUnit({ ...(snap.data() as Unit), id: snap.id });
