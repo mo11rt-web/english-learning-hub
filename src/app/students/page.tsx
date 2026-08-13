@@ -20,7 +20,8 @@ import {
 import { StudentProfile, Stage, Group } from "@/lib/types";
 import { phoneToEmail, normalizePhone } from "@/lib/phone";
 import { computeLevel } from "@/lib/gamification";
-import { publishResultsShare, setShareEnabled } from "@/lib/shareResults";
+import { publishResultsShare, setShareEnabled, computeStudentReportSnapshot, StudentReportSnapshot } from "@/lib/shareResults";
+import { exportHtmlToPdf, downloadOrShareFile } from "@/lib/pdfExport";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
 
@@ -231,6 +232,36 @@ export default function StudentsPage() {
       showToast("تعذر إنشاء رابط المشاركة: " + (e.message ?? "خطأ غير معروف"), "error");
     } finally {
       setSharingId(null);
+    }
+  };
+
+  // تصدير كشف نتائج PDF لمشاركته مع الأهل — نفس طريقة علاوي نت بالضبط:
+  // بنعبّي قالب مخفي خارج الشاشة ببيانات الطالب، وبعدين نحوّله لصورة عالية
+  // الدقة (html2canvas) وندمجها بملف PDF (jsPDF). هاي الطريقة ضرورية هون
+  // لأنه jsPDF نفسه ما بيدعم رسم الخط العربي، فلازم نمرّ عبر محرك عرض
+  // النصوص تبع المتصفح نفسه حتى يطلع العربي صحيح مش مربعات فاضية.
+  const [pdfExportTarget, setPdfExportTarget] = useState<
+    (StudentProfile & { id: string; report: StudentReportSnapshot }) | null
+  >(null);
+  const [exportingPdfId, setExportingPdfId] = useState<string | null>(null);
+
+  const handleExportPdf = async (student: StudentProfile & { id: string }) => {
+    setExportingPdfId(student.id);
+    try {
+      const report = await computeStudentReportSnapshot(student.id);
+      setPdfExportTarget({ ...student, report });
+      // منستنى فريم واحد حتى القالب المخفي ينرسم فعليًا بالـ DOM قبل ما نلتقطه
+      await new Promise((r) => setTimeout(r, 50));
+      const el = document.getElementById("student-pdf-template");
+      if (!el) throw new Error("تعذّر تجهيز قالب الطباعة");
+      const file = await exportHtmlToPdf(el, `تقرير-${student.fullName}.pdf`);
+      await downloadOrShareFile(file);
+      showToast("تم تصدير التقرير PDF ✅");
+    } catch (e: any) {
+      showToast("تعذر تصدير PDF: " + (e.message ?? "خطأ غير معروف"), "error");
+    } finally {
+      setExportingPdfId(null);
+      setPdfExportTarget(null);
     }
   };
 
@@ -474,6 +505,13 @@ export default function StudentsPage() {
                             {sharingId === s.id ? "..." : "🔗 مشاركة النتائج"}
                           </button>
                           <button
+                            onClick={() => handleExportPdf(s)}
+                            disabled={exportingPdfId === s.id}
+                            className="text-brand-primary text-xs"
+                          >
+                            {exportingPdfId === s.id ? "جارٍ التصدير..." : "🖨 تصدير PDF"}
+                          </button>
+                          <button
                             onClick={() => setDeleteTarget(s)}
                             className="text-brand-error text-xs"
                           >
@@ -646,6 +684,88 @@ export default function StudentsPage() {
         message={`هل أنت متأكد من حذف الطالب "${deleteTarget?.fullName ?? ""}"؟ سيتم إخفاء بياناته ووقف وصوله للمنصة فورًا. يمكنك استرجاعه لاحقًا من قائمة "عرض المحذوفين".`}
         confirmLabel="حذف"
       />
+
+      {/* قالب طباعة مخفي لتصدير PDF — نفس أسلوب علاوي نت بالضبط: عنصر
+          فعلي بالـ DOM (مش مجرد نص) لأنه html2canvas محتاج يرسمه فعليًا،
+          بس موضوع برا حدود الشاشة المرئية حتى المستخدم ما يشوفه. */}
+      {pdfExportTarget && (
+        <div style={{ position: "fixed", left: -99999, top: 0 }}>
+          <div
+            id="student-pdf-template"
+            style={{
+              width: 800,
+              padding: 32,
+              background: "#fff",
+              fontFamily: "Cairo, sans-serif",
+              direction: "rtl",
+            }}
+          >
+            <h1 style={{ color: "#07596B", fontSize: 24, fontWeight: 800, margin: 0 }}>
+              تقرير نتائج الطالب
+            </h1>
+            <p style={{ color: "#6b7280", fontSize: 13, marginTop: 4 }}>
+              {pdfExportTarget.fullName} — {pdfExportTarget.report.stageName} — {pdfExportTarget.report.groupName}
+            </p>
+            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 20, fontSize: 13 }}>
+              <tbody>
+                {[
+                  ["النقاط", `${pdfExportTarget.report.points} نقطة`],
+                  ["المستوى", pdfExportTarget.report.levelName],
+                  [
+                    "نسبة إنجاز الدروس",
+                    `${pdfExportTarget.report.completionPercentage}% (${pdfExportTarget.report.lessonsCompleted}/${pdfExportTarget.report.lessonsTotal})`,
+                  ],
+                  ["متوسط نتائج الاختبارات", `${pdfExportTarget.report.quizAveragePercentage}%`],
+                  [
+                    "الترتيب بالمجموعة",
+                    pdfExportTarget.report.rank && pdfExportTarget.report.totalInGroup
+                      ? `#${pdfExportTarget.report.rank} من ${pdfExportTarget.report.totalInGroup}`
+                      : "—",
+                  ],
+                ].map(([label, value]) => (
+                  <tr key={label} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                    <td style={{ padding: "8px 4px", color: "#6b7280", width: "40%" }}>{label}</td>
+                    <td style={{ padding: "8px 4px", fontWeight: 700, color: "#111827" }}>{value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <h2 style={{ fontSize: 16, fontWeight: 800, color: "#07596B", marginTop: 24 }}>
+              آخر النتائج
+            </h2>
+            {pdfExportTarget.report.quizResults.length === 0 ? (
+              <p style={{ color: "#6b7280", fontSize: 13 }}>لا توجد نتائج بعد.</p>
+            ) : (
+              <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "#f3f4f6" }}>
+                    <th style={{ padding: "8px 4px", textAlign: "right" }}>الواجب/الاختبار</th>
+                    <th style={{ padding: "8px 4px", textAlign: "right" }}>النتيجة</th>
+                    <th style={{ padding: "8px 4px", textAlign: "right" }}>النسبة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pdfExportTarget.report.quizResults.map((r, i) => (
+                    <tr key={i} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                      <td style={{ padding: "8px 4px" }}>{r.title}</td>
+                      <td style={{ padding: "8px 4px" }}>
+                        {r.score}/{r.maxScore}
+                      </td>
+                      <td style={{ padding: "8px 4px" }}>
+                        {r.maxScore > 0 ? Math.round((r.score / r.maxScore) * 100) : 0}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <p style={{ color: "#9ca3af", fontSize: 11, marginTop: 24 }}>
+              تم إصدار هذا التقرير بتاريخ {new Date().toLocaleDateString("ar-EG")}
+            </p>
+          </div>
+        </div>
+      )}
 
       {toast && <Toast message={toast.message} type={toast.type} />}
     </AppShell>

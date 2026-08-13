@@ -153,21 +153,28 @@ export default function StudentLessonViewPage() {
           {lesson.description && (
             <p className="text-brand-textMuted mb-4">{lesson.description}</p>
           )}
-          <div className="flex flex-col gap-4">
-            {lesson.blocks
+          <div className="flex flex-col gap-4 pb-24">
+            {(lesson.blocks ?? [])
+              .slice()
               .sort((a, b) => a.order - b.order)
               .map((block) => (
                 <GlassCard key={block.id}>
                   <LessonBlockView block={block} />
                 </GlassCard>
               ))}
-            {lesson.blocks.length === 0 && (
+            {(!lesson.blocks || lesson.blocks.length === 0) && (
               <p className="text-brand-textMuted">لا يوجد محتوى بهذا الدرس بعد.</p>
             )}
           </div>
-          <Button onClick={handleNextFromContent} className="mt-6">
-            {quizQuestions.length > 0 ? "التالي ← الكويز" : "✅ أنهيت هذا الدرس"}
-          </Button>
+          {/* زر ثابت بأسفل الشاشة دائمًا — حتى لو الفيديو أو محتوى الدرس
+              طويل، الطالب لازم يشوف الزر بدون ما يحتاج يدور عليه بالتمرير */}
+          <div className="fixed bottom-0 inset-x-0 z-40 bg-surface/95 backdrop-blur-xl border-t border-surfaceBorder p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
+            <div className="max-w-2xl mx-auto">
+              <Button onClick={handleNextFromContent} className="w-full">
+                {quizQuestions.length > 0 ? "التالي ← الكويز 🧠" : "✅ أنهيت هذا الدرس"}
+              </Button>
+            </div>
+          </div>
         </>
       )}
 
