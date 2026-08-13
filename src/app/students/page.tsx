@@ -12,6 +12,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { Modal, ConfirmDialog, Toast } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import ActionsDropdown from "@/components/ui/ActionsDropdown";
 import {
   listenCollection,
   updateDocById,
@@ -420,117 +421,108 @@ export default function StudentsPage() {
             <h2 className="font-bold text-brand-text">
               قائمة الطلاب ({filtered.length})
             </h2>
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-1.5 text-xs text-brand-textMuted">
-                <input
-                  type="checkbox"
-                  checked={showDeleted}
-                  onChange={(e) => setShowDeleted(e.target.checked)}
-                />
-                عرض المحذوفين
-              </label>
+            <label className="flex items-center gap-1.5 text-xs text-brand-textMuted">
               <input
-                placeholder="بحث بالاسم أو الرقم..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="px-3 py-1.5 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm"
+                type="checkbox"
+                checked={showDeleted}
+                onChange={(e) => setShowDeleted(e.target.checked)}
               />
-            </div>
+              عرض المحذوفين
+            </label>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-brand-textMuted text-right border-b border-brand-primary/10">
-                  <th className="py-2 px-2">الاسم</th>
-                  <th className="py-2 px-2">رقم الهاتف</th>
-                  <th className="py-2 px-2">النقاط / المستوى</th>
-                  <th className="py-2 px-2">المرحلة</th>
-                  <th className="py-2 px-2">الحالة</th>
-                  <th className="py-2 px-2">إجراء</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((s) => (
-                  <tr key={s.id} className="border-b border-brand-primary/5">
-                    <td className="py-2 px-2 text-brand-text">{s.fullName}</td>
-                    <td className="py-2 px-2 text-brand-textMuted" dir="ltr">
-                      {s.username}
-                    </td>
-                    <td className="py-2 px-2 text-brand-textMuted">
-                      {s.points ?? 0} · {computeLevel(s.points ?? 0).name}
-                    </td>
-                    <td className="py-2 px-2 text-brand-textMuted">
-                      {stages.find((st) => st.id === s.stageId)?.name ?? "—"}
-                    </td>
-                    <td className="py-2 px-2">
-                      <StatusBadge
-                        label={s.status === "active" ? "نشط" : s.status === "deleted" ? "محذوف" : "معطّل"}
-                        tone={s.status === "active" ? "success" : s.status === "deleted" ? "muted" : "error"}
-                      />
-                    </td>
-                    <td className="py-2 px-2">
-                      {s.status === "deleted" ? (
-                        <button
-                          onClick={() => handleRestore(s)}
-                          className="text-brand-success text-xs"
-                        >
-                          ↩ استرجاع
-                        </button>
-                      ) : (
-                        <div className="flex flex-wrap gap-2">
-                          <button onClick={() => openEdit(s)} className="text-brand-primary text-xs">
-                            ✎ تعديل
-                          </button>
-                          <button
-                            onClick={() =>
+
+          <div className="relative mb-4">
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-textMuted text-sm pointer-events-none">
+              🔍
+            </span>
+            <input
+              placeholder="بحث بالاسم أو رقم الهاتف..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pr-9 pl-3 py-2.5 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm"
+            />
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {filtered.map((s) => {
+              const stageName = stages.find((st) => st.id === s.stageId)?.name ?? "—";
+              return (
+                <div
+                  key={s.id}
+                  className="flex flex-col gap-3 rounded-2xl border border-surfaceBorder/60 bg-surface/60 p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand-primary to-brand-secondary font-extrabold text-white">
+                      {s.fullName?.[0] ?? "?"}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-bold text-brand-text">{s.fullName}</p>
+                      <p className="truncate text-xs text-brand-textMuted" dir="ltr">
+                        {s.phone ?? s.username}
+                      </p>
+                      <p className="truncate text-xs text-brand-textMuted">
+                        {stageName} · {s.points ?? 0} نقطة · {computeLevel(s.points ?? 0).name}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 sm:shrink-0">
+                    <StatusBadge
+                      label={s.status === "active" ? "نشط" : s.status === "deleted" ? "محذوف" : "معطّل"}
+                      tone={s.status === "active" ? "success" : s.status === "deleted" ? "muted" : "error"}
+                    />
+                    {s.status === "deleted" ? (
+                      <button
+                        onClick={() => handleRestore(s)}
+                        className="text-brand-success text-xs font-semibold px-2"
+                      >
+                        ↩ استرجاع
+                      </button>
+                    ) : (
+                      <ActionsDropdown
+                        actions={[
+                          { label: "تعديل بيانات الطالب", icon: <span>✎</span>, onClick: () => openEdit(s) },
+                          {
+                            label: s.status === "active" ? "تعطيل الحساب" : "تفعيل الحساب",
+                            icon: <span>{s.status === "active" ? "⏸" : "▶️"}</span>,
+                            onClick: () =>
                               updateDocById("profiles", s.id, {
                                 status: s.status === "active" ? "disabled" : "active",
-                              })
-                            }
-                            className="text-brand-primary text-xs"
-                          >
-                            {s.status === "active" ? "تعطيل" : "تفعيل"}
-                          </button>
-                          <button
-                            onClick={() => setPasswordInfoTarget(s)}
-                            className="text-brand-textMuted text-xs"
-                          >
-                            🔑 كلمة المرور
-                          </button>
-                          <button
-                            onClick={() => handleShare(s)}
-                            disabled={sharingId === s.id}
-                            className="text-brand-secondary text-xs"
-                          >
-                            {sharingId === s.id ? "..." : "🔗 مشاركة النتائج"}
-                          </button>
-                          <button
-                            onClick={() => handleExportPdf(s)}
-                            disabled={exportingPdfId === s.id}
-                            className="text-brand-primary text-xs"
-                          >
-                            {exportingPdfId === s.id ? "جارٍ التصدير..." : "🖨 تصدير PDF"}
-                          </button>
-                          <button
-                            onClick={() => setDeleteTarget(s)}
-                            className="text-brand-error text-xs"
-                          >
-                            🗑 حذف
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="py-6 text-center text-brand-textMuted">
-                      {showDeleted ? "لا يوجد طلاب محذوفون." : "لا يوجد طلاب بعد."}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                              }),
+                          },
+                          {
+                            label: "تغيير كلمة المرور",
+                            icon: <span>🔑</span>,
+                            onClick: () => setPasswordInfoTarget(s),
+                          },
+                          {
+                            label: sharingId === s.id ? "جارٍ إنشاء الرابط..." : "مشاركة النتائج (رابط)",
+                            icon: <span>🔗</span>,
+                            onClick: () => handleShare(s),
+                          },
+                          {
+                            label: exportingPdfId === s.id ? "جارٍ التصدير..." : "تصدير تقرير PDF",
+                            icon: <span>🖨</span>,
+                            onClick: () => handleExportPdf(s),
+                          },
+                          {
+                            label: "حذف الطالب",
+                            icon: <span>🗑</span>,
+                            onClick: () => setDeleteTarget(s),
+                            danger: true,
+                          },
+                        ]}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {filtered.length === 0 && (
+              <p className="text-center text-brand-textMuted py-6">
+                {showDeleted ? "لا يوجد طلاب محذوفون." : "لا يوجد طلاب بعد."}
+              </p>
+            )}
           </div>
         </GlassCard>
       </div>
