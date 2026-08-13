@@ -17,17 +17,30 @@ export function Modal({
   maxWidth?: string;
 }) {
   const contentRef = useRef<HTMLDivElement>(null);
+  // نحتفظ بأحدث نسخة من onClose بمرجع (ref) بدل ما نعتمد عليها كـ dependency
+  // بالأثر (useEffect) تحت. هاد هو السبب الجذري الحقيقي لمشكلة "التركيز
+  // بيرجع لعنوان الدرس فجأة أثناء الكتابة": كل نافذة منبثقة بالمنصة (مش بس
+  // نافذة إضافة الدرس) كانت تستقبل onClose كدالة جديدة بكل مرة الأب يعيد
+  // الرندر (وهاد بيصير مع كل ضغطة حرف لأنه onChange بيحدّث الـ state).
+  // useEffect تحت كان معتمد على [open, onClose] كـ dependencies، فكل ما
+  // onClose تتغيّر (حتى لو المحتوى المنطقي نفسه) كان الأثر يعيد التشغيل،
+  // وبالتالي كان يعيد جدولة التركيز التلقائي (focus) على أول حقل (عنوان
+  // الدرس) من جديد — حرفيًا بمنتصف الكتابة بأي حقل تاني. الحل الصحيح:
+  // الأثر (useEffect) الآن يعتمد على [open] فقط، فما يعيد التشغيل إلا لما
+  // النافذة تنفتح أو تنسكر فعليًا، مش مع كل تغيير بالـ state.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onCloseRef.current();
     };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
 
-    // تركيز تلقائي على أول حقل إدخال داخل النافذة — يفتح لوحة المفاتيح
-    // فورًا على الهاتف بدون ما يحتاج المستخدم يضغط بنفسه
+    // تركيز تلقائي على أول حقل إدخال داخل النافذة — يصير مرة وحدة فقط عند
+    // الفتح الفعلي، مش مع كل تحديث حالة بالأب
     const t = setTimeout(() => {
       const firstField = contentRef.current?.querySelector<HTMLElement>(
         "input:not([type=hidden]):not([disabled]), textarea:not([disabled]), select:not([disabled])"
@@ -40,7 +53,7 @@ export function Modal({
       document.body.style.overflow = "";
       clearTimeout(t);
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open || typeof document === "undefined") return null;
 

@@ -150,6 +150,9 @@ export default function StudentLessonViewPage() {
 
       {stage === "content" && (
         <>
+          {lesson.description && (
+            <p className="text-brand-textMuted mb-4">{lesson.description}</p>
+          )}
           <div className="flex flex-col gap-4">
             {lesson.blocks
               .sort((a, b) => a.order - b.order)

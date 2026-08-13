@@ -44,8 +44,14 @@ service cloud.firestore {
     match /units/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
 
     match /lessons/{id} {
+      // منشور بس ما بيكفي — لازم كمان الدرس يكون بدون تحديد مجموعات
+      // (يفتح لكل الطلاب) أو الطالب يكون فعليًا بواحدة من المجموعات
+      // المستهدفة. هيك تحديد "لأي مجموعة يفتح الدرس ولأي مجموعة لا" بيصير
+      // مطبّق فعليًا كأمان بقاعدة البيانات، مش بس إخفاء بالواجهة.
       allow read: if isTeacherOrAdmin() ||
-        (isActive() && resource.data.status == 'published');
+        (isActive() && resource.data.status == 'published' &&
+         (resource.data.targetGroupIds.size() == 0 ||
+          resource.data.targetGroupIds.hasAny(myProfile().groupIds)));
       allow write: if isTeacherOrAdmin();
     }
 
