@@ -3,14 +3,15 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
+import { Eye, Pencil, Rocket, Pause, Target } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
+import ActionsDropdown from "@/components/ui/ActionsDropdown";
 import { Modal, Toast } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { LessonBlockView } from "@/components/LessonBlockView";
@@ -62,6 +63,7 @@ function LessonCard({
   onTogglePublish: () => void;
   onUpdateGroups: (groupIds: string[]) => void;
 }) {
+  const router = useRouter();
   const [editingGroups, setEditingGroups] = useState(false);
   const [draftGroupIds, setDraftGroupIds] = useState<Set<string>>(
     new Set(lesson.targetGroupIds)
@@ -88,32 +90,37 @@ function LessonCard({
         {lesson.blocks?.length ?? 0} كتلة محتوى
         {lesson.quizQuestions?.length ? ` · ${lesson.quizQuestions.length} سؤال كويز` : ""}
       </p>
-      <p className="text-brand-textMuted text-xs mt-1">🎯 {targetNames}</p>
+      <p className="text-brand-textMuted text-xs mt-1 flex items-center gap-1">
+        <Target size={12} className="shrink-0" /> {targetNames}
+      </p>
 
-      <div className="flex flex-wrap items-center gap-3 mt-3">
-        <Link href={`/lessons/${lesson.id}`} className="text-xs text-brand-primary font-medium">
-          ✏️ تعديل الدرس
-        </Link>
-        <button onClick={onPreview} className="text-xs text-brand-primary font-medium">
-          👁️ معاينة كطالب
-        </button>
-        <button
+      <div className="flex items-center gap-2 mt-3">
+        <Button
           onClick={onTogglePublish}
-          className={`text-xs font-medium ${
-            lesson.status === "published" ? "text-brand-textMuted" : "text-brand-success"
-          }`}
+          variant={lesson.status === "published" ? "secondary" : "primary"}
+          className="!py-2 !px-3.5 text-xs flex items-center gap-1.5"
         >
-          {lesson.status === "published" ? "⏸ إلغاء النشر" : "🚀 نشر الدرس"}
-        </button>
-        <button
-          onClick={() => {
-            setDraftGroupIds(new Set(lesson.targetGroupIds));
-            setEditingGroups((v) => !v);
-          }}
-          className="text-xs text-brand-textMuted font-medium"
-        >
-          🎯 تحديد المجموعات
-        </button>
+          {lesson.status === "published" ? <Pause size={14} /> : <Rocket size={14} />}
+          {lesson.status === "published" ? "إلغاء النشر" : "نشر الدرس"}
+        </Button>
+        <ActionsDropdown
+          actions={[
+            {
+              label: "تعديل الدرس",
+              icon: <Pencil size={15} />,
+              onClick: () => router.push(`/lessons/${lesson.id}`),
+            },
+            { label: "معاينة كطالب", icon: <Eye size={15} />, onClick: onPreview },
+            {
+              label: "تحديد المجموعات المستهدفة",
+              icon: <Target size={15} />,
+              onClick: () => {
+                setDraftGroupIds(new Set(lesson.targetGroupIds));
+                setEditingGroups((v) => !v);
+              },
+            },
+          ]}
+        />
       </div>
 
       {editingGroups && (

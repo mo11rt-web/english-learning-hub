@@ -9,13 +9,12 @@ export function TopBar() {
   const { profile } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { setOpen } = useMobileMenu();
-  const isStudent = profile?.role === "student";
 
-  const welcome = profile
-    ? isStudent
-      ? `مرحباً بك، ${profile.fullName}`
-      : `مرحباً بك، أستاذ ${profile.fullName}`
-    : "";
+  // ما منضيف كلمة "أستاذ" يدويًا هون — لأنه بعض حسابات المعلمين أصلاً
+  // مخزّنة بالاسم "أستاذ محمد" (باللقب جوّا fullName نفسه)، فإضافة اللقب
+  // مرة ثانية بالكود كانت تطلع "مرحباً بك، أستاذ أستاذ محمد" مكرر. نعرض
+  // الاسم بالضبط متل ما هو محفوظ بالحساب.
+  const welcome = profile ? `مرحباً بك، ${profile.fullName}` : "";
 
   return (
     <header

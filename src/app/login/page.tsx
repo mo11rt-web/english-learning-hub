@@ -44,12 +44,28 @@ export default function LoginPage() {
     setLoading(true);
 
     const phone = normalizePhone(identifier);
-    let lastError: AuthError | null = null;
 
-    for (const domain of EMAIL_DOMAINS) {
-      const email = `${phone}@${domain}`;
+    // قبل هذا التعديل كنا نجرب الدومينين بالتتابع (student.com ثم
+    // teacher.com) — يعني أي معلم يسجّل دخول كان ينتظر أولاً فشل محاولة
+    // كاملة عبر الشبكة (student.com) قبل ما نبدأ حتى محاولة teacher.com
+    // الصحيحة. هذا كان يُضاعف وقت تسجيل الدخول فعليًا (ثانية إلى ثانيتين
+    // إضافيتين حسب سرعة الشبكة) لنصف المستخدمين تقريبًا. الحل: نجرب
+    // الدومينين بالتوازي (Promise.allSettled) فيصير وقت الانتظار = أبطأ
+    // محاولة وحدها، مش مجموع الاثنتين.
+    const results = await Promise.allSettled(
+      EMAIL_DOMAINS.map((domain) =>
+        signInWithEmailAndPassword(auth, `${phone}@${domain}`, password)
+      )
+    );
+
+    const success = results.find(
+      (r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof signInWithEmailAndPassword>>> =>
+        r.status === "fulfilled"
+    );
+
+    if (success) {
       try {
-        const cred = await signInWithEmailAndPassword(auth, email, password);
+        const cred = success.value;
         const snap = await getDoc(doc(db, "profiles", cred.user.uid));
         if (!snap.exists()) {
           await auth.signOut();
@@ -74,17 +90,18 @@ export default function LoginPage() {
         // البيانات (role) — مش من أي اختيار دوّي المستخدم.
         const role = profileData.role;
         router.replace(role === "student" ? "/student/home" : "/dashboard");
-        return; // نجح الدخول، ما في داعي نجرب الدومين الثاني
-      } catch (err) {
-        lastError = err as AuthError;
-        // نجرب الدومين التاني بس إذا كان سبب الفشل إنه ما في حساب بهاد
-        // البريد أصلاً. أي سبب تاني (مثلاً كثرة محاولات) نوقف فوراً.
-        const code = lastError?.code ?? "";
-        if (code === "auth/too-many-requests") break;
+        return;
+      } catch {
+        setError("حدث خطأ غير متوقع. حاول مرة أخرى.");
+        setLoading(false);
+        return;
       }
     }
 
-    const code = lastError?.code ?? "unknown";
+    const errors = results
+      .filter((r): r is PromiseRejectedResult => r.status === "rejected")
+      .map((r) => (r.reason as AuthError)?.code ?? "unknown");
+    const code = errors.find((c) => c === "auth/too-many-requests") ?? errors[0] ?? "unknown";
     if (code === "auth/too-many-requests") {
       setError(`محاولات كثيرة خاطئة متتالية. انتظر دقيقة وحاول مجددًا. (${code})`);
     } else {

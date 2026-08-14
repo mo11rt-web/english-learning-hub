@@ -3,21 +3,22 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
+import { Home, GraduationCap, BookOpen, ClipboardList, BarChart3, Menu, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMobileMenu } from "@/hooks/useMobileMenu";
 
-const teacherTabs = [
-  { href: "/dashboard", label: "الرئيسية", icon: "🏠" },
-  { href: "/students", label: "الطلاب", icon: "🎓" },
-  { href: "/units", label: "الدروس", icon: "📚" },
-  { href: "/assignments", label: "الواجبات", icon: "📝" },
+const teacherTabs: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: "/dashboard", label: "الرئيسية", icon: Home },
+  { href: "/students", label: "الطلاب", icon: GraduationCap },
+  { href: "/units", label: "الدروس", icon: BookOpen },
+  { href: "/assignments", label: "الواجبات", icon: ClipboardList },
 ];
 
-const studentTabs = [
-  { href: "/student/home", label: "الرئيسية", icon: "🏠" },
-  { href: "/student/lessons", label: "دروسي", icon: "📚" },
-  { href: "/student/assignments", label: "الواجبات", icon: "📝" },
-  { href: "/student/results", label: "نتائجي", icon: "📊" },
+const studentTabs: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: "/student/home", label: "الرئيسية", icon: Home },
+  { href: "/student/lessons", label: "دروسي", icon: BookOpen },
+  { href: "/student/assignments", label: "الواجبات", icon: ClipboardList },
+  { href: "/student/results", label: "نتائجي", icon: BarChart3 },
 ];
 
 export function BottomNav() {
@@ -39,6 +40,7 @@ export function BottomNav() {
       >
         {tabs.map((t) => {
           const active = pathname === t.href;
+          const Icon = t.icon;
           return (
             <Link
               key={t.href}
@@ -48,7 +50,7 @@ export function BottomNav() {
                 active ? "text-brand-primary" : "text-brand-textMuted"
               )}
             >
-              <span className="text-lg leading-none">{t.icon}</span>
+              <Icon size={20} strokeWidth={active ? 2.4 : 2} />
               <span>{t.label}</span>
             </Link>
           );
@@ -57,7 +59,7 @@ export function BottomNav() {
           onClick={() => setOpen(true)}
           className="flex flex-col items-center justify-center gap-0.5 py-2.5 min-h-[52px] text-[11px] font-bold text-brand-textMuted"
         >
-          <span className="text-lg leading-none">☰</span>
+          <Menu size={20} />
           <span>المزيد</span>
         </button>
       </nav>
