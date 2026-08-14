@@ -1,13 +1,25 @@
 import type { Metadata, Viewport } from "next";
-// TEMP disabled for sandbox test
+import { Cairo, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/hooks/useAuth";
 import { WorkspaceProvider } from "@/hooks/useWorkspace";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { GlobalErrorToast } from "@/components/GlobalErrorToast";
 
-const cairo = { variable: "" };
-const inter = { variable: "" };
+// نفس عائلة الخط المستخدمة في تطبيق "علاوي نت" (Cairo للنصوص العربية،
+// Space Grotesk كخط مساعد للأرقام/النصوص الإنجليزية القصيرة).
+const cairo = Cairo({
+  subsets: ["arabic", "latin"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  variable: "--font-arabic",
+  display: "swap",
+});
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-english",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Learn English | with Mohanad Allawi",
@@ -31,7 +43,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#093A42",
+  themeColor: "#43541F",
 };
 
 export default function RootLayout({
@@ -40,7 +52,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ar" dir="rtl" className={`${cairo.variable} ${inter.variable}`}>
+    <html lang="ar" dir="rtl" className={`${cairo.variable} ${spaceGrotesk.variable}`}>
       <head>
         {/* تطبيق الوضع الداكن/الفاتح فورًا قبل أول رسم للصفحة، لتفادي "ومضة"
             الوضع الخاطئ قبل ما يتحمّل React */}

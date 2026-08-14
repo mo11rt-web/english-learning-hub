@@ -84,28 +84,39 @@ function WorkspacePageInner() {
               إعادة المحاولة
             </button>
           </div>
-        ) : loading || seeding ? (
-          <div className="flex justify-center py-10">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-primary/25 border-t-brand-primary" />
-          </div>
         ) : (
+          /* الكروت الثلاثة تُعرض فورًا دائمًا (الأسماء والأيقونات ثابتة
+             ومعروفة مسبقًا)، بدل حجب الشاشة كاملة خلف سبينر لحين وصول
+             الرد من Firestore. كل كرت يتحول لحالة "جاهز للضغط" بمجرد ما
+             يوصل الـ id الخاص فيه من السيرفر (عادة أجزاء من الثانية بفضل
+             الكاش المحلي)، والكروت غير الجاهزة بعد تظهر بحالة نبض خفيف
+             بدل الاختفاء بالكامل خلف نص "جاري التحميل". */
           <div className="grid sm:grid-cols-3 gap-4">
-            {branchCards.map((b) => (
-              <button
-                key={b.name}
-                onClick={() => b.stage && choose(b.stage.id)}
-                disabled={!b.stage}
-                className="block w-full text-right disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <GlassCard className="hover:shadow-lg active:scale-[0.98] hover:-translate-y-0.5 transition-all cursor-pointer h-full text-center">
-                  <div className="text-4xl mb-3">{b.icon}</div>
-                  <h3 className="font-bold text-brand-text text-lg">{b.name}</h3>
-                  <p className="text-brand-textMuted text-xs mt-1">
-                    اضغط للدخول
-                  </p>
-                </GlassCard>
-              </button>
-            ))}
+            {branchCards.map((b) => {
+              const ready = !!b.stage && !seeding && !loading;
+              return (
+                <button
+                  key={b.name}
+                  onClick={() => b.stage && choose(b.stage.id)}
+                  disabled={!ready}
+                  className="block w-full h-full text-right disabled:cursor-wait"
+                >
+                  <GlassCard
+                    className={`transition-all h-full text-center ${
+                      ready
+                        ? "cursor-pointer hover:shadow-lg active:scale-[0.98] hover:-translate-y-0.5"
+                        : "opacity-60"
+                    }`}
+                  >
+                    <div className={`text-4xl mb-3 ${!ready ? "animate-pulse" : ""}`}>{b.icon}</div>
+                    <h3 className="font-bold text-brand-text text-lg">{b.name}</h3>
+                    <p className="text-brand-textMuted text-xs mt-1">
+                      {ready ? "اضغط للدخول" : "جاري التجهيز..."}
+                    </p>
+                  </GlassCard>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

@@ -34,7 +34,7 @@ export default function ActionsDropdown({ actions }: { actions: DropdownAction[]
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="grid h-9 w-9 place-items-center rounded-lg border border-brand-primary/20 hover:bg-surfaceBorder/40 text-brand-text"
+        className="grid h-10 w-10 place-items-center rounded-lg border border-brand-primary/20 hover:bg-surfaceBorder/40 active:bg-surfaceBorder/60 text-brand-text transition-colors"
         aria-label="خيارات"
         type="button"
       >
@@ -50,7 +50,7 @@ export default function ActionsDropdown({ actions }: { actions: DropdownAction[]
                 setOpen(false);
                 a.onClick();
               }}
-              className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-surfaceBorder/40 ${
+              className={`flex w-full items-center gap-2.5 px-4 py-3 min-h-[44px] text-sm font-semibold transition-colors hover:bg-surfaceBorder/40 active:bg-surfaceBorder/60 ${
                 a.danger ? "text-brand-error" : "text-brand-text"
               }`}
             >

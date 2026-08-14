@@ -1,6 +1,11 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  type Firestore,
+} from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 
 export const firebaseConfig = {
@@ -27,5 +32,17 @@ function createFirebaseApp(): FirebaseApp | null {
 
 export const app: FirebaseApp | null = createFirebaseApp();
 export const auth = (app ? getAuth(app) : null) as Auth;
-export const db = (app ? getFirestore(app) : null) as Firestore;
+// كاش محلي دائم (IndexedDB) لـ Firestore — أول قراءة لأي بيانات سبق
+// وشافها المستخدم (أقسام، طلاب، دروس...) تُعرض فورًا من القرص قبل ما
+// تتأكد من السيرفر، بدل انتظار الشبكة كل مرة. هاد اللي بيقصّر جدًا وقت
+// "جاري التحميل" خصوصًا أول ما يفتح التطبيق أو بعد تسجيل الدخول مباشرة.
+export const db = (
+  app
+    ? initializeFirestore(app, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager(),
+        }),
+      })
+    : null
+) as Firestore;
 export const storage = (app ? getStorage(app) : null) as FirebaseStorage;

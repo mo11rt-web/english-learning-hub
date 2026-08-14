@@ -61,7 +61,7 @@ export function Sidebar() {
           className="flex items-center justify-between px-3.5 py-3 mb-2 rounded-xl bg-white/10 hover:bg-white/15 active:bg-white/20 text-sm min-h-[48px]"
         >
           <span className="truncate">📂 {stageName ?? "اختر القسم"}</span>
-          <span className="text-xs text-white/60 shrink-0">تبديل</span>
+          <span className="text-xs text-brand-goldLight shrink-0 font-bold">تبديل</span>
         </Link>
       )}
       <nav className="flex flex-col gap-1 flex-1">

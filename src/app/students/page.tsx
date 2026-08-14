@@ -719,7 +719,7 @@ export default function StudentsPage() {
               direction: "rtl",
             }}
           >
-            <h1 style={{ color: "#07596B", fontSize: 24, fontWeight: 800, margin: 0 }}>
+            <h1 style={{ color: "#556B2F", fontSize: 24, fontWeight: 800, margin: 0 }}>
               تقرير نتائج الطالب
             </h1>
             <p style={{ color: "#6b7280", fontSize: 13, marginTop: 4 }}>
@@ -750,7 +750,7 @@ export default function StudentsPage() {
               </tbody>
             </table>
 
-            <h2 style={{ fontSize: 16, fontWeight: 800, color: "#07596B", marginTop: 24 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 800, color: "#556B2F", marginTop: 24 }}>
               آخر النتائج
             </h2>
             {pdfExportTarget.report.quizResults.length === 0 ? (

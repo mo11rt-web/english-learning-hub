@@ -30,11 +30,11 @@ export function BottomNav() {
 
   return (
     <div
-      className="md:hidden fixed inset-x-0 bottom-0 z-40 px-3"
+      className="md:hidden fixed inset-x-0 bottom-0 z-40 px-3 pointer-events-none"
       style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
     >
       <nav
-        className="grid rounded-3xl border border-surfaceBorder/60 bg-surface/90 backdrop-blur-xl shadow-glass"
+        className="pointer-events-auto grid rounded-3xl border border-surfaceBorder/60 bg-surface/90 backdrop-blur-xl shadow-glass"
         style={{ gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))` }}
       >
         {tabs.map((t) => {
