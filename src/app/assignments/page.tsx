@@ -77,6 +77,7 @@ export default function AssignmentsPage() {
   const createAssignment = async () => {
     if (!aForm.title.trim() || aForm.selectedQ.size === 0 || !user || !workspaceStageId) return;
     await createDoc("assignments", {
+      stageId: workspaceStageId,
       title: aForm.title,
       type: aForm.type,
       targetGroupIds: aForm.targetGroupId ? [aForm.targetGroupId] : [],

@@ -52,6 +52,8 @@ function WorkspacePageInner() {
   }, [loading, stages, seeding]);
 
   const choose = (id: string) => {
+    // Update localStorage/state before navigation so the destination page can
+    // render its scoped data on the very first frame, including on mobile.
     setStageId(id);
     router.replace(from);
   };
@@ -79,11 +81,13 @@ function WorkspacePageInner() {
             {branchCards.map((b) => (
               <button
                 key={b.name}
+                type="button"
                 onClick={() => b.stage && choose(b.stage.id)}
                 disabled={!b.stage}
-                className="text-right"
+                className="w-full touch-manipulation text-right disabled:cursor-wait"
+                aria-label={`الدخول إلى ${b.name}`}
               >
-                <GlassCard className="hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer h-full text-center">
+                <GlassCard className="h-full min-h-[164px] cursor-pointer text-center transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98]">
                   <div className="text-4xl mb-3">{b.icon}</div>
                   <h3 className="font-bold text-brand-text text-lg">{b.name}</h3>
                   <p className="text-brand-textMuted text-xs mt-1">

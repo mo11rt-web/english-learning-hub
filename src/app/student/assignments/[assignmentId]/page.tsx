@@ -11,7 +11,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
 import { createDoc, listenCollection, where } from "@/lib/firestore-helpers";
-import { Assignment, Question, Attempt } from "@/lib/types";
+import { Assignment, Question, Attempt, StudentProfile } from "@/lib/types";
 import { awardPoints, getPointsSettings } from "@/lib/gamification";
 import { notifyUsers, getTeacherUids } from "@/lib/notifications";
 
@@ -28,6 +28,8 @@ export default function TakeAssignmentPage() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [existingAttempt, setExistingAttempt] = useState<(Attempt & { id: string }) | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const studentStageId = profile?.role === "student" ? (profile as StudentProfile).stageId : undefined;
+  const scopedStageId = assignment?.stageId ?? studentStageId;
   const [resultScore, setResultScore] = useState<number | null>(null);
 
   useEffect(() => {
@@ -38,19 +40,28 @@ export default function TakeAssignmentPage() {
   }, [assignmentId]);
 
   useEffect(() => {
-    const u = listenCollection<Question>("question_bank", [], setQuestions);
+    if (!scopedStageId) return;
+    const u = listenCollection<Question>(
+      "question_bank",
+      [where("stageId", "==", scopedStageId)],
+      setQuestions
+    );
     return () => u();
-  }, []);
+  }, [scopedStageId]);
 
   useEffect(() => {
     if (!user) return;
     const u = listenCollection<Attempt>(
       "attempts",
-      [where("assignmentId", "==", assignmentId), where("studentId", "==", user.uid)],
+      [
+        where("assignmentId", "==", assignmentId),
+        where("studentId", "==", user.uid),
+        ...(scopedStageId ? [where("stageId", "==", scopedStageId)] : []),
+      ],
       (items) => setExistingAttempt(items[0] ?? null)
     );
     return () => u();
-  }, [assignmentId, user]);
+  }, [assignmentId, user, scopedStageId]);
 
   if (!assignment) {
     return <AppShell requireRole="student"><p>جاري التحميل...</p></AppShell>;
@@ -96,6 +107,7 @@ export default function TakeAssignmentPage() {
     }
 
     await createDoc("attempts", {
+      stageId: scopedStageId ?? "",
       assignmentId,
       studentId: user.uid,
       answers,

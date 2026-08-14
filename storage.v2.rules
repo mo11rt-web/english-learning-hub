@@ -1,0 +1,48 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profile(uid) {
+      return firestore.get(/databases/(default)/documents/profiles/$(uid)).data;
+    }
+
+    function activeStaff() {
+      return signedIn() &&
+        profile(request.auth.uid).status == 'active' &&
+        profile(request.auth.uid).role in ['admin', 'teacher'];
+    }
+
+    function activeUser() {
+      return signedIn() && profile(request.auth.uid).status == 'active';
+    }
+
+    // Metadata is checked in Firestore by the application before a download.
+    // Files are never public and uploads are restricted by type and size.
+    match /workspaces/{workspaceId}/{allPaths=**} {
+      allow read: if activeUser();
+      allow write: if activeStaff() &&
+        request.resource.size < 5 * 1024 * 1024 &&
+        request.resource.contentType.matches('(image/.*|audio/.*|application/pdf|video/.*)');
+      allow delete: if activeStaff();
+    }
+
+    match /lesson-files/{fileName} {
+      allow read: if activeUser();
+      allow write: if activeStaff() &&
+        request.resource.size < 5 * 1024 * 1024 &&
+        request.resource.contentType.matches('(image/.*|audio/.*|application/pdf|video/.*)');
+      allow delete: if activeStaff();
+    }
+
+    match /audio/{fileName} {
+      allow read: if activeUser() && request.resource == null;
+      allow write: if activeStaff() &&
+        request.resource.size < 3 * 1024 * 1024 &&
+        request.resource.contentType.matches('audio/.*');
+      allow delete: if activeStaff();
+    }
+  }
+}

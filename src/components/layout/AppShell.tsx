@@ -4,18 +4,19 @@ import { ReactNode, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { useTheme } from "@/hooks/useTheme";
+import { useMobileMenu, MobileMenuProvider } from "@/hooks/useMobileMenu";
 import { Sidebar } from "./Sidebar";
 import { MobileSidebar } from "./MobileSidebar";
 import { BottomNav } from "./BottomNav";
 import { NotificationBell } from "@/components/NotificationBell";
-import { MobileMenuProvider } from "@/hooks/useMobileMenu";
 
 export function AppShell({
   children,
   requireRole,
 }: {
   children: ReactNode;
-  requireRole?: "teacher" | "student"; // teacher تشمل admin
+  requireRole?: "teacher" | "student";
 }) {
   const { user, profile, loading, signOut } = useAuth();
   const { stageId, loading: workspaceLoading } = useWorkspace();
@@ -28,8 +29,6 @@ export function AppShell({
       router.replace("/login");
       return;
     }
-    // إذا عطّل المعلم الحساب أو حذفه أثناء استخدام الطالب للمنصة، نطرده
-    // فورًا — الملف الشخصي يتحدث لحظيًا (onSnapshot) فلا حاجة لإعادة تحميل
     if (profile.status !== "active") {
       signOut().then(() => router.replace("/login"));
       return;
@@ -42,9 +41,6 @@ export function AppShell({
       router.replace("/student/home");
       return;
     }
-    // المعلم/المدير لازم يختار القسم (تاسع/بكالوريا/...) أول ما يفوت،
-    // حتى ما تختلط بيانات الأقسام ببعضها. صفحة اختيار القسم نفسها مستثناة
-    // من هذا الشرط لتجنب حلقة تحويل لا نهائية.
     if (
       requireRole === "teacher" &&
       profile.role !== "student" &&
@@ -80,19 +76,59 @@ export function AppShell({
 
   return (
     <MobileMenuProvider>
-      <div className="min-h-screen bg-app-gradient flex" dir="rtl">
-        <div className="hidden md:block">
-          <Sidebar />
-        </div>
-        <MobileSidebar />
-        <div className="fixed top-4 left-4 z-40">
-          <NotificationBell />
-        </div>
-        <main className="flex-1 p-4 md:p-8 pb-24 md:pb-8 max-w-full overflow-x-hidden">
+      <ShellFrame profileName={profile.fullName}>{children}</ShellFrame>
+    </MobileMenuProvider>
+  );
+}
+
+function ShellFrame({ children, profileName }: { children: ReactNode; profileName: string }) {
+  const { theme, toggleTheme } = useTheme();
+  const { setOpen } = useMobileMenu();
+
+  return (
+    <div className="min-h-screen bg-app-gradient flex" dir="rtl">
+      <div className="hidden md:block">
+        <Sidebar />
+      </div>
+      <MobileSidebar />
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+        <header
+          className="sticky top-0 z-30 flex items-center justify-between border-b border-surfaceBorder bg-surface/90 px-4 py-3 backdrop-blur-md md:px-8"
+          style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top, 0px))" }}
+        >
+          <div className="flex items-center gap-2 md:hidden">
+            <div className="grid h-9 w-9 place-items-center rounded-xl bg-brand-sidebar text-sm font-extrabold text-white">LE</div>
+            <div>
+              <p className="text-sm font-extrabold text-brand-text">Learn English</p>
+              <p className="text-[10px] text-brand-textMuted">{profileName}</p>
+            </div>
+          </div>
+          <div className="hidden text-sm font-bold text-brand-textMuted md:block">مرحباً بك، {profileName}</div>
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="grid h-10 w-10 place-items-center rounded-full border border-surfaceBorder text-base hover:bg-brand-primary/10"
+              aria-label="تبديل الوضع الليلي"
+            >
+              {theme === "dark" ? "☀️" : "🌙"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="grid h-10 w-10 place-items-center rounded-full border border-surfaceBorder text-lg md:hidden"
+              aria-label="فتح القائمة"
+            >
+              ☰
+            </button>
+          </div>
+        </header>
+        <main className="flex-1 max-w-full overflow-x-hidden px-4 pt-5 pb-28 md:px-8 md:pb-10">
           {children}
         </main>
-        <BottomNav />
       </div>
-    </MobileMenuProvider>
+      <BottomNav />
+    </div>
   );
 }

@@ -1,0 +1,151 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profile(uid) {
+      return get(/databases/$(database)/documents/profiles/$(uid)).data;
+    }
+
+    function activeUser() {
+      return signedIn() && profile(request.auth.uid).status == 'active';
+    }
+
+    function staff() {
+      return activeUser() && profile(request.auth.uid).role in ['admin', 'teacher'];
+    }
+
+    function workspaceStaff(workspaceId) {
+      return staff() &&
+        exists(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid)).data.role in ['owner', 'admin', 'teacher'];
+    }
+
+    function workspaceMember(workspaceId) {
+      return activeUser() &&
+        exists(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid));
+    }
+
+    function sameWorkspace() {
+      return request.resource.data.workspaceId == resource.data.workspaceId;
+    }
+
+    function immutableIdentity() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasNone(['uid', 'authUid', 'role', 'createdAt', 'createdBy', 'workspaceId']);
+    }
+
+    match /profiles/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || staff());
+      allow create: if staff();
+      allow update: if staff() ||
+        (request.auth.uid == uid &&
+         request.resource.data.role == resource.data.role &&
+         request.resource.data.status == resource.data.status &&
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['fullName', 'photoUrl', 'mustChangePassword']));
+      allow delete: if staff();
+    }
+
+    match /workspaces/{workspaceId} {
+      allow read: if workspaceMember(workspaceId);
+      allow create: if staff();
+      allow update: if workspaceStaff(workspaceId) && sameWorkspace();
+      allow delete: if false;
+
+      match /members/{uid} {
+        allow read: if workspaceMember(workspaceId);
+        allow create, update: if workspaceStaff(workspaceId);
+        allow delete: if workspaceStaff(workspaceId);
+      }
+
+      match /sections/{sectionId} {
+        allow read: if workspaceMember(workspaceId);
+        allow create, update: if workspaceStaff(workspaceId) &&
+          request.resource.data.workspaceId == workspaceId &&
+          request.resource.data.name is string &&
+          request.resource.data.name.size() > 0 &&
+          (resource == null || sameWorkspace());
+        allow delete: if workspaceStaff(workspaceId);
+      }
+
+      match /groups/{groupId} {
+        allow read: if workspaceMember(workspaceId);
+        allow create, update: if workspaceStaff(workspaceId) &&
+          request.resource.data.workspaceId == workspaceId &&
+          request.resource.data.sectionId is string &&
+          (resource == null || sameWorkspace());
+        allow delete: if workspaceStaff(workspaceId);
+      }
+
+      match /students/{studentId} {
+        allow read: if workspaceStaff(workspaceId) ||
+          (workspaceMember(workspaceId) && resource.data.authUid == request.auth.uid);
+        allow create: if workspaceStaff(workspaceId) &&
+          request.resource.data.workspaceId == workspaceId &&
+          request.resource.data.authUid is string &&
+          request.resource.data.sectionId is string;
+        allow update: if workspaceStaff(workspaceId) && sameWorkspace();
+        allow delete: if false;
+      }
+
+      match /content/{contentId} {
+        allow read: if workspaceStaff(workspaceId) ||
+          (workspaceMember(workspaceId) && resource.data.status == 'published');
+        allow create, update: if workspaceStaff(workspaceId) &&
+          request.resource.data.workspaceId == workspaceId &&
+          (resource == null || sameWorkspace());
+        allow delete: if workspaceStaff(workspaceId);
+      }
+
+      match /assignments/{assignmentId} {
+        allow read: if workspaceStaff(workspaceId) ||
+          (workspaceMember(workspaceId) && resource.data.status == 'published');
+        allow create, update: if workspaceStaff(workspaceId) &&
+          request.resource.data.workspaceId == workspaceId &&
+          (resource == null || sameWorkspace());
+        allow delete: if workspaceStaff(workspaceId);
+      }
+
+      match /submissions/{submissionId} {
+        allow read: if workspaceStaff(workspaceId) ||
+          (workspaceMember(workspaceId) && resource.data.studentAuthUid == request.auth.uid);
+        allow create: if workspaceMember(workspaceId) &&
+          request.resource.data.workspaceId == workspaceId &&
+          request.resource.data.studentAuthUid == request.auth.uid &&
+          request.resource.data.status == 'submitted';
+        allow update: if workspaceStaff(workspaceId);
+        allow delete: if false;
+      }
+
+      match /notifications/{notificationId} {
+        allow read, delete: if workspaceMember(workspaceId) &&
+          resource.data.userId == request.auth.uid;
+        allow create: if workspaceStaff(workspaceId) ||
+          (workspaceMember(workspaceId) &&
+           request.resource.data.userId in [request.auth.uid] &&
+           request.resource.data.type == 'submission');
+        allow update: if false;
+      }
+
+      match /auditLogs/{logId} {
+        allow read: if workspaceStaff(workspaceId);
+        allow create: if workspaceStaff(workspaceId) &&
+          request.resource.data.workspaceId == workspaceId;
+        allow update, delete: if false;
+      }
+    }
+
+    match /questionKeys/{questionId} {
+      allow read, write: if staff();
+    }
+
+    match /shares/{token} {
+      allow read: if resource.data.enabled == true;
+      allow create, update: if staff();
+      allow delete: if false;
+    }
+  }
+}
