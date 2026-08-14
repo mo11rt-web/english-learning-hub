@@ -11,9 +11,8 @@ import { db, storage } from "@/lib/firebase";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
-import ActionsDropdown from "@/components/ui/ActionsDropdown";
-import { Modal, Toast } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { Modal, Toast } from "@/components/ui/Modal";
 import { LessonBlockView } from "@/components/LessonBlockView";
 import {
   listenCollection,
@@ -94,7 +93,7 @@ function LessonCard({
         <Target size={12} className="shrink-0" /> {targetNames}
       </p>
 
-      <div className="flex items-center gap-2 mt-3">
+      <div className="flex flex-wrap items-center gap-2 mt-3">
         <Button
           onClick={onTogglePublish}
           variant={lesson.status === "published" ? "secondary" : "primary"}
@@ -103,24 +102,33 @@ function LessonCard({
           {lesson.status === "published" ? <Pause size={14} /> : <Rocket size={14} />}
           {lesson.status === "published" ? "إلغاء النشر" : "نشر الدرس"}
         </Button>
-        <ActionsDropdown
-          actions={[
-            {
-              label: "تعديل الدرس",
-              icon: <Pencil size={15} />,
-              onClick: () => router.push(`/lessons/${lesson.id}`),
-            },
-            { label: "معاينة كطالب", icon: <Eye size={15} />, onClick: onPreview },
-            {
-              label: "تحديد المجموعات المستهدفة",
-              icon: <Target size={15} />,
-              onClick: () => {
-                setDraftGroupIds(new Set(lesson.targetGroupIds));
-                setEditingGroups((v) => !v);
-              },
-            },
-          ]}
-        />
+        <Button
+          onClick={() => router.push(`/lessons/${lesson.id}`)}
+          variant="secondary"
+          className="!py-2 !px-3.5 text-xs flex items-center gap-1.5"
+        >
+          <Pencil size={14} />
+          تعديل الدرس
+        </Button>
+        <Button
+          onClick={onPreview}
+          variant="secondary"
+          className="!py-2 !px-3.5 text-xs flex items-center gap-1.5"
+        >
+          <Eye size={14} />
+          معاينة كطالب
+        </Button>
+        <Button
+          onClick={() => {
+            setDraftGroupIds(new Set(lesson.targetGroupIds));
+            setEditingGroups((v) => !v);
+          }}
+          variant="secondary"
+          className="!py-2 !px-3.5 text-xs flex items-center gap-1.5"
+        >
+          <Target size={14} />
+          تحديد المجموعات
+        </Button>
       </div>
 
       {editingGroups && (
