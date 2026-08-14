@@ -4,45 +4,100 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { CheckCircle2, PlayCircle, BookOpen } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useAuth } from "@/hooks/useAuth";
 import { listenCollection, where } from "@/lib/firestore-helpers";
 import { Lesson, StudentProfile } from "@/lib/types";
+import { queryTargetGroupIds, matchesStudentGroups } from "@/lib/groupTargeting";
 
 export default function StudentLessonsPage() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const student = profile as StudentProfile | null;
   const [lessons, setLessons] = useState<(Lesson & { id: string })[]>([]);
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!student) return;
+    // نطابق الاستعلام هون تمامًا مع شرط قاعدة الأمان بـ firestore.rules —
+    // بما فيها ذات المصفوفة (targetGroupIds) عبر array-contains-any، حتى
+    // يقدر Firestore يتحقق مسبقًا إن كل نتيجة محتملة رح تحقق الصلاحية.
+    // قبل هذا التعديل كان الاستعلام يجيب فقط status/stageId بدون أي شرط
+    // على targetGroupIds رغم إن قاعدة الأمان فيها هذا الشرط — فكان
+    // Firestore يرفض الاستعلام بالكامل بخطأ "صلاحية غير كافية"، وهذا هو
+    // السبب الحقيقي وراء عدم ظهور أي درس منشور مهما كان.
     const u = listenCollection<Lesson>(
       "lessons",
-      [where("stageId", "==", student.stageId), where("status", "==", "published")],
+      [
+        where("stageId", "==", student.stageId),
+        where("status", "==", "published"),
+        where("targetGroupIds", "array-contains-any", queryTargetGroupIds(student.groupIds)),
+      ],
       setLessons
     );
     return () => u();
   }, [student]);
 
-  const visibleLessons = lessons.filter(
-    (l) => l.targetGroupIds.length === 0 || l.targetGroupIds.some((g) => student?.groupIds?.includes(g))
+  // تقدّم الطالب بكل درس (مكتمل أو لا) — نفس الكوليكشن (lesson_progress)
+  // اللي صفحة "نتائجي" ورابط مشاركة النتائج مع الأهل بتعتمد عليه أصلًا،
+  // فقط منعرض هون علامة "مكتمل" فوق كل درس خلص فيه الطالب.
+  useEffect(() => {
+    if (!user) return;
+    const u = listenCollection<{ studentId: string; lessonId: string; completed?: boolean }>(
+      "lesson_progress",
+      [where("studentId", "==", user.uid)],
+      (items) => {
+        setCompletedIds(new Set(items.filter((p) => p.completed).map((p) => p.lessonId)));
+      }
+    );
+    return () => u();
+  }, [user]);
+
+  const visibleLessons = lessons.filter((l) =>
+    matchesStudentGroups(l.targetGroupIds, student?.groupIds)
   );
 
   return (
     <AppShell requireRole="student">
       <PageHeader icon="📚" title="دروسي" />
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {visibleLessons.map((l) => (
-          <Link key={l.id} href={`/student/lessons/${l.id}`}>
-            <GlassCard className="hover:shadow-lg transition-shadow cursor-pointer h-full">
-              <h3 className="font-bold text-brand-text mb-1">{l.title}</h3>
-              <p className="text-brand-textMuted text-sm">{l.description ?? "درس تعليمي"}</p>
-            </GlassCard>
-          </Link>
-        ))}
-        {visibleLessons.length === 0 && <p className="text-brand-textMuted">لا توجد دروس منشورة بعد.</p>}
+        {visibleLessons.map((l) => {
+          const done = completedIds.has(l.id);
+          return (
+            <Link key={l.id} href={`/student/lessons/${l.id}`}>
+              <GlassCard
+                className={`hover:shadow-lg transition-shadow cursor-pointer h-full ${
+                  done ? "border-brand-success/40" : ""
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <h3 className="font-bold text-brand-text">{l.title}</h3>
+                  {done ? (
+                    <StatusBadge label="مكتمل" tone="success" />
+                  ) : (
+                    <StatusBadge label="لسا" tone="muted" />
+                  )}
+                </div>
+                <p className="text-brand-textMuted text-sm mb-3">
+                  {l.description ?? "درس تعليمي"}
+                </p>
+                <p className="text-xs font-bold flex items-center gap-1.5 text-brand-primary">
+                  {done ? <CheckCircle2 size={15} /> : <PlayCircle size={15} />}
+                  {done ? "راجع الدرس مرة تانية" : "ابدأ الدرس"}
+                </p>
+              </GlassCard>
+            </Link>
+          );
+        })}
+        {visibleLessons.length === 0 && (
+          <div className="col-span-full flex flex-col items-center text-center py-12 text-brand-textMuted">
+            <BookOpen size={32} className="mb-2 opacity-50" />
+            <p>لا توجد دروس منشورة بعد.</p>
+          </div>
+        )}
       </div>
     </AppShell>
   );

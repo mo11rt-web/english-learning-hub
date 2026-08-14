@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { listenCollection, where, orderBy } from "@/lib/firestore-helpers";
 import { Lesson, Assignment, Announcement, StudentProfile } from "@/lib/types";
 import { computeLevel } from "@/lib/gamification";
+import { queryTargetGroupIds } from "@/lib/groupTargeting";
 
 export default function StudentHomePage() {
   const { profile } = useAuth();
@@ -22,7 +23,11 @@ export default function StudentHomePage() {
     if (!student) return;
     const u1 = listenCollection<Lesson>(
       "lessons",
-      [where("stageId", "==", student.stageId), where("status", "==", "published")],
+      [
+        where("stageId", "==", student.stageId),
+        where("status", "==", "published"),
+        where("targetGroupIds", "array-contains-any", queryTargetGroupIds(student.groupIds)),
+      ],
       setLessons
     );
     const u2 = listenCollection<Assignment>(

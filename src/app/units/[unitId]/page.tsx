@@ -13,6 +13,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Modal, Toast } from "@/components/ui/Modal";
+import { toStoredTargetGroupIds, isTargetedAtAll, ALL_GROUPS_SENTINEL } from "@/lib/groupTargeting";
 import { LessonBlockView } from "@/components/LessonBlockView";
 import {
   listenCollection,
@@ -65,16 +66,15 @@ function LessonCard({
   const router = useRouter();
   const [editingGroups, setEditingGroups] = useState(false);
   const [draftGroupIds, setDraftGroupIds] = useState<Set<string>>(
-    new Set(lesson.targetGroupIds)
+    new Set(lesson.targetGroupIds.filter((id) => id !== ALL_GROUPS_SENTINEL))
   );
 
-  const targetNames =
-    lesson.targetGroupIds.length === 0
-      ? "كل المجموعات"
-      : groupsInUnit
-          .filter((g) => lesson.targetGroupIds.includes(g.id))
-          .map((g) => g.name)
-          .join("، ") || "مجموعات محدّدة";
+  const targetNames = isTargetedAtAll(lesson.targetGroupIds)
+    ? "كل المجموعات"
+    : groupsInUnit
+        .filter((g) => lesson.targetGroupIds.includes(g.id))
+        .map((g) => g.name)
+        .join("، ") || "مجموعات محدّدة";
 
   return (
     <GlassCard className="hover:shadow-lg transition-shadow">
@@ -388,7 +388,23 @@ export default function UnitLessonsPage() {
       // نحتاج نطلب من Firebase إنشاء فهرس مركّب (composite index) يدويًا —
       // هاد بالضبط كان سبب اختفاء الدروس رغم ظهور "تم الحفظ بنجاح": كان
       // Firestore يرفض الاستعلام بصمت لأنه الفهرس المطلوب ما كان موجود.
-      (items) => setLessons(items.slice().sort((a, b) => a.order - b.order)),
+      (items) => {
+        setLessons(items.slice().sort((a, b) => a.order - b.order));
+        // ترقيع تلقائي لمرة وحدة: أي درس قديم اتسجّل قبل هذا التحديث
+        // بمصفوفة targetGroupIds فاضية (تعني "كل المجموعات" بالنسخة
+        // القديمة) ما بيقدر يوصل للطالب بعد اليوم، لأنه استعلام الطالب
+        // صار يبحث عن قيمة محدّدة (__all__) مش عن مصفوفة فاضية —
+        // Firestore ما بيقدر يطابق "array-contains-any" مع مصفوفة فاضية
+        // إطلاقًا. هذا الترقيع يحوّل أي درس قديم متل هيك تلقائيًا أول ما
+        // المعلم يفتح صفحة الوحدة، بدون أي إجراء يدوي مطلوب منه.
+        items
+          .filter((l) => l.targetGroupIds.length === 0)
+          .forEach((l) => {
+            updateDocById("lessons", l.id, {
+              targetGroupIds: toStoredTargetGroupIds([]),
+            }).catch(() => {});
+          });
+      },
       (err) => showToast(`تعذّر تحميل قائمة الدروس: ${err.message}`, "error")
     );
     const g = listenCollection<Group>("groups", [], setGroups);
@@ -560,7 +576,7 @@ export default function UnitLessonsPage() {
         stageId: unit.stageId,
         status: "draft" as const,
         order: lessons.length,
-        targetGroupIds: Array.from(selectedGroupIds),
+        targetGroupIds: toStoredTargetGroupIds(Array.from(selectedGroupIds)),
         blocks,
         quizQuestions,
         createdBy: user.uid,
@@ -633,7 +649,9 @@ export default function UnitLessonsPage() {
             }}
             onUpdateGroups={async (groupIds) => {
               try {
-                await updateDocById("lessons", l.id, { targetGroupIds: groupIds });
+                await updateDocById("lessons", l.id, {
+                  targetGroupIds: toStoredTargetGroupIds(groupIds),
+                });
                 showToast("تم تحديث المجموعات المستهدفة ✅");
               } catch (err) {
                 const msg = err instanceof Error ? err.message : String(err);

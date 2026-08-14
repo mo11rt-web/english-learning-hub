@@ -34,6 +34,12 @@ export function queryTargetGroupIds(studentGroupIds: string[] = []): string[] {
   return [ALL_GROUPS_SENTINEL, ...studentGroupIds.slice(0, 9)];
 }
 
+/** يُستخدم بواجهة المعلم لعرض "كل المجموعات" بدل قيمة تقنية داخلية. */
+export function isTargetedAtAll(targetGroupIds: string[] | undefined): boolean {
+  const ids = targetGroupIds ?? [];
+  return ids.length === 0 || ids.includes(ALL_GROUPS_SENTINEL);
+}
+
 /**
  * فحص إضافي من جهة العميل (دفاع مضاعف فوق الاستعلام نفسه) — يتعامل أيضًا
  * مع بيانات قديمة محتملة كانت تُخزَّن كمصفوفة فاضية قبل هذا التعديل.
@@ -42,7 +48,6 @@ export function matchesStudentGroups(
   targetGroupIds: string[] | undefined,
   studentGroupIds: string[] = []
 ): boolean {
-  const ids = targetGroupIds ?? [];
-  if (ids.length === 0 || ids.includes(ALL_GROUPS_SENTINEL)) return true;
-  return ids.some((g) => studentGroupIds.includes(g));
+  if (isTargetedAtAll(targetGroupIds)) return true;
+  return (targetGroupIds ?? []).some((g) => studentGroupIds.includes(g));
 }

@@ -45,13 +45,19 @@ service cloud.firestore {
 
     match /lessons/{id} {
       // منشور بس ما بيكفي — لازم كمان الدرس يكون بدون تحديد مجموعات
-      // (يفتح لكل الطلاب) أو الطالب يكون فعليًا بواحدة من المجموعات
-      // المستهدفة. هيك تحديد "لأي مجموعة يفتح الدرس ولأي مجموعة لا" بيصير
-      // مطبّق فعليًا كأمان بقاعدة البيانات، مش بس إخفاء بالواجهة.
+      // (يفتح لكل الطلاب، ويُخزَّن بالقيمة المميزة "__all__") أو الطالب
+      // يكون فعليًا بواحدة من المجموعات المستهدفة. الشرط هون لازم يطابق
+      // استعلام صفحة الطالب بالضبط (array-contains-any) — Firestore ما
+      // بيسمح بتنفيذ استعلام "list" إلا إذا قدر يثبت مسبقًا أن كل نتيجة
+      // محتملة بتحقق شرط القاعدة، وهذا غير ممكن إذا كان الشرط هون يعتمد
+      // حقل (targetGroupIds) مش موجود أصلًا كشرط where بنفس الاستعلام.
+      // الشرط هون مكتوب كـ hasAny() وحيدة على قائمة واحدة (مجموعات الطالب +
+      // القيمة المميزة) بدل شرطين OR منفصلين، لأن Firestore بيتحقق مسبقًا
+      // من توافق استعلامات array-contains-any مع القاعدة فقط لما تكون
+      // مكتوبة بهذا الشكل البسيط المطابق تمامًا لقيمة الاستعلام نفسها.
       allow read: if isTeacherOrAdmin() ||
         (isActive() && resource.data.status == 'published' &&
-         (resource.data.targetGroupIds.size() == 0 ||
-          resource.data.targetGroupIds.hasAny(myProfile().groupIds)));
+         resource.data.targetGroupIds.hasAny(myProfile().get('groupIds', []) + ["__all__"]));
       allow write: if isTeacherOrAdmin();
     }
 
@@ -95,10 +101,17 @@ service cloud.firestore {
         (isActive() && resource.data.studentId == request.auth.uid && resource.data.status == 'in-progress');
     }
 
-    // تقدم الطالب في الدروس: خاص بالطالب النشط + قراءة المعلم
+    // تقدم الطالب في الدروس: خاص بالطالب النشط + قراءة المعلم. الشرط هون
+    // مبني على الحقل studentId (مش نمط الـ id نفسه) لأنه صفحة "نتائجي"
+    // وروابط مشاركة النتائج بتستعلم بـ where("studentId","==",...) على
+    // الكوليكشن كامل — وقاعدة أمان مبنية على نمط الـ id فقط ما بتقدر
+    // تتحقق مسبقًا من هيك استعلام، فكانت تُرفض بالكامل بخطأ صلاحية.
     match /lesson_progress/{id} {
-      allow read: if isTeacherOrAdmin() || (isSignedIn() && id.matches(request.auth.uid + '_.*'));
-      allow write: if isActive() && id.matches(request.auth.uid + '_.*');
+      allow read: if isTeacherOrAdmin() ||
+        (isSignedIn() && resource.data.studentId == request.auth.uid);
+      allow create: if isActive() && request.resource.data.studentId == request.auth.uid;
+      allow update: if isTeacherOrAdmin() ||
+        (isActive() && resource.data.studentId == request.auth.uid);
     }
 
     match /activity_logs/{id} {
