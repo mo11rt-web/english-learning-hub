@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import {
   listenCollection, createDoc, orderBy,
@@ -77,7 +78,6 @@ export default function AssignmentsPage() {
   const createAssignment = async () => {
     if (!aForm.title.trim() || aForm.selectedQ.size === 0 || !user || !workspaceStageId) return;
     await createDoc("assignments", {
-      stageId: workspaceStageId,
       title: aForm.title,
       type: aForm.type,
       targetGroupIds: aForm.targetGroupId ? [aForm.targetGroupId] : [],
@@ -105,7 +105,7 @@ export default function AssignmentsPage() {
 
   return (
     <AppShell requireRole="teacher">
-      <h1 className="text-2xl font-bold text-brand-text mb-6">الواجبات والاختبارات</h1>
+      <PageHeader icon="📝" title="الواجبات والاختبارات" />
 
       <div className="grid lg:grid-cols-2 gap-6 mb-8">
         <GlassCard>

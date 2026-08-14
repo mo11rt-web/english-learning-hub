@@ -16,6 +16,7 @@ interface AuthState {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
+  error: string | null;
   signOut: () => Promise<void>;
 }
 
@@ -23,6 +24,7 @@ const AuthContext = createContext<AuthState>({
   user: null,
   profile: null,
   loading: true,
+  error: null,
   signOut: async () => {},
 });
 
@@ -30,10 +32,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, (u) => {
       setUser(u);
+      setError(null);
       if (!u) {
         setProfile(null);
         setLoading(false);
@@ -44,16 +48,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user) return;
-    const unsubProfile = onSnapshot(doc(db, "profiles", user.uid), (snap) => {
-      setProfile(snap.exists() ? (snap.data() as Profile) : null);
-      setLoading(false);
-    });
+    const unsubProfile = onSnapshot(
+      doc(db, "profiles", user.uid),
+      (snap) => {
+        setProfile(snap.exists() ? (snap.data() as Profile) : null);
+        setLoading(false);
+        setError(null);
+      },
+      // بدون هذا، أي خطأ لحظي بقراءة الملف الشخصي (شبكة بطيئة، صلاحيات لسا
+      // ما تزامنت) كان يترك "loading" عالقة true للأبد — يعني شاشة "جاري
+      // التحميل" لا تختفي أبدًا بعد تسجيل الدخول مباشرة.
+      (err) => {
+        console.error("[useAuth:profile]", err);
+        setLoading(false);
+        setError("تعذر تحميل بيانات الحساب. تحقق من الاتصال وأعد المحاولة.");
+      }
+    );
     return () => unsubProfile();
   }, [user]);
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, loading, signOut: () => fbSignOut(auth) }}
+      value={{ user, profile, loading, error, signOut: () => fbSignOut(auth) }}
     >
       {children}
     </AuthContext.Provider>

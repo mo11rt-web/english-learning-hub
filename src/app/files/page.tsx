@@ -7,6 +7,7 @@ import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { storage } from "@/lib/firebase";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { listenCollection, createDoc, orderBy } from "@/lib/firestore-helpers";
 import { FileAsset } from "@/lib/types";
@@ -68,7 +69,7 @@ export default function FilesPage() {
 
   return (
     <AppShell requireRole="teacher">
-      <h1 className="text-2xl font-bold text-brand-text mb-6">الملفات</h1>
+      <PageHeader icon="📎" title="الملفات" />
 
       <GlassCard className="mb-6">
         <h2 className="font-bold text-brand-text mb-3">رفع ملف جديد</h2>

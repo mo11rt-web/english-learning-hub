@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { listenCollection, where } from "@/lib/firestore-helpers";
 import { Assignment, Attempt, StudentProfile } from "@/lib/types";
@@ -33,7 +34,7 @@ export default function StudentAssignmentsPage() {
 
   return (
     <AppShell requireRole="student">
-      <h1 className="text-2xl font-bold text-brand-text mb-6">الواجبات والاختبارات</h1>
+      <PageHeader icon="📝" title="الواجبات والاختبارات" />
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {myAssignments.map((a) => {
           const done = attempts.find((att) => att.assignmentId === a.id);

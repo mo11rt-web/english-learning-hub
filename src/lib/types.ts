@@ -172,8 +172,6 @@ export interface Question {
 
 export interface Assignment {
   id: string;
-  /** القسم الذي ينتمي إليه الواجب لتقييد الاستعلامات والقواعد */
-  stageId?: string;
   title: string;
   description?: string;
   type: "practice" | "homework" | "quiz" | "exam";
@@ -195,8 +193,6 @@ export interface Assignment {
 
 export interface Attempt {
   id: string;
-  /** القسم الذي ينتمي إليه التسليم لتجنب قراءة كل المحاولات */
-  stageId?: string;
   assignmentId: string;
   studentId: string;
   answers: Record<string, string | string[]>;

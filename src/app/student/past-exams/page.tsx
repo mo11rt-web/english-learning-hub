@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { listenCollection, orderBy } from "@/lib/firestore-helpers";
 import { PastExamQuestion, Stage } from "@/lib/types";
 
@@ -46,7 +47,7 @@ export default function StudentPastExamsPage() {
 
   return (
     <AppShell requireRole="student">
-      <h1 className="text-2xl font-bold text-brand-text mb-6">أسئلة الدورات السابقة</h1>
+      <PageHeader icon="🗂️" title="أسئلة الدورات السابقة" />
 
       <GlassCard className="mb-6">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">

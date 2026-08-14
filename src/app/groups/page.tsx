@@ -7,6 +7,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog, Toast } from "@/components/ui/Modal";
+import { PageHeader } from "@/components/ui/PageHeader";
 import {
   listenCollection,
   createDoc,
@@ -50,8 +51,16 @@ export default function GroupsPage() {
 
   return (
     <AppShell requireRole="teacher">
-      <h1 className="text-2xl font-bold text-brand-text mb-1">المجموعات والصفوف</h1>
-      <p className="text-brand-textMuted text-sm mb-6">
+      <PageHeader
+        icon="👥"
+        title="المجموعات والصفوف"
+        meta={
+          <span className="text-xs font-bold text-brand-primary bg-brand-primary/10 px-3 py-1.5 rounded-full">
+            {groupsInWorkspace.length} مجموعة
+          </span>
+        }
+      />
+      <p className="text-brand-textMuted text-sm mb-6 -mt-4">
         فرع "{stageName ?? "—"}" — كل مجموعة تُنشأ هنا خاصة بهذا الفرع فقط.
       </p>
 

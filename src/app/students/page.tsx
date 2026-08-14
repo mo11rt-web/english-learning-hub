@@ -296,9 +296,25 @@ export default function StudentsPage() {
       s.studentNumber?.includes(search)
   );
 
+  const activeCount = students.filter((s) => s.status === "active").length;
+
   return (
     <AppShell requireRole="teacher">
-      <h1 className="text-2xl font-bold text-brand-text mb-6">إدارة الطلاب</h1>
+      <div className="rounded-glass bg-gradient-to-br from-brand-sidebar via-brand-sidebar to-brand-primary/40 text-white p-6 mb-6 shadow-glass">
+        <p className="text-white/60 text-xs mb-1">إدارة الطلاب</p>
+        <h1 className="text-2xl font-bold mb-4">{workspaceStageName ?? "—"}</h1>
+        <div className="flex items-center gap-6 border-t border-white/10 pt-4">
+          <div>
+            <p className="text-white/60 text-xs mb-0.5">طلاب نشطون</p>
+            <p className="text-2xl font-bold text-brand-goldLight">{activeCount}</p>
+          </div>
+          <div className="w-px h-10 bg-white/10" />
+          <div>
+            <p className="text-white/60 text-xs mb-0.5">إجمالي المسجّلين</p>
+            <p className="text-2xl font-bold text-brand-goldLight">{students.length}</p>
+          </div>
+        </div>
+      </div>
 
       {shareLink && (
         <GlassCard className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -333,7 +349,12 @@ export default function StudentsPage() {
 
       <div className="grid lg:grid-cols-3 gap-6">
         <GlassCard className="lg:col-span-1 h-fit">
-          <h2 className="font-bold text-brand-text mb-4">إضافة طالب جديد</h2>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-primary to-brand-secondary flex items-center justify-center text-white text-lg shrink-0">
+              👤
+            </div>
+            <h2 className="font-bold text-brand-text">إضافة طالب جديد</h2>
+          </div>
           <div
             className="flex flex-col gap-3"
             onKeyDown={(e) => {
@@ -446,13 +467,19 @@ export default function StudentsPage() {
           <div className="flex flex-col gap-3">
             {filtered.map((s) => {
               const stageName = stages.find((st) => st.id === s.stageId)?.name ?? "—";
+              const accent =
+                s.status === "active"
+                  ? "border-r-4 border-r-brand-success"
+                  : s.status === "deleted"
+                  ? "border-r-4 border-r-brand-textMuted"
+                  : "border-r-4 border-r-brand-error";
               return (
                 <div
                   key={s.id}
-                  className="flex flex-col gap-3 rounded-2xl border border-surfaceBorder/60 bg-surface/60 p-4 sm:flex-row sm:items-center sm:justify-between"
+                  className={`flex flex-col gap-3 rounded-2xl border border-surfaceBorder/60 ${accent} bg-surface/60 p-4 sm:flex-row sm:items-center sm:justify-between hover:shadow-md active:scale-[0.99] transition-all`}
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand-primary to-brand-secondary font-extrabold text-white">
+                    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand-primary to-brand-secondary font-extrabold text-white text-lg ring-2 ring-surface shadow-md">
                       {s.fullName?.[0] ?? "?"}
                     </div>
                     <div className="min-w-0">

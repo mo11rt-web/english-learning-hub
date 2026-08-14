@@ -4,22 +4,45 @@ import { ReactNode, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
-import { useTheme } from "@/hooks/useTheme";
-import { useMobileMenu, MobileMenuProvider } from "@/hooks/useMobileMenu";
 import { Sidebar } from "./Sidebar";
 import { MobileSidebar } from "./MobileSidebar";
 import { BottomNav } from "./BottomNav";
-import { NotificationBell } from "@/components/NotificationBell";
+import { TopBar } from "./TopBar";
+import { MobileMenuProvider } from "@/hooks/useMobileMenu";
+
+function Spinner() {
+  return (
+    <div className="min-h-screen bg-app-gradient flex items-center justify-center">
+      <div className="h-9 w-9 animate-spin rounded-full border-4 border-brand-primary/25 border-t-brand-primary" />
+    </div>
+  );
+}
+
+function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="min-h-screen bg-app-gradient flex items-center justify-center px-6">
+      <div className="text-center max-w-xs">
+        <p className="text-brand-text font-bold mb-4">{message}</p>
+        <button
+          onClick={onRetry}
+          className="px-5 py-2.5 rounded-xl bg-brand-primary text-white text-sm font-bold"
+        >
+          إعادة المحاولة
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function AppShell({
   children,
   requireRole,
 }: {
   children: ReactNode;
-  requireRole?: "teacher" | "student";
+  requireRole?: "teacher" | "student"; // teacher تشمل admin
 }) {
-  const { user, profile, loading, signOut } = useAuth();
-  const { stageId, loading: workspaceLoading } = useWorkspace();
+  const { user, profile, loading, error: authError, signOut } = useAuth();
+  const { stageId, loading: workspaceLoading, error: workspaceError, retry: retryWorkspace } = useWorkspace();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -29,6 +52,8 @@ export function AppShell({
       router.replace("/login");
       return;
     }
+    // إذا عطّل المعلم الحساب أو حذفه أثناء استخدام الطالب للمنصة، نطرده
+    // فورًا — الملف الشخصي يتحدث لحظيًا (onSnapshot) فلا حاجة لإعادة تحميل
     if (profile.status !== "active") {
       signOut().then(() => router.replace("/login"));
       return;
@@ -41,6 +66,9 @@ export function AppShell({
       router.replace("/student/home");
       return;
     }
+    // المعلم/المدير لازم يختار القسم (تاسع/بكالوريا/...) أول ما يفوت،
+    // حتى ما تختلط بيانات الأقسام ببعضها. صفحة اختيار القسم نفسها مستثناة
+    // من هذا الشرط لتجنب حلقة تحويل لا نهائية.
     if (
       requireRole === "teacher" &&
       profile.role !== "student" &&
@@ -52,12 +80,12 @@ export function AppShell({
     }
   }, [loading, user, profile, requireRole, router, signOut, stageId, workspaceLoading, pathname]);
 
+  if (authError) {
+    return <ErrorScreen message={authError} onRetry={() => window.location.reload()} />;
+  }
+
   if (loading || !profile || profile.status !== "active") {
-    return (
-      <div className="min-h-screen bg-app-gradient flex items-center justify-center">
-        <p className="text-brand-text font-arabic">جاري التحميل...</p>
-      </div>
-    );
+    return <Spinner />;
   }
 
   if (
@@ -67,68 +95,27 @@ export function AppShell({
     !stageId &&
     pathname !== "/workspace"
   ) {
-    return (
-      <div className="min-h-screen bg-app-gradient flex items-center justify-center">
-        <p className="text-brand-text font-arabic">جاري التحويل لاختيار القسم...</p>
-      </div>
-    );
+    if (workspaceError) {
+      return <ErrorScreen message={workspaceError} onRetry={retryWorkspace} />;
+    }
+    return <Spinner />;
   }
 
   return (
     <MobileMenuProvider>
-      <ShellFrame profileName={profile.fullName}>{children}</ShellFrame>
+      <div className="min-h-screen bg-app-gradient flex" dir="rtl">
+        <div className="hidden md:block">
+          <Sidebar />
+        </div>
+        <MobileSidebar />
+        <div className="flex-1 min-w-0 flex flex-col">
+          <TopBar />
+          <main className="flex-1 p-4 md:p-8 pb-28 md:pb-8 max-w-full overflow-x-hidden">
+            {children}
+          </main>
+        </div>
+        <BottomNav />
+      </div>
     </MobileMenuProvider>
-  );
-}
-
-function ShellFrame({ children, profileName }: { children: ReactNode; profileName: string }) {
-  const { theme, toggleTheme } = useTheme();
-  const { setOpen } = useMobileMenu();
-
-  return (
-    <div className="min-h-screen bg-app-gradient flex" dir="rtl">
-      <div className="hidden md:block">
-        <Sidebar />
-      </div>
-      <MobileSidebar />
-      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <header
-          className="sticky top-0 z-30 flex items-center justify-between border-b border-surfaceBorder bg-surface/90 px-4 py-3 backdrop-blur-md md:px-8"
-          style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top, 0px))" }}
-        >
-          <div className="flex items-center gap-2 md:hidden">
-            <div className="grid h-9 w-9 place-items-center rounded-xl bg-brand-sidebar text-sm font-extrabold text-white">LE</div>
-            <div>
-              <p className="text-sm font-extrabold text-brand-text">Learn English</p>
-              <p className="text-[10px] text-brand-textMuted">{profileName}</p>
-            </div>
-          </div>
-          <div className="hidden text-sm font-bold text-brand-textMuted md:block">مرحباً بك، {profileName}</div>
-          <div className="flex items-center gap-2">
-            <NotificationBell />
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="grid h-10 w-10 place-items-center rounded-full border border-surfaceBorder text-base hover:bg-brand-primary/10"
-              aria-label="تبديل الوضع الليلي"
-            >
-              {theme === "dark" ? "☀️" : "🌙"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setOpen(true)}
-              className="grid h-10 w-10 place-items-center rounded-full border border-surfaceBorder text-lg md:hidden"
-              aria-label="فتح القائمة"
-            >
-              ☰
-            </button>
-          </div>
-        </header>
-        <main className="flex-1 max-w-full overflow-x-hidden px-4 pt-5 pb-28 md:px-8 md:pb-10">
-          {children}
-        </main>
-      </div>
-      <BottomNav />
-    </div>
   );
 }

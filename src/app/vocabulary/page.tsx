@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { SpeakButton } from "@/components/SpeakButton";
 import {
@@ -55,7 +56,7 @@ export default function VocabularyPage() {
 
   return (
     <AppShell requireRole="teacher">
-      <h1 className="text-2xl font-bold text-brand-text mb-6">الكلمات والمفردات</h1>
+      <PageHeader icon="🔤" title="الكلمات والمفردات" />
 
       <GlassCard className="mb-6">
         <h2 className="font-bold text-brand-text mb-4">إضافة كلمة جديدة</h2>

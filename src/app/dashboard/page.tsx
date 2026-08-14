@@ -23,8 +23,9 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!stageId) return;
 
-    // Every live listener is scoped to the selected section. This is both a
-    // privacy improvement and a direct reduction in free Firestore reads.
+    // الطلاب: مخزّنون فعليًا داخل profiles بحقل role == "student"، وليس
+    // بكوليكشن منفصل اسمه students — هذا الاستعلام يصحح ذلك ويقتصر على
+    // طلاب القسم النشط فقط (نستثني المحذوفين)
     const studentsQ = query(
       collection(db, "profiles"),
       where("role", "==", "student"),
@@ -36,7 +37,6 @@ export default function DashboardPage() {
       where("stageId", "==", stageId),
       where("status", "==", "published")
     );
-    const attemptsQ = query(collection(db, "attempts"), where("stageId", "==", stageId));
 
     const unsubs = [
       onSnapshot(studentsQ, (s) =>
@@ -49,7 +49,7 @@ export default function DashboardPage() {
       onSnapshot(lessonsQ, (s) =>
         setCounts((c) => ({ ...c, publishedLessons: s.size }))
       ),
-      onSnapshot(attemptsQ, (s) =>
+      onSnapshot(collection(db, "attempts"), (s) =>
         setCounts((c) => ({
           ...c,
           ungradedAnswers: s.docs.filter((d) => d.data().status === "submitted").length,
@@ -60,65 +60,72 @@ export default function DashboardPage() {
   }, [stageId]);
 
   const shortcuts = [
-    { href: "/students", label: "إدارة الطلاب", hint: "إضافة، تعديل، مجموعات", icon: "🎓" },
-    { href: "/units", label: "بناء درس", hint: "وحدات ومحتوى تعليمي", icon: "📘" },
-    { href: "/assignments", label: "إنشاء واجب", hint: "اختبار أو واجب مستهدف", icon: "📝" },
-    { href: "/groups", label: "تنظيم المجموعات", hint: "تقسيم الطلاب ومتابعتهم", icon: "👥" },
+    { href: "/units", label: "إضافة درس", icon: "📘" },
+    { href: "/students", label: "إضافة طالب", icon: "🎓" },
+    { href: "/assignments", label: "إنشاء واجب", icon: "📝" },
+    { href: "/vocabulary", label: "إضافة كلمات", icon: "🔤" },
   ];
 
   return (
     <AppShell requireRole="teacher">
-      <section className="mb-6 flex flex-col gap-4 rounded-3xl bg-brand-sidebar p-5 text-white shadow-lg md:flex-row md:items-center md:justify-between md:p-7">
-        <div>
-          <p className="mb-2 text-xs font-bold text-brand-secondary">مركز عمل المدرس</p>
-          <h1 className="text-2xl font-extrabold md:text-3xl">لوحة التحكم</h1>
-          <p className="mt-2 text-sm text-white/70">القسم الحالي: {stageName ?? "—"}</p>
+      <div className="rounded-glass bg-gradient-to-br from-brand-sidebar via-brand-sidebar to-brand-primary/40 text-white p-6 mb-6 shadow-glass relative overflow-hidden">
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <p className="text-white/60 text-xs mb-1">القسم الحالي</p>
+            <h1 className="text-2xl font-bold">{stageName ?? "—"}</h1>
+          </div>
+          <Link
+            href={`/workspace?from=/dashboard`}
+            className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full shrink-0"
+          >
+            تبديل القسم
+          </Link>
         </div>
-        <Link
-          href="/workspace?from=/dashboard"
-          className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-white/10 px-4 text-sm font-bold transition hover:bg-white/20 active:scale-[0.98]"
-        >
-          تبديل القسم
-        </Link>
-      </section>
-
-      <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-        <StatCard label="الطلاب النشطون" value={counts.students} icon="🎓" tone={0} />
-        <StatCard label="المجموعات" value={counts.groups} icon="👥" tone={1} />
-        <StatCard label="الدروس المنشورة" value={counts.publishedLessons} icon="📚" tone={2} />
-        <StatCard label="تسليمات تنتظر التصحيح" value={counts.ungradedAnswers} icon="✏️" tone={3} />
+        <div className="flex items-center gap-6 border-t border-white/10 pt-4">
+          <div>
+            <p className="text-white/60 text-xs mb-0.5">الطلاب النشطون</p>
+            <p className="text-2xl font-bold text-brand-goldLight">{counts.students}</p>
+          </div>
+          <div className="w-px h-10 bg-white/10" />
+          <div>
+            <p className="text-white/60 text-xs mb-0.5">المجموعات</p>
+            <p className="text-2xl font-bold text-brand-goldLight">{counts.groups}</p>
+          </div>
+        </div>
       </div>
 
-      <GlassCard className="mb-6">
-        <div className="mb-4 flex items-end justify-between gap-3">
-          <div>
-            <h2 className="font-extrabold text-brand-text">ابدأ من هنا</h2>
-            <p className="mt-1 text-xs text-brand-textMuted">اختصارات للأعمال اليومية الأكثر استخدامًا</p>
-          </div>
-          <span className="rounded-full bg-brand-primary/10 px-3 py-1 text-[11px] font-bold text-brand-primary">القسم الحالي</span>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <StatCard label="الطلاب النشطون" value={counts.students} icon="🎓" tone={0} />
+        <StatCard label="المجموعات" value={counts.groups} icon="👥" tone={1} />
+        <StatCard
+          label="الدروس المنشورة"
+          value={counts.publishedLessons}
+          icon="📚"
+          tone={2}
+        />
+        <StatCard
+          label="واجبات تنتظر التصحيح"
+          value={counts.ungradedAnswers}
+          icon="✏️"
+          tone={3}
+        />
+      </div>
+
+      <GlassCard>
+        <h2 className="font-bold text-brand-text mb-4">اختصارات سريعة</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {shortcuts.map((s) => (
             <Link
               key={s.href}
               href={s.href}
-              className="group rounded-2xl border border-surfaceBorder/60 bg-surface/60 p-4 transition hover:-translate-y-0.5 hover:border-brand-primary/40 hover:shadow-md active:scale-[0.98]"
+              className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-surface/60 hover:bg-surface active:scale-95 transition-all text-center"
             >
-              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-primary/10 text-2xl transition group-hover:scale-105">{s.icon}</div>
-              <p className="font-bold text-brand-text">{s.label}</p>
-              <p className="mt-1 text-xs text-brand-textMuted">{s.hint}</p>
+              <span className="text-2xl">{s.icon}</span>
+              <span className="text-sm text-brand-text font-medium">
+                {s.label}
+              </span>
             </Link>
           ))}
-        </div>
-      </GlassCard>
-
-      <GlassCard>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="font-extrabold text-brand-text">تركيز هذا الإصدار</h2>
-            <p className="mt-1 text-sm leading-6 text-brand-textMuted">كل شاشة داخل القسم الحالي، وكل عملية جديدة، يجب أن تبقى مرتبطة بالقسم حتى لا تختلط بيانات الطلاب والمحتوى.</p>
-          </div>
-          <Link href="/students" className="shrink-0 rounded-2xl bg-brand-primary px-4 py-3 text-center text-sm font-bold text-white transition hover:opacity-90 active:scale-[0.98]">فتح الطلاب</Link>
         </div>
       </GlassCard>
     </AppShell>

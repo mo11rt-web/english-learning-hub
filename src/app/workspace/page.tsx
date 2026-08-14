@@ -22,7 +22,9 @@ export default function WorkspacePage() {
     <Suspense
       fallback={
         <AppShell requireRole="teacher">
-          <p className="text-brand-textMuted text-center">جاري التحميل...</p>
+          <div className="flex justify-center py-10">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-primary/25 border-t-brand-primary" />
+          </div>
         </AppShell>
       }
     >
@@ -32,7 +34,7 @@ export default function WorkspacePage() {
 }
 
 function WorkspacePageInner() {
-  const { stages, setStageId, loading } = useWorkspace();
+  const { stages, setStageId, loading, error, retry } = useWorkspace();
   const router = useRouter();
   const params = useSearchParams();
   const [seeding, setSeeding] = useState(false);
@@ -52,8 +54,6 @@ function WorkspacePageInner() {
   }, [loading, stages, seeding]);
 
   const choose = (id: string) => {
-    // Update localStorage/state before navigation so the destination page can
-    // render its scoped data on the very first frame, including on mobile.
     setStageId(id);
     router.replace(from);
   };
@@ -74,20 +74,30 @@ function WorkspacePageInner() {
           </p>
         </div>
 
-        {loading || seeding ? (
-          <p className="text-center text-brand-textMuted">جاري التحميل...</p>
+        {error ? (
+          <div className="text-center py-8">
+            <p className="text-brand-error font-bold mb-4">{error}</p>
+            <button
+              onClick={retry}
+              className="px-5 py-2.5 rounded-xl bg-brand-primary text-white text-sm font-bold"
+            >
+              إعادة المحاولة
+            </button>
+          </div>
+        ) : loading || seeding ? (
+          <div className="flex justify-center py-10">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-primary/25 border-t-brand-primary" />
+          </div>
         ) : (
           <div className="grid sm:grid-cols-3 gap-4">
             {branchCards.map((b) => (
               <button
                 key={b.name}
-                type="button"
                 onClick={() => b.stage && choose(b.stage.id)}
                 disabled={!b.stage}
-                className="w-full touch-manipulation text-right disabled:cursor-wait"
-                aria-label={`الدخول إلى ${b.name}`}
+                className="block w-full text-right disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <GlassCard className="h-full min-h-[164px] cursor-pointer text-center transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98]">
+                <GlassCard className="hover:shadow-lg active:scale-[0.98] hover:-translate-y-0.5 transition-all cursor-pointer h-full text-center">
                   <div className="text-4xl mb-3">{b.icon}</div>
                   <h3 className="font-bold text-brand-text text-lg">{b.name}</h3>
                   <p className="text-brand-textMuted text-xs mt-1">

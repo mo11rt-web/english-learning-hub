@@ -13,6 +13,7 @@ import {
   savePointsSettings,
   LEVELS,
 } from "@/lib/gamification";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<PointsSettings>(DEFAULT_POINTS_SETTINGS);
@@ -51,14 +52,16 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <AppShell requireRole="teacher">
-        <p className="text-brand-textMuted">جاري التحميل...</p>
+        <div className="flex justify-center py-10">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-primary/25 border-t-brand-primary" />
+        </div>
       </AppShell>
     );
   }
 
   return (
     <AppShell requireRole="teacher">
-      <h1 className="text-2xl font-bold text-brand-text mb-6">إعدادات النقاط والمستويات</h1>
+      <PageHeader icon="⚙️" title="إعدادات النقاط والمستويات" />
 
       <GlassCard className="mb-6">
         <h2 className="font-bold text-brand-text mb-4">قيم النقاط الممنوحة</h2>

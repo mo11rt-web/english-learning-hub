@@ -58,7 +58,7 @@ export function Sidebar() {
         <Link
           href={`/workspace?from=${encodeURIComponent(pathname)}`}
           onClick={() => setOpen(false)}
-          className="flex items-center justify-between px-3 py-2 mb-2 rounded-xl bg-white/10 hover:bg-white/15 text-sm"
+          className="flex items-center justify-between px-3.5 py-3 mb-2 rounded-xl bg-white/10 hover:bg-white/15 active:bg-white/20 text-sm min-h-[48px]"
         >
           <span className="truncate">📂 {stageName ?? "اختر القسم"}</span>
           <span className="text-xs text-white/60 shrink-0">تبديل</span>
@@ -71,10 +71,10 @@ export function Sidebar() {
             href={l.href}
             onClick={() => setOpen(false)}
             className={clsx(
-              "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors",
+              "flex items-center gap-3 px-3.5 py-2.5 min-h-[46px] rounded-xl text-sm transition-colors",
               pathname === l.href
-                ? "bg-white/15 font-semibold"
-                : "hover:bg-white/10 text-white/85"
+                ? "bg-gradient-to-l from-brand-primary to-brand-secondary text-white font-bold shadow-md"
+                : "hover:bg-white/10 active:bg-white/15 text-white/85"
             )}
           >
             <span>{l.icon}</span>

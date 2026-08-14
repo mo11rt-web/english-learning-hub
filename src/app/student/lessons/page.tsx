@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { listenCollection, where } from "@/lib/firestore-helpers";
 import { Lesson, StudentProfile } from "@/lib/types";
@@ -31,7 +32,7 @@ export default function StudentLessonsPage() {
 
   return (
     <AppShell requireRole="student">
-      <h1 className="text-2xl font-bold text-brand-text mb-6">دروسي</h1>
+      <PageHeader icon="📚" title="دروسي" />
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {visibleLessons.map((l) => (
           <Link key={l.id} href={`/student/lessons/${l.id}`}>

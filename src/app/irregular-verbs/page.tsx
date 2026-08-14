@@ -8,6 +8,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { SpeakButton } from "@/components/SpeakButton";
 import { Toast } from "@/components/ui/Modal";
+import { PageHeader } from "@/components/ui/PageHeader";
 import {
   listenCollection,
   createDoc,
@@ -159,15 +160,16 @@ export default function IrregularVerbsPage() {
 
   return (
     <AppShell requireRole="teacher">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
-        <div>
-          <h1 className="text-2xl font-bold text-brand-text">الأفعال الشاذة</h1>
-          <p className="text-brand-textMuted text-sm">القسم الحالي: {workspaceStageName ?? "—"}</p>
-        </div>
-        <Button onClick={importFullList} disabled={importing || !workspaceStageId}>
-          {importing ? "جارٍ الاستيراد..." : `📥 استيراد القائمة الكاملة (${IRREGULAR_VERBS_SEED.length} فعل)`}
-        </Button>
-      </div>
+      <PageHeader
+        icon="🔄"
+        title="الأفعال الشاذة"
+        meta={
+          <Button onClick={importFullList} disabled={importing || !workspaceStageId}>
+            {importing ? "جارٍ الاستيراد..." : `📥 استيراد القائمة الكاملة (${IRREGULAR_VERBS_SEED.length} فعل)`}
+          </Button>
+        }
+      />
+      <p className="text-brand-textMuted text-sm -mt-4 mb-1">القسم الحالي: {workspaceStageName ?? "—"}</p>
       <p className="text-brand-textMuted text-xs mb-6">
         بعد الاستيراد، الأفعال بتنضاف معطّلة افتراضيًا — دور بتبويب &quot;معطّل&quot; بالأسفل وفعّل بس يلي بدك تعرضه فعليًا للطلاب.
       </p>

@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { listenCollection, createDoc, orderBy } from "@/lib/firestore-helpers";
 import { Announcement, Group } from "@/lib/types";
@@ -54,7 +55,7 @@ export default function AnnouncementsPage() {
 
   return (
     <AppShell requireRole="teacher">
-      <h1 className="text-2xl font-bold text-brand-text mb-6">الإعلانات</h1>
+      <PageHeader icon="📣" title="الإعلانات" />
 
       <GlassCard className="mb-6">
         <h2 className="font-bold text-brand-text mb-4">إعلان جديد</h2>

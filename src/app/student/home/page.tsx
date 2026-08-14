@@ -53,49 +53,48 @@ export default function StudentHomePage() {
   }, [student]);
 
   if (!student) {
-    return <AppShell requireRole="student"><p>جاري التحميل...</p></AppShell>;
+    return (
+      <AppShell requireRole="student">
+        <div className="flex justify-center py-10">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-primary/25 border-t-brand-primary" />
+        </div>
+      </AppShell>
+    );
   }
 
   return (
     <AppShell requireRole="student">
-      <h1 className="text-2xl font-bold text-brand-text mb-2">
-        مرحبًا، {student.fullName} 👋
-      </h1>
-      <p className="text-brand-textMuted mb-6">استمر في التعلم اليوم!</p>
-
-      <GlassCard className="mb-6">
+      <div className="rounded-glass bg-gradient-to-br from-brand-sidebar via-brand-sidebar to-brand-primary/40 text-white p-6 mb-6 shadow-glass">
         {(() => {
           const points = student.points ?? 0;
           const lvl = computeLevel(points);
           return (
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <p className="text-xs text-brand-textMuted mb-1">نقاطك ومستواك</p>
-                <p className="text-2xl font-bold text-brand-primary">
-                  {points} نقطة <span className="text-brand-text text-base">· {lvl.name}</span>
-                </p>
-              </div>
+            <>
+              <p className="text-white/60 text-xs mb-1">نقاطك ومستواك</p>
+              <p className="text-2xl font-bold mb-4">
+                {points} نقطة <span className="text-white/70 text-base font-normal">· {lvl.name}</span>
+              </p>
               {lvl.next && (
-                <div className="flex-1 min-w-[160px]">
-                  <div className="flex justify-between text-xs text-brand-textMuted mb-1">
+                <div>
+                  <div className="flex justify-between text-xs text-white/60 mb-1">
                     <span>{lvl.name}</span>
                     <span>{lvl.next}</span>
                   </div>
-                  <div className="w-full bg-surfaceBorder/40 rounded-full h-2">
+                  <div className="w-full bg-white/10 rounded-full h-2">
                     <div
-                      className="bg-brand-primary h-2 rounded-full transition-all"
+                      className="bg-brand-goldLight h-2 rounded-full transition-all"
                       style={{ width: `${lvl.progressToNext}%` }}
                     />
                   </div>
-                  <p className="text-xs text-brand-textMuted mt-1">
+                  <p className="text-xs text-white/60 mt-1">
                     {lvl.nextAt! - points > 0 ? `${lvl.nextAt! - points} نقطة للمستوى القادم` : ""}
                   </p>
                 </div>
               )}
-            </div>
+            </>
           );
         })()}
-      </GlassCard>
+      </div>
 
       <div className="grid md:grid-cols-2 gap-6">
         <GlassCard>

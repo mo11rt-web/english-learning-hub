@@ -8,6 +8,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { Toast } from "@/components/ui/Modal";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { listenCollection, createDoc, updateDocById, orderBy } from "@/lib/firestore-helpers";
 import { Unit } from "@/lib/types";
 import { useWorkspace } from "@/hooks/useWorkspace";
@@ -163,8 +164,8 @@ export default function UnitsPage() {
 
   return (
     <AppShell requireRole="teacher">
-      <h1 className="text-2xl font-bold text-brand-text mb-1">الوحدات والدروس</h1>
-      <p className="text-brand-textMuted text-sm mb-6">القسم الحالي: {stageName ?? "—"}</p>
+      <PageHeader icon="📚" title="الوحدات والدروس" />
+      <p className="text-brand-textMuted text-sm mb-6 -mt-4">القسم الحالي: {stageName ?? "—"}</p>
 
       <GlassCard className="mb-6">
         <h2 className="font-bold text-brand-text mb-4">إضافة وحدة جديدة</h2>

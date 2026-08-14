@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/hooks/useAuth";
 import { WorkspaceProvider } from "@/hooks/useWorkspace";
 import { ThemeProvider } from "@/hooks/useTheme";
+import { GlobalErrorToast } from "@/components/GlobalErrorToast";
 
 const cairo = { variable: "" };
 const inter = { variable: "" };
@@ -62,6 +63,7 @@ export default function RootLayout({
             <WorkspaceProvider>{children}</WorkspaceProvider>
           </AuthProvider>
         </ThemeProvider>
+        <GlobalErrorToast />
       </body>
     </html>
   );

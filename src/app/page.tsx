@@ -17,10 +17,7 @@ export default function Home() {
     } else if (profile.role === "student") {
       router.replace("/student/home");
     } else {
-      // Teachers must choose a workspace before any scoped page is rendered.
-      // Keeping this decision at the entry point avoids an unnecessary dashboard
-      // render and makes the first post-login transition deterministic.
-      router.replace("/workspace?from=/dashboard");
+      router.replace("/dashboard");
     }
   }, [loading, user, profile, router]);
 

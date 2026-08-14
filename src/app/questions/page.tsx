@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import {
   listenCollection,
@@ -80,7 +81,7 @@ export default function QuestionsPage() {
 
   return (
     <AppShell requireRole="teacher">
-      <h1 className="text-2xl font-bold text-brand-text mb-6">بنك الأسئلة</h1>
+      <PageHeader icon="❓" title="بنك الأسئلة" />
 
       <GlassCard className="mb-6">
         <h2 className="font-bold text-brand-text mb-4">إضافة سؤال جديد</h2>

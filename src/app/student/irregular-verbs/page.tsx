@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { SpeakButton } from "@/components/SpeakButton";
 import { listenCollection, where } from "@/lib/firestore-helpers";
@@ -135,9 +136,7 @@ export default function IrregularVerbsTrainerPage() {
 
   return (
     <AppShell requireRole="student">
-      <h1 className="text-2xl font-bold text-brand-text mb-6">
-        الأفعال الشاذة 📖
-      </h1>
+      <PageHeader icon="🔄" title="الأفعال الشاذة" />
 
       <div className="flex bg-surfaceBorder/40 rounded-2xl p-1 mb-6 max-w-xs">
         <button

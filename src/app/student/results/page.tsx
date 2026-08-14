@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { ProgressDonut } from "@/components/ProgressDonut";
 import { useAuth } from "@/hooks/useAuth";
 import { computeStudentReport, StudentReportData } from "@/lib/studentReport";
@@ -34,7 +35,7 @@ export default function StudentResultsPage() {
 
   return (
     <AppShell requireRole="student">
-      <h1 className="text-2xl font-bold text-brand-text mb-6">تقرير نتائجي</h1>
+      <PageHeader icon="📊" title="تقرير نتائجي" />
 
       {loading && <p className="text-brand-textMuted">جاري تحميل التقرير...</p>}
 

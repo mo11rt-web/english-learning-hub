@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { SpeakButton } from "@/components/SpeakButton";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,19 +32,22 @@ export default function StudentVocabularyPage() {
 
   return (
     <AppShell requireRole="student">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-brand-text">الكلمات</h1>
-        <div className="flex bg-surfaceBorder/40 rounded-2xl p-1">
-          <button onClick={() => setMode("browse")}
-            className={`px-3 py-1.5 rounded-xl text-sm ${mode === "browse" ? "bg-surface shadow text-brand-primary" : "text-brand-textMuted"}`}>
-            تصفح
-          </button>
-          <button onClick={() => setMode("flashcards")}
-            className={`px-3 py-1.5 rounded-xl text-sm ${mode === "flashcards" ? "bg-surface shadow text-brand-primary" : "text-brand-textMuted"}`}>
-            بطاقات Flashcards
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        icon="🔤"
+        title="الكلمات"
+        meta={
+          <div className="flex bg-surfaceBorder/40 rounded-2xl p-1">
+            <button onClick={() => setMode("browse")}
+              className={`px-3 py-1.5 rounded-xl text-sm ${mode === "browse" ? "bg-surface shadow text-brand-primary" : "text-brand-textMuted"}`}>
+              تصفح
+            </button>
+            <button onClick={() => setMode("flashcards")}
+              className={`px-3 py-1.5 rounded-xl text-sm ${mode === "flashcards" ? "bg-surface shadow text-brand-primary" : "text-brand-textMuted"}`}>
+              بطاقات Flashcards
+            </button>
+          </div>
+        }
+      />
 
       {mode === "browse" ? (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
