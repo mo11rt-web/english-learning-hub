@@ -13,6 +13,7 @@ import { listenCollection, updateDocById, where } from "@/lib/firestore-helpers"
 import { Assignment, Attempt, AttemptQuestionResult, Question, Profile } from "@/lib/types";
 import { awardPoints, getPointsSettings } from "@/lib/gamification";
 import { isAutoGradable } from "@/lib/grading";
+import { notifyUsers } from "@/lib/notifications";
 
 function displayAnswer(answer: string | string[] | undefined) {
   if (answer === undefined || answer === "") return "—";
@@ -69,6 +70,7 @@ export default function GradeAssignmentPage() {
     const manualScore = relevantQuestions.reduce((sum, item) => sum + (!isAutoGradable(item) ? Number(nextResults[item.id]?.score ?? 0) : 0), 0);
     const status: Attempt["status"] = hasUnreviewedManual ? "pending-review" : "graded";
 
+    const wasAlreadyGraded = attempt.status === "graded";
     setSaving(`${attempt.id}:${question.id}`);
     try {
       await updateDocById("attempts", attempt.id, {
@@ -78,6 +80,14 @@ export default function GradeAssignmentPage() {
         status,
         gradedAt: status === "graded" ? Date.now() : undefined,
       });
+      if (status === "graded" && !wasAlreadyGraded) {
+        await notifyUsers([attempt.studentId], {
+          title: "تم تصحيح واجبك",
+          body: assignment?.title ?? "تمت مراجعة إجابتك من الأستاذ.",
+          type: "graded",
+          link: "/student/results",
+        });
+      }
       if (status === "graded" && !attempt.pointsAwarded) {
         const settings = await getPointsSettings();
         const maxScore = attempt.maxScore ?? relevantQuestions.reduce((sum, item) => sum + Number(item.points || 0), 0);

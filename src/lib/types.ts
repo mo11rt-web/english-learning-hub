@@ -297,6 +297,7 @@ export interface Notification {
     | "new-exam"
     | "announcement"
     | "submission" // للمعلم: طالب سلّم واجب
+    | "graded" // للطالب: اكتمل تصحيح الواجب
     | "system";
   link?: string; // رابط داخلي يفتح عند الضغط
   createdAt: number;
