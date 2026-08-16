@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useRef, useState } from "react";
 import { initializeApp, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
-import { addDoc, collection, doc, getDoc, getDocs, limit, query, setDoc, where } from "firebase/firestore";
+import { addDoc, collection, doc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -18,7 +18,7 @@ import {
   updateDocById,
   orderBy,
 } from "@/lib/firestore-helpers";
-import { Profile, StudentProfile, Stage, Group } from "@/lib/types";
+import { StudentProfile, Stage, Group } from "@/lib/types";
 import { phoneToEmail, normalizePhone } from "@/lib/phone";
 import { computeLevel } from "@/lib/gamification";
 import { publishResultsShare, setShareEnabled, computeStudentReportSnapshot, StudentReportSnapshot } from "@/lib/shareResults";
@@ -41,6 +41,15 @@ function randomPassword() {
 
 const PLATFORM_URL =
   typeof window !== "undefined" ? window.location.origin : "";
+const REPORT_TEACHER_NAME = "الأستاذ مهند علاوي";
+
+function toReportBullets(value: string, fallback: string) {
+  const items = value
+    .split(/[\n.!؟؛]+/)
+    .map((item) => item.replace(/^[\s•\-–—]+|[\s•\-–—]+$/g, "").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  return items.length > 0 ? items : [fallback];
+}
 
 type StudentBackupRecord = {
   uid?: string;
@@ -109,6 +118,7 @@ export default function StudentsPage() {
   const [shareToken, setShareToken] = useState<string | null>(null);
   const [pdfNotesTarget, setPdfNotesTarget] = useState<(StudentProfile & { id: string }) | null>(null);
   const [pdfTeacherNotes, setPdfTeacherNotes] = useState("");
+  const [pdfTeacherPhone, setPdfTeacherPhone] = useState("");
   const [pdfReady, setPdfReady] = useState<{ student: StudentProfile & { id: string }; file: File } | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
@@ -448,7 +458,6 @@ export default function StudentsPage() {
       reportMeta: {
         teacherName: string;
         teacherPhone: string;
-        adminPhone: string;
         creatorName: string;
         creatorPhone: string;
         issuedAt: number;
@@ -460,48 +469,25 @@ export default function StudentsPage() {
   const handleExportPdf = (student: StudentProfile & { id: string }) => {
     setPdfNotesTarget(student);
     setPdfTeacherNotes("");
+    setPdfTeacherPhone("");
   };
 
   const generatePdfReport = async () => {
     const student = pdfNotesTarget;
     if (!student || exportingPdfId || !user) return;
+    const teacherPhone = normalizePhone(pdfTeacherPhone);
+    if (!teacherPhone) {
+      showToast("أدخل رقم التواصل الخاص بالأستاذ مهند علاوي", "error");
+      return;
+    }
     setExportingPdfId(student.id);
     try {
       const report = await computeStudentReportSnapshot(student.id);
       const creatorName = profile?.fullName || user.displayName || "مستخدم النظام";
       const creatorPhone = profile?.phone || "";
-
-      // عند إنشاء التقرير من حساب المدير، نحاول اختيار المعلم المرتبط بمجموعة الطالب.
-      const linkedTeacherId = student.groupIds
-        ?.map((groupId) => groups.find((group) => group.id === groupId)?.teacherIds?.[0])
-        .find((id): id is string => Boolean(id));
-      let linkedTeacher: Profile | null = null;
-      if (linkedTeacherId && profile?.role !== "teacher") {
-        try {
-          const teacherSnap = await getDoc(doc(db, "profiles", linkedTeacherId));
-          if (teacherSnap.exists()) linkedTeacher = teacherSnap.data() as Profile;
-        } catch {
-          // بيانات المعلم اختيارية؛ لا نمنع إصدار التقرير عند تعذر تحميلها.
-        }
-      }
-
-      let adminProfile: Profile | null = profile?.role === "admin" ? profile : null;
-      if (!adminProfile) {
-        try {
-          const adminSnap = await getDocs(
-            query(collection(db, "profiles"), where("role", "==", "admin"), limit(1))
-          );
-          if (!adminSnap.empty) adminProfile = adminSnap.docs[0].data() as Profile;
-        } catch {
-          // رقم الإدارة اختياري، لذلك يبقى التقرير قابلاً للإنشاء.
-        }
-      }
-
-      const teacherProfile = profile?.role === "teacher" ? profile : linkedTeacher || profile;
       const reportMeta = {
-        teacherName: teacherProfile?.fullName || creatorName,
-        teacherPhone: teacherProfile?.phone || "",
-        adminPhone: adminProfile?.phone || "",
+        teacherName: REPORT_TEACHER_NAME,
+        teacherPhone,
         creatorName,
         creatorPhone,
         issuedAt: Date.now(),
@@ -520,26 +506,25 @@ export default function StudentsPage() {
       const file = await exportHtmlToPdf(element, `تقرير-${student.fullName}.pdf`);
       setPdfReady({ student, file });
 
-      // يحفظ هوية منشئ التقرير وبيانات التواصل في سجل النشاط الإداري.
-      // العملية لمرة واحدة ولا تضيف أي خدمة مدفوعة أو عملية خلفية.
       await addDoc(collection(db, "activity_logs"), {
         type: "student_report_generated",
         action: "generate_student_report",
         studentId: student.id,
         studentName: student.fullName,
+        stageName: report.stageName,
+        groupName: report.groupName,
         createdBy: user.uid,
         createdByName: creatorName,
         createdByPhone: creatorPhone,
-        teacherName: reportMeta.teacherName,
-        teacherPhone: reportMeta.teacherPhone,
-        adminPhone: reportMeta.adminPhone,
+        teacherName: REPORT_TEACHER_NAME,
+        teacherPhone,
         issuedAt: reportMeta.issuedAt,
         createdAt: reportMeta.issuedAt,
       }).catch(() => {
-        // لا نعطل التقرير إذا كانت قواعد Firestore القديمة لم تُنشر بعد.
+        // لا نعطل تنزيل التقرير إذا كانت القواعد القديمة لم تُنشر بعد.
       });
 
-      showToast("تم إنشاء تقرير PDF احترافي وحفظ بيانات منشئه ✅");
+      showToast("تم إنشاء تقرير PDF منظم وحفظ بيانات الإصدار ✅");
     } catch (error: any) {
       showToast("تعذر إنشاء PDF: " + (error?.message ?? "خطأ غير معروف"), "error");
     } finally {
@@ -892,15 +877,30 @@ export default function StudentsPage() {
       >
         {pdfNotesTarget && (
           <div className="flex flex-col gap-4">
-            <p className="text-sm text-brand-text">أضف ملاحظات عامة عن الطالب لتظهر داخل التقرير الاحترافي المرسل إلى الأهل.</p>
-            <textarea
-              autoFocus
-              value={pdfTeacherNotes}
-              onChange={(event) => setPdfTeacherNotes(event.target.value)}
-              rows={6}
-              placeholder="مثال: الطالب ملتزم بالحضور، ويحتاج إلى مراجعة أزمنة الأفعال..."
-              className="w-full px-3 py-3 rounded-xl border border-brand-primary/25 bg-surface/70 text-brand-text"
-            />
+            <p className="text-sm text-brand-text">أدخل رقم تواصل الأستاذ، ثم اكتب ملاحظات مختصرة وواضحة عن الطالب لتظهر في التقرير المرسل إلى الأهل.</p>
+            <div>
+              <label className="block text-sm text-brand-text mb-1.5">رقم تواصل الأستاذ مهند علاوي</label>
+              <input
+                autoFocus
+                type="tel"
+                dir="ltr"
+                value={pdfTeacherPhone}
+                onChange={(event) => setPdfTeacherPhone(event.target.value)}
+                placeholder="مثال: 009639xxxxxxxx"
+                className="w-full px-3 py-2.5 rounded-xl border border-brand-primary/25 bg-surface/70 text-brand-text"
+              />
+              <p className="text-xs text-brand-textMuted mt-1.5">سيظهر الرقم بجانب زر واتساب داخل التقرير.</p>
+            </div>
+            <div>
+              <label className="block text-sm text-brand-text mb-1.5">ملاحظات المعلم</label>
+              <textarea
+                value={pdfTeacherNotes}
+                onChange={(event) => setPdfTeacherNotes(event.target.value)}
+                rows={5}
+                placeholder="مثال: الطالب ملتزم بالحضور، ويحتاج إلى مراجعة أزمنة الأفعال."
+                className="w-full px-3 py-3 rounded-xl border border-brand-primary/25 bg-surface/70 text-brand-text"
+              />
+            </div>
             <div className="flex justify-end gap-3">
               <button type="button" onClick={() => setPdfNotesTarget(null)} disabled={!!exportingPdfId} className="px-4 py-2 rounded-xl text-sm border border-brand-primary/25 text-brand-text">إلغاء</button>
               <button type="button" onClick={generatePdfReport} disabled={!!exportingPdfId} className="px-4 py-2 rounded-xl text-sm text-white bg-brand-primary disabled:opacity-50">{exportingPdfId ? "جارٍ تجهيز التقرير..." : "إنشاء تقرير PDF"}</button>
@@ -1153,73 +1153,91 @@ export default function StudentsPage() {
       {/* قالب PDF مخفي؛ يُرسم داخل المتصفح حتى تظهر العربية والرسوم بشكل صحيح. */}
       {pdfExportTarget && (
         <div style={{ position: "fixed", left: -99999, top: 0 }}>
-          <div id="student-pdf-template" style={{ width: 820, padding: 36, background: "#ffffff", fontFamily: "Cairo, sans-serif", direction: "rtl", color: "#17201a" }}>
-            <div style={{ height: 10, background: "#556B2F", borderRadius: 8, marginBottom: 24 }} />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 20 }}>
-              <div>
-                <p style={{ color: "#3f5323", fontSize: 18, fontWeight: 800, letterSpacing: 1, margin: 0 }}>ENGLISH HUB</p>
-                <p style={{ color: "#6b7280", fontSize: 12, margin: "4px 0 0" }}>الأستاذ {pdfExportTarget.reportMeta.teacherName}</p>
-                <p style={{ color: "#8b9b64", fontSize: 11, margin: "5px 0 0", letterSpacing: 0.4 }}>متابعة • التزام • مراقبة • تأهيل • تطوير</p>
-                <h1 style={{ color: "#3f5323", fontSize: 28, fontWeight: 800, margin: "10px 0 6px" }}>تقرير نتائج الطالب</h1>
-                <p style={{ color: "#6b7280", fontSize: 13, margin: 0 }}>{pdfExportTarget.fullName} — {pdfExportTarget.report.stageName} — {pdfExportTarget.report.groupName}</p>
-              </div>
-              <div style={{ width: 84, height: 84, borderRadius: "50%", background: `conic-gradient(#556B2F ${pdfExportTarget.report.completionPercentage * 3.6}deg, #e8eddf 0deg)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <div style={{ width: 62, height: 62, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: "#3f5323", fontSize: 18 }}>{pdfExportTarget.report.completionPercentage}%</div>
-              </div>
+          <div id="student-pdf-template" style={{ position: "relative", width: 816, minHeight: 1056, boxSizing: "border-box", padding: "42px 48px", overflow: "hidden", background: "#ffffff", fontFamily: "Cairo, sans-serif", direction: "rtl", color: "#111827" }}>
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", zIndex: 0 }}>
+              <div style={{ transform: "rotate(-32deg)", color: "#556B2F", opacity: 0.075, fontSize: 54, fontWeight: 800, whiteSpace: "nowrap", letterSpacing: 1 }}>الأستاذ مهند علاوي</div>
             </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginTop: 26 }}>
-              {[
-                ["الدروس المكتملة", `${pdfExportTarget.report.lessonsCompleted}/${pdfExportTarget.report.lessonsTotal}`],
-                ["متوسط الاختبارات", `${pdfExportTarget.report.quizAveragePercentage}%`],
-                ["النقاط", `${pdfExportTarget.report.points}`],
-                ["المستوى", pdfExportTarget.report.levelName],
-              ].map(([label, value]) => (
-                <div key={label} style={{ background: "#f4f7ef", border: "1px solid #e1e8d8", borderRadius: 12, padding: "12px 10px" }}>
-                  <p style={{ color: "#6b7280", fontSize: 11, margin: 0 }}>{label}</p>
-                  <p style={{ color: "#3f5323", fontSize: 17, fontWeight: 800, margin: "6px 0 0" }}>{value}</p>
+            <div style={{ position: "relative", zIndex: 1 }}>
+              <div style={{ height: 8, background: "#556B2F", borderRadius: 8, marginBottom: 22 }} />
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 20 }}>
+                <div>
+                  <p style={{ color: "#111827", fontSize: 22, fontWeight: 800, letterSpacing: 1, margin: 0 }}>ENGLISH HUB</p>
+                  <p style={{ color: "#556B2F", fontSize: 13, fontWeight: 700, margin: "5px 0 0" }}>{REPORT_TEACHER_NAME}</p>
+                  <h1 style={{ color: "#111827", fontSize: 26, fontWeight: 800, margin: "18px 0 5px" }}>تقرير تقدم الطالب</h1>
+                  <p style={{ color: "#6b7280", fontSize: 12, margin: 0 }}>متابعة تعليمية مختصرة وواضحة</p>
                 </div>
-              ))}
-            </div>
-
-            <div style={{ marginTop: 24, padding: 16, borderRadius: 14, background: "#fbfcf9", border: "1px solid #e1e8d8" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700, color: "#3f5323" }}><span>التقدم في الدروس</span><span>{pdfExportTarget.report.lessonsCompleted} من {pdfExportTarget.report.lessonsTotal}</span></div>
-              <div style={{ height: 12, background: "#e8eddf", borderRadius: 10, marginTop: 9, overflow: "hidden" }}><div style={{ height: "100%", width: `${pdfExportTarget.report.completionPercentage}%`, background: "#556B2F", borderRadius: 10 }} /></div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#6b7280", marginTop: 12 }}><span>الترتيب: {pdfExportTarget.report.rank && pdfExportTarget.report.totalInGroup ? `#${pdfExportTarget.report.rank} من ${pdfExportTarget.report.totalInGroup}` : "غير متاح"}</span><span>حتى المستوى التالي: {pdfExportTarget.report.levelName ?? "—"}</span></div>
-            </div>
-
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: "#3f5323", margin: "26px 0 10px" }}>مؤشر أداء الاختبارات</h2>
-            {pdfExportTarget.report.quizResults.length === 0 ? (
-              <p style={{ color: "#6b7280", fontSize: 13 }}>لا توجد نتائج بعد.</p>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {pdfExportTarget.report.quizResults.slice(0, 8).map((result, index) => {
-                  const pending = result.status === "pending-review";
-                  const percentage = result.maxScore > 0 ? Math.round((result.score / result.maxScore) * 100) : 0;
-                  return <div key={`${result.title}-${index}`} style={{ display: "grid", gridTemplateColumns: "180px 1fr 70px", alignItems: "center", gap: 10, fontSize: 12 }}>
-                    <span style={{ color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{result.title}</span>
-                    <div style={{ height: 12, background: "#edf1e8", borderRadius: 10, overflow: "hidden" }}><div style={{ height: "100%", width: `${pending ? 0 : percentage}%`, background: pending ? "#d6a84f" : percentage >= 70 ? "#5d8a51" : "#d6a84f", borderRadius: 10 }} /></div>
-                    <strong style={{ color: pending ? "#b27a15" : "#3f5323", textAlign: "left" }}>{pending ? "مراجعة" : `${percentage}%`}</strong>
-                  </div>;
-                })}
+                <div style={{ width: 116, height: 116, borderRadius: "50%", background: `conic-gradient(#556B2F ${pdfExportTarget.report.completionPercentage * 3.6}deg, #edf1e8 0deg)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <div style={{ width: 88, height: 88, borderRadius: "50%", background: "#ffffff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#111827" }}>
+                    <strong style={{ color: "#556B2F", fontSize: 25, lineHeight: 1 }}>{pdfExportTarget.report.completionPercentage}%</strong>
+                    <span style={{ color: "#6b7280", fontSize: 11, marginTop: 7 }}>نسبة التقدم</span>
+                  </div>
+                </div>
               </div>
-            )}
 
-            <div style={{ marginTop: 26, padding: 16, borderRadius: 14, background: "#f4f7ef", borderRight: "5px solid #556B2F" }}>
-              <h2 style={{ fontSize: 16, fontWeight: 800, color: "#3f5323", margin: "0 0 8px" }}>ملاحظات المعلم</h2>
-              <p style={{ color: "#374151", fontSize: 13, lineHeight: 1.9, whiteSpace: "pre-wrap", margin: 0 }}>{pdfExportTarget.teacherNotes || "لا توجد ملاحظات عامة مضافة لهذا التقرير."}</p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginTop: 24 }}>
+                {[
+                  ["اسم الطالب", pdfExportTarget.fullName],
+                  ["المجموعة", pdfExportTarget.report.groupName || "غير محددة"],
+                  ["الصف", pdfExportTarget.report.stageName || "غير محدد"],
+                ].map(([label, value]) => (
+                  <div key={label} style={{ background: "#f7f8f5", border: "1px solid #dfe5d7", borderRadius: 10, padding: "12px 13px", minHeight: 62 }}>
+                    <p style={{ color: "#6b7280", fontSize: 10, margin: 0 }}>{label}</p>
+                    <p style={{ color: "#111827", fontSize: 14, fontWeight: 800, margin: "6px 0 0", overflowWrap: "anywhere" }}>{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ marginTop: 20, padding: 16, borderRadius: 12, border: "1px solid #dfe5d7", background: "#ffffff" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "#111827", fontSize: 13, fontWeight: 800 }}>
+                  <span>نسبة التقدم في الدروس</span>
+                  <span style={{ color: "#556B2F" }}>{pdfExportTarget.report.lessonsCompleted} من {pdfExportTarget.report.lessonsTotal}</span>
+                </div>
+                <div style={{ height: 16, background: "#edf1e8", borderRadius: 10, marginTop: 12, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${pdfExportTarget.report.completionPercentage}%`, background: "#556B2F", borderRadius: 10 }} />
+                </div>
+                <p style={{ color: "#6b7280", fontSize: 11, margin: "9px 0 0" }}>النسبة محسوبة من الدروس المكتملة مقارنةً بإجمالي دروس الصف.</p>
+              </div>
+
+              <div style={{ marginTop: 20 }}>
+                <h2 style={{ color: "#556B2F", fontSize: 17, fontWeight: 800, margin: "0 0 9px", borderRight: "4px solid #a63d40", paddingRight: 9 }}>نتائج الاختبارات</h2>
+                <ul style={{ margin: 0, paddingRight: 22, color: "#111827", fontSize: 12, lineHeight: 1.8 }}>
+                  {pdfExportTarget.report.quizResults.length === 0 ? (
+                    <li>لا توجد نتائج اختبارات مسجلة حتى الآن.</li>
+                  ) : pdfExportTarget.report.quizResults.slice(0, 6).map((result, index) => {
+                    const pending = result.status === "pending-review";
+                    const percentage = result.maxScore > 0 ? Math.round((result.score / result.maxScore) * 100) : 0;
+                    return <li key={`${result.title}-${index}`} style={{ marginBottom: 7 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                        <span style={{ width: 165, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{result.title}</span>
+                        <div style={{ flex: 1, height: 9, background: "#edf1e8", borderRadius: 8, overflow: "hidden" }}><div style={{ height: "100%", width: `${pending ? 0 : percentage}%`, background: pending ? "#a63d40" : "#556B2F", borderRadius: 8 }} /></div>
+                        <strong style={{ minWidth: 44, color: pending ? "#a63d40" : "#556B2F", textAlign: "left" }}>{pending ? "مراجعة" : `${percentage}%`}</strong>
+                      </div>
+                    </li>;
+                  })}
+                </ul>
+              </div>
+
+              <div style={{ marginTop: 20, padding: 15, borderRadius: 12, background: "#f7f8f5", borderRight: "5px solid #a63d40" }}>
+                <h2 style={{ color: "#111827", fontSize: 16, fontWeight: 800, margin: "0 0 8px" }}>ملاحظات المعلم</h2>
+                <ul style={{ margin: 0, paddingRight: 21, color: "#111827", fontSize: 12, lineHeight: 1.9 }}>
+                  {toReportBullets(pdfExportTarget.teacherNotes, "لا توجد ملاحظات مضافة لهذا التقرير.").map((note, index) => <li key={`${note}-${index}`}>{note}</li>)}
+                </ul>
+              </div>
+
+              <div style={{ marginTop: 18, padding: 14, borderRadius: 12, background: "#ffffff", border: "1px solid #dfe5d7" }}>
+                <h2 style={{ color: "#556B2F", fontSize: 15, fontWeight: 800, margin: "0 0 8px" }}>للتواصل مع الأستاذ</h2>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#111827", fontSize: 13 }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#25D366" /><path fill="#ffffff" d="M16.7 13.9c-.2-.1-1.2-.6-1.4-.7-.2-.1-.3-.1-.5.1-.1.2-.5.7-.6.8-.1.1-.2.1-.4 0-1.1-.5-1.9-1-2.6-2.1-.2-.4.2-.4.5-1.2.1-.2 0-.3-.1-.4-.1-.1-.5-1.2-.7-1.6-.2-.5-.4-.4-.4-.4-.1 0-.3.1-.4.2-.4.2-.7.6-.7 1.4 0 .8.6 1.6.7 1.7.1.1 1.2 1.9 3 2.6 1.1.5 1.5.5 2.1.4.3 0 .9-.4 1.1-.7.1-.3.2-.6.1-.7-.1-.1-.2-.1-.5-.2z" /></svg>
+                  <span>واتساب الأستاذ مهند علاوي:</span>
+                  <a dir="ltr" href={`https://wa.me/${pdfExportTarget.reportMeta.teacherPhone.replace(/[^0-9]/g, "")}`} style={{ color: "#a63d40", fontWeight: 800, textDecoration: "none" }}>{pdfExportTarget.reportMeta.teacherPhone}</a>
+                </div>
+              </div>
+
+              <div style={{ borderTop: "1px solid #dfe5d7", marginTop: 22, paddingTop: 12, textAlign: "center" }}>
+                <p style={{ color: "#556B2F", fontSize: 11, margin: 0 }}>ENGLISH HUB — متابعة واضحة تساعد الطالب على التطور والنجاح.</p>
+                <p style={{ color: "#6b7280", fontSize: 10, margin: "6px 0 0" }}>تم إصدار التقرير بتاريخ: {new Date(pdfExportTarget.reportMeta.issuedAt).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}</p>
+              </div>
             </div>
-
-            <div style={{ marginTop: 18, padding: 16, borderRadius: 14, background: "#fbfcf9", border: "1px solid #e1e8d8" }}>
-              <h2 style={{ fontSize: 16, fontWeight: 800, color: "#3f5323", margin: "0 0 8px" }}>للتواصل مع المدرس</h2>
-              <p style={{ color: "#374151", fontSize: 13, margin: "0 0 5px" }}>الأستاذ: {pdfExportTarget.reportMeta.teacherName}</p>
-              <p dir="ltr" style={{ color: "#374151", fontSize: 13, margin: "0 0 5px", textAlign: "right" }}>رقم التواصل: {pdfExportTarget.reportMeta.teacherPhone || "غير متوفر"}</p>
-              <p dir="ltr" style={{ color: "#374151", fontSize: 13, margin: "0 0 5px", textAlign: "right" }}>للتواصل مع الإدارة: {pdfExportTarget.reportMeta.adminPhone || "غير متوفر"}</p>
-              <p style={{ color: "#6b7280", fontSize: 11, margin: "8px 0 0" }}>أنشأ التقرير: {pdfExportTarget.reportMeta.creatorName}{pdfExportTarget.reportMeta.creatorPhone ? ` · ${pdfExportTarget.reportMeta.creatorPhone}` : ""}</p>
-            </div>
-
-            <p style={{ color: "#6b7280", fontSize: 11, lineHeight: 1.8, marginTop: 22, textAlign: "center" }}>ENGLISH HUB — نتابع، نراقب، نؤهل، ونساعد أبناءكم على التطور والنجاح.</p>
-            <p style={{ color: "#9ca3af", fontSize: 11, marginTop: 8, textAlign: "center" }}>تم إصدار التقرير بتاريخ: {new Date(pdfExportTarget.reportMeta.issuedAt).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })} · هذا التقرير تعليمي وإرشادي</p>
           </div>
         </div>
       )}

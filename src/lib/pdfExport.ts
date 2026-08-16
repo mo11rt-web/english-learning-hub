@@ -17,12 +17,16 @@ export async function exportHtmlToPdf(element: HTMLElement, filename: string): P
   });
 
   const imgData = canvas.toDataURL("image/png");
-  const pdf = new jsPDF({
-    orientation: canvas.width > canvas.height ? "landscape" : "portrait",
-    unit: "px",
-    format: [canvas.width, canvas.height],
-  });
-  pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+  const orientation = canvas.width > canvas.height ? "landscape" : "portrait";
+  const pdf = new jsPDF({ orientation, unit: "pt", format: "letter" });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const scale = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
+  const imageWidth = canvas.width * scale;
+  const imageHeight = canvas.height * scale;
+  const offsetX = (pageWidth - imageWidth) / 2;
+  const offsetY = (pageHeight - imageHeight) / 2;
+  pdf.addImage(imgData, "PNG", offsetX, offsetY, imageWidth, imageHeight);
 
   const blob = pdf.output("blob");
   return new File([blob], filename, { type: "application/pdf" });
