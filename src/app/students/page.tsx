@@ -107,6 +107,9 @@ export default function StudentsPage() {
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [shareToken, setShareToken] = useState<string | null>(null);
+  const [pdfNotesTarget, setPdfNotesTarget] = useState<(StudentProfile & { id: string }) | null>(null);
+  const [pdfTeacherNotes, setPdfTeacherNotes] = useState("");
+  const [pdfReady, setPdfReady] = useState<{ student: StudentProfile & { id: string }; file: File } | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   const [credentialsModal, setCredentialsModal] = useState<{
@@ -438,28 +441,50 @@ export default function StudentsPage() {
   // لأنه jsPDF نفسه ما بيدعم رسم الخط العربي، فلازم نمرّ عبر محرك عرض
   // النصوص تبع المتصفح نفسه حتى يطلع العربي صحيح مش مربعات فاضية.
   const [pdfExportTarget, setPdfExportTarget] = useState<
-    (StudentProfile & { id: string; report: StudentReportSnapshot }) | null
+    (StudentProfile & { id: string; report: StudentReportSnapshot; teacherNotes: string }) | null
   >(null);
   const [exportingPdfId, setExportingPdfId] = useState<string | null>(null);
 
-  const handleExportPdf = async (student: StudentProfile & { id: string }) => {
+  const handleExportPdf = (student: StudentProfile & { id: string }) => {
+    setPdfNotesTarget(student);
+    setPdfTeacherNotes("");
+  };
+
+  const generatePdfReport = async () => {
+    const student = pdfNotesTarget;
+    if (!student || exportingPdfId) return;
     setExportingPdfId(student.id);
     try {
       const report = await computeStudentReportSnapshot(student.id);
-      setPdfExportTarget({ ...student, report });
-      // منستنى فريم واحد حتى القالب المخفي ينرسم فعليًا بالـ DOM قبل ما نلتقطه
-      await new Promise((r) => setTimeout(r, 50));
-      const el = document.getElementById("student-pdf-template");
-      if (!el) throw new Error("تعذّر تجهيز قالب الطباعة");
-      const file = await exportHtmlToPdf(el, `تقرير-${student.fullName}.pdf`);
-      await downloadOrShareFile(file);
-      showToast("تم تصدير التقرير PDF ✅");
-    } catch (e: any) {
-      showToast("تعذر تصدير PDF: " + (e.message ?? "خطأ غير معروف"), "error");
+      setPdfExportTarget({ ...student, report, teacherNotes: pdfTeacherNotes.trim() });
+      setPdfNotesTarget(null);
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      const element = document.getElementById("student-pdf-template");
+      if (!element) throw new Error("تعذّر تجهيز قالب التقرير");
+      const file = await exportHtmlToPdf(element, `تقرير-${student.fullName}.pdf`);
+      setPdfReady({ student, file });
+      showToast("تم إنشاء تقرير PDF احترافي ✅");
+    } catch (error: any) {
+      showToast("تعذر إنشاء PDF: " + (error?.message ?? "خطأ غير معروف"), "error");
     } finally {
       setExportingPdfId(null);
       setPdfExportTarget(null);
     }
+  };
+
+  const shareGeneratedPdf = async () => {
+    if (!pdfReady) return;
+    await downloadOrShareFile(pdfReady.file);
+    showToast("اختر واتساب من نافذة المشاركة لإرسال الملف مباشرة ✅");
+  };
+
+  const openWhatsappForPdf = () => {
+    if (!pdfReady) return;
+    const phone = normalizePhone(pdfReady.student.guardianPhone ?? "");
+    const message = `مرحباً، أرفقت لكم تقرير نتائج الطالب ${pdfReady.student.fullName}. يرجى مراجعة التقرير المرفق.`;
+    const url = phone ? `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(message)}` : `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+    showToast("تم فتح واتساب. أرفق ملف PDF الذي تم تنزيله.");
   };
 
   const buildWhatsappMessage = (fullName: string, phone: string, password: string) => {
@@ -784,6 +809,50 @@ export default function StudentsPage() {
       </div>
 
       <Modal
+        open={!!pdfNotesTarget}
+        onClose={() => !exportingPdfId && setPdfNotesTarget(null)}
+        title="ملاحظات المعلم قبل إصدار التقرير"
+        maxWidth="max-w-lg"
+      >
+        {pdfNotesTarget && (
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-brand-text">أضف ملاحظات عامة عن الطالب لتظهر داخل التقرير الاحترافي المرسل إلى الأهل.</p>
+            <textarea
+              autoFocus
+              value={pdfTeacherNotes}
+              onChange={(event) => setPdfTeacherNotes(event.target.value)}
+              rows={6}
+              placeholder="مثال: الطالب ملتزم بالحضور، ويحتاج إلى مراجعة أزمنة الأفعال..."
+              className="w-full px-3 py-3 rounded-xl border border-brand-primary/25 bg-surface/70 text-brand-text"
+            />
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setPdfNotesTarget(null)} disabled={!!exportingPdfId} className="px-4 py-2 rounded-xl text-sm border border-brand-primary/25 text-brand-text">إلغاء</button>
+              <button type="button" onClick={generatePdfReport} disabled={!!exportingPdfId} className="px-4 py-2 rounded-xl text-sm text-white bg-brand-primary disabled:opacity-50">{exportingPdfId ? "جارٍ تجهيز التقرير..." : "إنشاء تقرير PDF"}</button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={!!pdfReady}
+        onClose={() => setPdfReady(null)}
+        title="تقرير الطالب جاهز"
+        maxWidth="max-w-lg"
+      >
+        {pdfReady && (
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-brand-text">تم إنشاء تقرير <strong>{pdfReady.student.fullName}</strong>. يمكنك مشاركته مباشرة من الهاتف أو فتح واتساب ثم إرفاق الملف.</p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={shareGeneratedPdf} className="px-4 py-2.5 rounded-xl text-sm text-white bg-brand-primary">مشاركة ملف PDF</button>
+              <button type="button" onClick={openWhatsappForPdf} className="px-4 py-2.5 rounded-xl text-sm text-white bg-brand-success">فتح واتساب</button>
+              <button type="button" onClick={() => setPdfReady(null)} className="px-4 py-2.5 rounded-xl text-sm border border-brand-primary/25 text-brand-text">إغلاق</button>
+            </div>
+            <p className="text-xs text-brand-textMuted">في الهاتف اختر واتساب من نافذة المشاركة لإرفاق الملف مباشرة. في الكمبيوتر سيُنزل الملف، ثم استخدم زر فتح واتساب لإرفاقه يدوياً.</p>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
         open={!!credentialsModal}
         onClose={() => setCredentialsModal(null)}
         title="مشاركة بيانات الدخول"
@@ -1005,84 +1074,64 @@ export default function StudentsPage() {
         confirmLabel="حذف نهائي"
       />
 
-      {/* قالب طباعة مخفي لتصدير PDF — نفس أسلوب علاوي نت بالضبط: عنصر
-          فعلي بالـ DOM (مش مجرد نص) لأنه html2canvas محتاج يرسمه فعليًا،
-          بس موضوع برا حدود الشاشة المرئية حتى المستخدم ما يشوفه. */}
+      {/* قالب PDF مخفي؛ يُرسم داخل المتصفح حتى تظهر العربية والرسوم بشكل صحيح. */}
       {pdfExportTarget && (
         <div style={{ position: "fixed", left: -99999, top: 0 }}>
-          <div
-            id="student-pdf-template"
-            style={{
-              width: 800,
-              padding: 32,
-              background: "#fff",
-              fontFamily: "Cairo, sans-serif",
-              direction: "rtl",
-            }}
-          >
-            <h1 style={{ color: "#556B2F", fontSize: 24, fontWeight: 800, margin: 0 }}>
-              تقرير نتائج الطالب
-            </h1>
-            <p style={{ color: "#6b7280", fontSize: 13, marginTop: 4 }}>
-              {pdfExportTarget.fullName} — {pdfExportTarget.report.stageName} — {pdfExportTarget.report.groupName}
-            </p>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 20, fontSize: 13 }}>
-              <tbody>
-                {[
-                  ["النقاط", `${pdfExportTarget.report.points} نقطة`],
-                  ["المستوى", pdfExportTarget.report.levelName],
-                  [
-                    "نسبة إنجاز الدروس",
-                    `${pdfExportTarget.report.completionPercentage}% (${pdfExportTarget.report.lessonsCompleted}/${pdfExportTarget.report.lessonsTotal})`,
-                  ],
-                  ["متوسط نتائج الاختبارات", `${pdfExportTarget.report.quizAveragePercentage}%`],
-                  [
-                    "الترتيب بالمجموعة",
-                    pdfExportTarget.report.rank && pdfExportTarget.report.totalInGroup
-                      ? `#${pdfExportTarget.report.rank} من ${pdfExportTarget.report.totalInGroup}`
-                      : "—",
-                  ],
-                ].map(([label, value]) => (
-                  <tr key={label} style={{ borderBottom: "1px solid #e5e7eb" }}>
-                    <td style={{ padding: "8px 4px", color: "#6b7280", width: "40%" }}>{label}</td>
-                    <td style={{ padding: "8px 4px", fontWeight: 700, color: "#111827" }}>{value}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div id="student-pdf-template" style={{ width: 820, padding: 36, background: "#ffffff", fontFamily: "Cairo, sans-serif", direction: "rtl", color: "#17201a" }}>
+            <div style={{ height: 10, background: "#556B2F", borderRadius: 8, marginBottom: 24 }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 20 }}>
+              <div>
+                <p style={{ color: "#8b9b64", fontSize: 12, margin: 0 }}>ENGLISH HUB · تقرير متابعة أكاديمي</p>
+                <h1 style={{ color: "#3f5323", fontSize: 28, fontWeight: 800, margin: "6px 0" }}>تقرير نتائج الطالب</h1>
+                <p style={{ color: "#6b7280", fontSize: 13, margin: 0 }}>{pdfExportTarget.fullName} — {pdfExportTarget.report.stageName} — {pdfExportTarget.report.groupName}</p>
+              </div>
+              <div style={{ width: 84, height: 84, borderRadius: "50%", background: `conic-gradient(#556B2F ${pdfExportTarget.report.completionPercentage * 3.6}deg, #e8eddf 0deg)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ width: 62, height: 62, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: "#3f5323", fontSize: 18 }}>{pdfExportTarget.report.completionPercentage}%</div>
+              </div>
+            </div>
 
-            <h2 style={{ fontSize: 16, fontWeight: 800, color: "#556B2F", marginTop: 24 }}>
-              آخر النتائج
-            </h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginTop: 26 }}>
+              {[
+                ["الدروس المكتملة", `${pdfExportTarget.report.lessonsCompleted}/${pdfExportTarget.report.lessonsTotal}`],
+                ["متوسط الاختبارات", `${pdfExportTarget.report.quizAveragePercentage}%`],
+                ["النقاط", `${pdfExportTarget.report.points}`],
+                ["المستوى", pdfExportTarget.report.levelName],
+              ].map(([label, value]) => (
+                <div key={label} style={{ background: "#f4f7ef", border: "1px solid #e1e8d8", borderRadius: 12, padding: "12px 10px" }}>
+                  <p style={{ color: "#6b7280", fontSize: 11, margin: 0 }}>{label}</p>
+                  <p style={{ color: "#3f5323", fontSize: 17, fontWeight: 800, margin: "6px 0 0" }}>{value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: 24, padding: 16, borderRadius: 14, background: "#fbfcf9", border: "1px solid #e1e8d8" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700, color: "#3f5323" }}><span>التقدم في الدروس</span><span>{pdfExportTarget.report.lessonsCompleted} من {pdfExportTarget.report.lessonsTotal}</span></div>
+              <div style={{ height: 12, background: "#e8eddf", borderRadius: 10, marginTop: 9, overflow: "hidden" }}><div style={{ height: "100%", width: `${pdfExportTarget.report.completionPercentage}%`, background: "#556B2F", borderRadius: 10 }} /></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#6b7280", marginTop: 12 }}><span>الترتيب: {pdfExportTarget.report.rank && pdfExportTarget.report.totalInGroup ? `#${pdfExportTarget.report.rank} من ${pdfExportTarget.report.totalInGroup}` : "غير متاح"}</span><span>حتى المستوى التالي: {pdfExportTarget.report.levelName ?? "—"}</span></div>
+            </div>
+
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: "#3f5323", margin: "26px 0 10px" }}>مؤشر أداء الاختبارات</h2>
             {pdfExportTarget.report.quizResults.length === 0 ? (
               <p style={{ color: "#6b7280", fontSize: 13 }}>لا توجد نتائج بعد.</p>
             ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 13 }}>
-                <thead>
-                  <tr style={{ background: "#f3f4f6" }}>
-                    <th style={{ padding: "8px 4px", textAlign: "right" }}>الواجب/الاختبار</th>
-                    <th style={{ padding: "8px 4px", textAlign: "right" }}>النتيجة</th>
-                    <th style={{ padding: "8px 4px", textAlign: "right" }}>النسبة</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pdfExportTarget.report.quizResults.map((r, i) => (
-                    <tr key={i} style={{ borderBottom: "1px solid #e5e7eb" }}>
-                      <td style={{ padding: "8px 4px" }}>{r.title}</td>
-                      <td style={{ padding: "8px 4px" }}>
-                        {r.score}/{r.maxScore}
-                      </td>
-                      <td style={{ padding: "8px 4px" }}>
-                        {r.maxScore > 0 ? Math.round((r.score / r.maxScore) * 100) : 0}%
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {pdfExportTarget.report.quizResults.slice(0, 8).map((result, index) => {
+                  const pending = result.status === "pending-review";
+                  const percentage = result.maxScore > 0 ? Math.round((result.score / result.maxScore) * 100) : 0;
+                  return <div key={`${result.title}-${index}`} style={{ display: "grid", gridTemplateColumns: "180px 1fr 70px", alignItems: "center", gap: 10, fontSize: 12 }}>
+                    <span style={{ color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{result.title}</span>
+                    <div style={{ height: 12, background: "#edf1e8", borderRadius: 10, overflow: "hidden" }}><div style={{ height: "100%", width: `${pending ? 0 : percentage}%`, background: pending ? "#d6a84f" : percentage >= 70 ? "#5d8a51" : "#d6a84f", borderRadius: 10 }} /></div>
+                    <strong style={{ color: pending ? "#b27a15" : "#3f5323", textAlign: "left" }}>{pending ? "مراجعة" : `${percentage}%`}</strong>
+                  </div>;
+                })}
+              </div>
             )}
-            <p style={{ color: "#9ca3af", fontSize: 11, marginTop: 24 }}>
-              تم إصدار هذا التقرير بتاريخ {new Date().toLocaleDateString("ar-EG")}
-            </p>
+
+            <div style={{ marginTop: 26, padding: 16, borderRadius: 14, background: "#f4f7ef", borderRight: "5px solid #556B2F" }}>
+              <h2 style={{ fontSize: 16, fontWeight: 800, color: "#3f5323", margin: "0 0 8px" }}>ملاحظات المعلم</h2>
+              <p style={{ color: "#374151", fontSize: 13, lineHeight: 1.9, whiteSpace: "pre-wrap", margin: 0 }}>{pdfExportTarget.teacherNotes || "لا توجد ملاحظات عامة مضافة لهذا التقرير."}</p>
+            </div>
+            <p style={{ color: "#9ca3af", fontSize: 11, marginTop: 28, textAlign: "center" }}>تم إصدار التقرير بتاريخ {new Date().toLocaleDateString("ar-EG")} · هذا التقرير تعليمي وإرشادي</p>
           </div>
         </div>
       )}
