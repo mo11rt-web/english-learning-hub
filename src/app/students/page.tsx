@@ -1153,8 +1153,9 @@ export default function StudentsPage() {
       {/* قالب PDF مخفي؛ يُرسم داخل المتصفح حتى تظهر العربية والرسوم بشكل صحيح. */}
       {pdfExportTarget && (
         <div style={{ position: "fixed", left: -99999, top: 0 }}>
-          <div id="student-pdf-template" style={{ position: "relative", width: 794, minHeight: 1123, boxSizing: "border-box", padding: "34px 46px 28px", overflow: "hidden", background: "#ffffff", fontFamily: "Cairo, sans-serif", direction: "rtl", color: "#111827", border: "2px solid #556B2F", borderRadius: 15, boxShadow: "inset 0 0 0 3px #eef1e9" }}>
-            <div style={{ position: "absolute", top: 285, left: -120, transform: "rotate(-32deg)", color: "#70845e", opacity: 0.07, fontSize: 48, fontWeight: 800, whiteSpace: "nowrap", pointerEvents: "none", zIndex: 0 }}>الأستاذ مهند علاوي</div>
+          <div id="student-pdf-template" className="font-arabic" style={{ position: "relative", width: 794, minHeight: 1123, boxSizing: "border-box", padding: "34px 46px 28px", overflow: "hidden", background: "#ffffff", fontFamily: "var(--font-arabic), Cairo, sans-serif", direction: "rtl", color: "#111827", border: "2px solid #556B2F", borderRadius: 15, boxShadow: "inset 0 0 0 3px #eef1e9" }}>
+            {/* العلامة المائية: خفيفة جداً وبزاوية الأسفل-اليمين بعيداً عن المحتوى الأساسي، حتى ما "تصطدم" بالنص أو تنقطع بشكل غريب. */}
+            <div style={{ position: "absolute", bottom: 120, right: -30, transform: "rotate(-28deg)", transformOrigin: "right bottom", color: "#556B2F", opacity: 0.045, fontSize: 34, fontWeight: 800, whiteSpace: "nowrap", pointerEvents: "none", userSelect: "none", zIndex: 0 }}>الأستاذ مهند علاوي</div>
             <div style={{ position: "relative", zIndex: 1 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, minHeight: 168 }}>
                 <div style={{ textAlign: "right" }}>

@@ -8,19 +8,44 @@ import { jsPDF } from "jspdf";
  * so text-based PDF generation would come out as boxes/garbage. Rendering
  * through the browser's own text engine (via html2canvas) is what actually
  * produces correct Arabic output.
+ *
+ * IMPORTANT: `foreignObjectRendering: true` is what makes Arabic actually
+ * work here. html2canvas's default renderer draws text glyph-by-glyph on a
+ * <canvas>, and it does not do Arabic text shaping/ligatures — connected
+ * letters get drawn as separate disjointed shapes, which visually looks like
+ * broken/oversized spacing between every letter and word. With
+ * foreignObjectRendering enabled, html2canvas instead asks the browser
+ * itself (via an SVG <foreignObject>) to paint the DOM, so real font
+ * shaping, kerning, and even CSS features like conic-gradient (used for the
+ * donut chart) render exactly as they do on screen.
  */
 export async function exportHtmlToPdf(element: HTMLElement, filename: string): Promise<File> {
+  // لازم ننتظر تحميل الخط فعلياً (Cairo عبر next/font) قبل أخذ اللقطة، وإلا
+  // بيرسم المتصفح بخط احتياطي مختلف بالمقاسات فيطلع تباعد غريب بين الكلمات.
+  if (typeof document !== "undefined" && "fonts" in document) {
+    try {
+      await document.fonts.ready;
+    } catch {
+      // تجاهل أي بيئة ما بتدعم fonts.ready، منكمل بالتصدير بدون ما نعلّق
+    }
+  }
+  // إطار رسم إضافي يضمن إنه الـ layout (بما فيه الـ conic-gradient لل donut)
+  // خلص يستقر قبل التقاط الصورة.
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
   const canvas = await html2canvas(element, {
-    // القالب نفسه بحجم A4 تقريباً؛ دقة 1.25 كافية للنص العربي وتقلل حجم الملف مقارنةً بـ PNG وscale=2.
-    scale: 1.25,
+    // دقة أعلى شوي من قبل لأنه foreignObjectRendering بيرسم نص حقيقي حاد
+    // مش تقريبي، فالنتيجة أوضح حتى بنفس مستوى الضغط.
+    scale: 1.6,
     backgroundColor: "#ffffff",
     useCORS: true,
     logging: false,
     imageTimeout: 0,
+    foreignObjectRendering: true,
   });
 
   // JPEG مضغوط أصغر بكثير من PNG، مع بقاء الخطوط والعناصر الملونة واضحة للطباعة والمشاركة.
-  const imgData = canvas.toDataURL("image/jpeg", 0.78);
+  const imgData = canvas.toDataURL("image/jpeg", 0.82);
   const orientation = canvas.width > canvas.height ? "landscape" : "portrait";
   const pdf = new jsPDF({ orientation, unit: "pt", format: "a4", compress: true });
   const pageWidth = pdf.internal.pageSize.getWidth();
