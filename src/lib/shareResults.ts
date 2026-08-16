@@ -29,7 +29,7 @@ export interface StudentReportSnapshot {
   quizAveragePercentage: number;
   rank: number | null;
   totalInGroup: number | null;
-  quizResults: { title: string; score: number; maxScore: number; date: number }[];
+  quizResults: { title: string; score: number; maxScore: number; date: number; status: Attempt["status"] }[];
   lastActivityAt?: number;
 }
 
@@ -94,14 +94,15 @@ export async function computeStudentReportSnapshot(
   );
   const quizResults = attemptsSnap.docs
     .map((d) => d.data() as Attempt)
-    .filter((a) => a.status === "submitted" || a.status === "graded")
+    .filter((a) => a.status === "submitted" || a.status === "graded" || a.status === "pending-review")
     .sort((a, b) => (b.submittedAt ?? 0) - (a.submittedAt ?? 0))
     .slice(0, 10)
     .map((a) => ({
       title: assignmentTitles[a.assignmentId] ?? "واجب",
-      score: a.finalScore ?? a.autoScore ?? 0,
+      score: a.status === "pending-review" ? 0 : a.finalScore ?? a.autoScore ?? 0,
       maxScore: a.maxScore ?? 0,
       date: a.submittedAt ?? 0,
+      status: a.status,
     }));
 
   const gradedForAverage = attemptsSnap.docs

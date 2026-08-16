@@ -9,7 +9,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import {
-  listenCollection, createDoc, orderBy,
+  listenCollection, createDoc, updateDocById, deleteDocById, orderBy,
 } from "@/lib/firestore-helpers";
 import { Assignment, Question, Group, QuestionType } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,17 +29,15 @@ export default function AssignmentsPage() {
   const [assignments, setAssignments] = useState<(Assignment & { id: string })[]>([]);
   const [groups, setGroups] = useState<(Group & { id: string })[]>([]);
 
-  const [qForm, setQForm] = useState({
-    text: "", type: "mcq" as QuestionType,
-    options: "", correctAnswer: "", points: 1,
-  });
-
   const [aForm, setAForm] = useState({
     title: "", type: "homework" as Assignment["type"],
     targetGroupId: "", selectedQ: new Set<string>(),
   });
   const [creatingAssignment, setCreatingAssignment] = useState(false);
   const [assignmentMessage, setAssignmentMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [editingAssignment, setEditingAssignment] = useState<(Assignment & { id: string }) | null>(null);
+  const [editForm, setEditForm] = useState({ title: "", type: "homework" as Assignment["type"], targetGroupId: "", selectedQ: new Set<string>() });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     const u1 = listenCollection<Question>("question_bank", [orderBy("createdAt", "desc")], setQuestions);
@@ -55,27 +53,68 @@ export default function AssignmentsPage() {
     matchesStudentGroups(a.targetGroupIds, Array.from(groupIdsInWorkspace))
   );
 
-  const addQuestion = async () => {
-    if (!qForm.text.trim() || !user || !workspaceStageId) return;
-    await createDoc("question_bank", {
-      text: qForm.text,
-      type: qForm.type,
-      options: qForm.type === "mcq" ? qForm.options.split("،").map((s) => s.trim()).filter(Boolean) : [],
-      correctAnswer: qForm.correctAnswer,
-      points: qForm.points,
-      difficulty: "medium",
-      stageId: workspaceStageId,
-      autoGrade: qForm.type !== "essay" && qForm.type !== "short-answer",
-      createdBy: user.uid,
-      createdAt: Date.now(),
-    });
-    setQForm({ text: "", type: "mcq", options: "", correctAnswer: "", points: 1 });
-  };
-
   const toggleQ = (id: string) => {
     const s = new Set(aForm.selectedQ);
     s.has(id) ? s.delete(id) : s.add(id);
     setAForm({ ...aForm, selectedQ: s });
+  };
+
+  const openEditAssignment = (assignment: Assignment & { id: string }) => {
+    setEditingAssignment(assignment);
+    setEditForm({
+      title: assignment.title ?? "",
+      type: assignment.type ?? "homework",
+      targetGroupId: assignment.targetGroupIds?.[0] ?? "",
+      selectedQ: new Set(assignment.questionIds ?? []),
+    });
+    setAssignmentMessage(null);
+  };
+
+  const toggleEditQuestion = (id: string) => {
+    setEditForm((previous) => {
+      const selectedQ = new Set(previous.selectedQ);
+      selectedQ.has(id) ? selectedQ.delete(id) : selectedQ.add(id);
+      return { ...previous, selectedQ };
+    });
+  };
+
+  const saveEditAssignment = async () => {
+    if (!editingAssignment || savingEdit) return;
+    const title = editForm.title.trim();
+    const questionIds = Array.from(editForm.selectedQ);
+    if (!title || questionIds.length === 0) {
+      setAssignmentMessage({ text: "أدخل عنوان الواجب واختر سؤالًا واحدًا على الأقل.", type: "error" });
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      await updateDocById("assignments", editingAssignment.id, {
+        title,
+        type: editForm.type,
+        targetGroupIds: editForm.targetGroupId ? [editForm.targetGroupId] : [],
+        questionIds,
+        updatedAt: Date.now(),
+      });
+      setEditingAssignment(null);
+      setAssignmentMessage({ text: "تم تعديل الواجب بنجاح.", type: "success" });
+    } catch (error) {
+      console.error("[edit-assignment] error", error);
+      setAssignmentMessage({ text: "تعذر تعديل الواجب. تحقق من الاتصال والصلاحيات.", type: "error" });
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const deleteAssignment = async (assignment: Assignment & { id: string }) => {
+    if (!window.confirm(`هل تريد حذف الواجب «${assignment.title}»؟ لن يتم حذف الأسئلة من بنك الأسئلة.`)) return;
+    try {
+      await deleteDocById("assignments", assignment.id);
+      if (editingAssignment?.id === assignment.id) setEditingAssignment(null);
+      setAssignmentMessage({ text: "تم حذف الواجب بنجاح.", type: "success" });
+    } catch (error) {
+      console.error("[delete-assignment] error", error);
+      setAssignmentMessage({ text: "تعذر حذف الواجب. تحقق من الاتصال والصلاحيات.", type: "error" });
+    }
   };
 
   const createAssignment = async () => {
@@ -138,40 +177,10 @@ export default function AssignmentsPage() {
 
       <div className="grid lg:grid-cols-2 gap-6 mb-8">
         <GlassCard>
-          <h2 className="font-bold text-brand-text mb-4">بنك الأسئلة — إضافة سؤال</h2>
-          <div className="flex flex-col gap-3">
-            <textarea placeholder="نص السؤال" value={qForm.text}
-              onChange={(e) => setQForm({ ...qForm, text: e.target.value })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" rows={2} />
-            <select value={qForm.type}
-              onChange={(e) => setQForm({ ...qForm, type: e.target.value as QuestionType })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70">
-              {(Object.keys(qTypeLabels) as QuestionType[]).map((t) => (
-                <option key={t} value={t}>{qTypeLabels[t]}</option>
-              ))}
-            </select>
-            {qForm.type === "mcq" && (
-              <input placeholder="الخيارات مفصولة بفاصلة عربية (،)" value={qForm.options}
-                onChange={(e) => setQForm({ ...qForm, options: e.target.value })}
-                className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
-            )}
-            {qForm.type === "true-false" ? (
-              <select value={qForm.correctAnswer || "true"}
-                onChange={(e) => setQForm({ ...qForm, correctAnswer: e.target.value })}
-                className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70">
-                <option value="true">صح</option>
-                <option value="false">خطأ</option>
-              </select>
-            ) : (
-              <input placeholder="الإجابة الصحيحة" value={qForm.correctAnswer}
-                onChange={(e) => setQForm({ ...qForm, correctAnswer: e.target.value })}
-                className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
-            )}
-            <input type="number" min={1} placeholder="الدرجة" value={qForm.points}
-              onChange={(e) => setQForm({ ...qForm, points: Number(e.target.value) })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
-            <Button onClick={addQuestion}>إضافة السؤال للبنك</Button>
-          </div>
+          <h2 className="font-bold text-brand-text mb-2">بنك الأسئلة الاحترافي</h2>
+          <p className="text-sm text-brand-textMuted leading-7 mb-4">تم نقل إنشاء الأسئلة إلى صفحة مستقلة فيها شرح لكل نوع: اختيار من متعدد، صح أو خطأ، إكمال الفراغ بأربعة خيارات، ترتيب، مطابقة، وإجابات تحتاج مراجعة الأستاذ.</p>
+          <Link href="/questions"><Button>فتح بنك الأسئلة وإضافة سؤال</Button></Link>
+          <p className="text-xs text-brand-textMuted mt-3">الأسئلة الجاهزة في هذا القسم: {questionsInWorkspace.length}</p>
         </GlassCard>
 
         <GlassCard>
@@ -216,17 +225,49 @@ export default function AssignmentsPage() {
         </GlassCard>
       </div>
 
+      {editingAssignment && (
+        <GlassCard className="mb-8 border-2 border-brand-primary/20">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h2 className="font-bold text-brand-text">تعديل الواجب: {editingAssignment.title}</h2>
+            <button type="button" onClick={() => setEditingAssignment(null)} className="text-sm text-brand-textMuted">إلغاء</button>
+          </div>
+          <div className="grid md:grid-cols-3 gap-3 mb-4">
+            <input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} placeholder="عنوان الواجب" className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-brand-text" />
+            <select value={editForm.type} onChange={(e) => setEditForm({ ...editForm, type: e.target.value as Assignment["type"] })} className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-brand-text">
+              <option value="practice">تمرين غير محسوب</option>
+              <option value="homework">واجب منزلي</option>
+              <option value="quiz">اختبار قصير</option>
+              <option value="exam">امتحان</option>
+            </select>
+            <select value={editForm.targetGroupId} onChange={(e) => setEditForm({ ...editForm, targetGroupId: e.target.value })} className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-brand-text">
+              <option value="">كل مجموعات "{workspaceStageName}"</option>
+              {groupsInWorkspace.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+            </select>
+          </div>
+          <p className="text-sm text-brand-textMuted mb-2">الأسئلة المختارة: {editForm.selectedQ.size}</p>
+          <div className="max-h-56 overflow-y-auto grid md:grid-cols-2 gap-2 mb-4">
+            {questionsInWorkspace.map((question) => (
+              <label key={question.id} className="flex items-center gap-2 text-sm px-2 py-2 rounded-lg bg-surface/50 text-brand-text">
+                <input type="checkbox" checked={editForm.selectedQ.has(question.id)} onChange={() => toggleEditQuestion(question.id)} />
+                <span className="truncate">{question.text}</span>
+              </label>
+            ))}
+          </div>
+          <Button onClick={saveEditAssignment} disabled={savingEdit}>{savingEdit ? "جارٍ الحفظ..." : "حفظ تعديلات الواجب"}</Button>
+        </GlassCard>
+      )}
+
       <h2 className="font-bold text-brand-text mb-4">واجبات "{workspaceStageName ?? "—"}"</h2>
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {assignmentsInWorkspace.map((a) => (
-          <GlassCard key={a.id}>
-            <h3 className="font-bold text-brand-text mb-1">{a.title}</h3>
-            <p className="text-xs text-brand-textMuted mb-3">
-              {a.questionIds.length} سؤال
-            </p>
-            <Link href={`/assignments/${a.id}/grade`} className="text-brand-primary text-sm">
-              مراجعة الإجابات والتصحيح ↗
-            </Link>
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 pb-36">
+        {assignmentsInWorkspace.map((assignment) => (
+          <GlassCard key={assignment.id}>
+            <h3 className="font-bold text-brand-text mb-1">{assignment.title}</h3>
+            <p className="text-xs text-brand-textMuted mb-3">{assignment.questionIds?.length ?? 0} سؤال · {assignment.status === "published" ? "منشور" : "مسودة"}</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link href={`/assignments/${assignment.id}/grade`} className="text-brand-primary text-sm">مراجعة الإجابات ↗</Link>
+              <button type="button" onClick={() => openEditAssignment(assignment)} className="text-brand-textMuted text-sm">تعديل</button>
+              <button type="button" onClick={() => deleteAssignment(assignment)} className="text-brand-error text-sm">حذف</button>
+            </div>
           </GlassCard>
         ))}
         {assignmentsInWorkspace.length === 0 && <p className="text-brand-textMuted">لا توجد واجبات بهذا القسم بعد.</p>}

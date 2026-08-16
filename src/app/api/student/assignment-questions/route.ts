@@ -56,10 +56,16 @@ export async function GET(req: NextRequest) {
           text: data.text ?? "",
           instructions: data.instructions,
           type: data.type,
-          options: data.options ?? [],
+          options: Array.isArray(data.options) ? data.options : [],
+          blankOptions: Array.isArray(data.blankOptions) ? data.blankOptions : Array.isArray(data.options) ? data.options : [],
+          reorderItems: Array.isArray(data.reorderItems) ? data.reorderItems : [],
+          matchingLeft: Array.isArray(data.matchingPairs) ? data.matchingPairs.map((pair: any) => String(pair?.left ?? "")) : [],
+          matchingRight: Array.isArray(data.matchingPairs)
+            ? data.matchingPairs.map((pair: any) => String(pair?.right ?? "")).reverse()
+            : [],
           points: Number(data.points) || 0,
           difficulty: data.difficulty,
-          autoGrade: data.autoGrade !== false,
+          autoGrade: data.autoGrade !== false && data.manualReview !== true,
         };
       });
 

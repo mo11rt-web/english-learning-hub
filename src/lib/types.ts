@@ -152,20 +152,35 @@ export type QuestionType =
   | "mcq" | "true-false" | "fill-blank" | "matching" | "reorder"
   | "short-answer" | "essay";
 
+export interface MatchingPair {
+  left: string;
+  right: string;
+}
+
 export interface Question {
   id: string;
   text: string;
   instructions?: string;
   type: QuestionType;
   options?: string[];
-  correctAnswer: string | string[];
+  /** الخيارات الخاصة بسؤال إكمال الفراغ فقط. */
+  blankOptions?: string[];
+  /** عناصر سؤال الترتيب بالترتيب الصحيح. */
+  reorderItems?: string[];
+  /** أزواج سؤال المطابقة. */
+  matchingPairs?: MatchingPair[];
+  /** قد تكون الإجابة غائبة في الأسئلة التي يراجعها الأستاذ يدوياً. */
+  correctAnswer?: string | string[];
+  acceptedAnswers?: string[];
   explanation?: string;
+  rubric?: string;
   points: number;
   difficulty: "easy" | "medium" | "hard";
   stageId: string;
   unitId?: string;
   lessonId?: string;
   autoGrade: boolean;
+  manualReview?: boolean;
   createdBy: string;
   createdAt: number;
 }
@@ -191,17 +206,28 @@ export interface Assignment {
   createdAt: number;
 }
 
+export interface AttemptQuestionResult {
+  score: number;
+  maxScore: number;
+  isCorrect?: boolean;
+  autoGraded: boolean;
+  reviewed?: boolean;
+  teacherComment?: string;
+}
+
 export interface Attempt {
   id: string;
   assignmentId: string;
   studentId: string;
   answers: Record<string, string | string[]>;
+  questionResults?: Record<string, AttemptQuestionResult>;
   autoScore: number;
   maxScore?: number;
   manualScore?: number;
   finalScore?: number;
   pointsAwarded?: boolean;
-  status: "in-progress" | "submitted" | "graded";
+  needsManualGrading?: boolean;
+  status: "in-progress" | "submitted" | "pending-review" | "graded";
   teacherFeedback?: string;
   startedAt: number;
   submittedAt?: number;

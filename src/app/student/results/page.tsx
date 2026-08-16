@@ -132,18 +132,12 @@ export default function StudentResultsPage() {
               <div className="flex flex-col gap-2">
                 {report.recentResults.map((r, i) => {
                   const pct = r.maxScore > 0 ? Math.round((r.score / r.maxScore) * 100) : 0;
+                  const pending = r.status === "pending-review";
                   return (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between bg-surface/60 rounded-xl px-3 py-2.5 text-sm"
-                    >
+                    <div key={i} className="flex items-center justify-between gap-3 bg-surface/60 rounded-xl px-3 py-2.5 text-sm">
                       <span className="text-brand-text font-medium">{r.title}</span>
-                      <span
-                        className={`font-bold ${
-                          pct >= 70 ? "text-brand-success" : pct >= 50 ? "text-brand-warning" : "text-brand-error"
-                        }`}
-                      >
-                        {r.score}/{r.maxScore} ({pct}%)
+                      <span className={`font-bold whitespace-nowrap ${pending ? "text-brand-warning" : pct >= 70 ? "text-brand-success" : pct >= 50 ? "text-brand-warning" : "text-brand-error"}`}>
+                        {pending ? "بانتظار مراجعة الأستاذ" : `${r.score}/${r.maxScore} (${pct}%)`}
                       </span>
                     </div>
                   );

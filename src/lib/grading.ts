@@ -1,4 +1,4 @@
-import { Question } from "@/lib/types";
+import type { AttemptQuestionResult, Question } from "@/lib/types";
 
 const OBJECTIVE_TYPES: Question["type"][] = [
   "mcq",
@@ -9,7 +9,9 @@ const OBJECTIVE_TYPES: Question["type"][] = [
 ];
 
 export function isAutoGradable(q: Question) {
-  return q.autoGrade !== false && OBJECTIVE_TYPES.includes(q.type);
+  if (q.manualReview === true || q.autoGrade === false) return false;
+  if (OBJECTIVE_TYPES.includes(q.type)) return Boolean(q.correctAnswer !== undefined);
+  return q.type === "short-answer" && Boolean(q.acceptedAnswers?.length || q.correctAnswer !== undefined);
 }
 
 function normalize(v: string) {
@@ -21,7 +23,8 @@ export function isAnswerCorrect(
   answer: string | string[] | undefined
 ): boolean {
   if (answer === undefined) return false;
-  const correct = question.correctAnswer;
+  const correct = question.acceptedAnswers?.length ? question.acceptedAnswers : question.correctAnswer;
+  if (correct === undefined) return false;
 
   if (Array.isArray(correct)) {
     const given = Array.isArray(answer) ? answer : [answer];
@@ -36,19 +39,31 @@ export function isAnswerCorrect(
 export function computeAutoScore(
   questions: Question[],
   answers: Record<string, string | string[]>
-): { autoScore: number; maxScore: number; needsManualGrading: boolean } {
+): {
+  autoScore: number;
+  maxScore: number;
+  needsManualGrading: boolean;
+  questionResults: Record<string, AttemptQuestionResult>;
+} {
   let autoScore = 0;
   let maxScore = 0;
   let needsManualGrading = false;
+  const questionResults: Record<string, AttemptQuestionResult> = {};
 
   for (const q of questions) {
-    maxScore += q.points;
-    if (isAutoGradable(q)) {
-      if (isAnswerCorrect(q, answers[q.id])) autoScore += q.points;
+    const max = Math.max(0, Number(q.points) || 0);
+    maxScore += max;
+    const autoGraded = isAutoGradable(q);
+    if (autoGraded) {
+      const isCorrect = isAnswerCorrect(q, answers[q.id]);
+      const score = isCorrect ? max : 0;
+      autoScore += score;
+      questionResults[q.id] = { score, maxScore: max, isCorrect, autoGraded: true };
     } else {
       needsManualGrading = true;
+      questionResults[q.id] = { score: 0, maxScore: max, autoGraded: false };
     }
   }
 
-  return { autoScore, maxScore, needsManualGrading };
+  return { autoScore, maxScore, needsManualGrading, questionResults };
 }

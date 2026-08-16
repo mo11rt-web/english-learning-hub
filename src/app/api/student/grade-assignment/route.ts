@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "لا توجد أسئلة صالحة في هذا الواجب." }, { status: 400 });
     }
 
-    const { autoScore, maxScore, needsManualGrading } = computeAutoScore(questions, answers);
+    const { autoScore, maxScore, needsManualGrading, questionResults } = computeAutoScore(questions, answers);
     let pointsAwarded = false;
     if (!needsManualGrading) {
       const settingsSnap = await db.doc("app_settings/points").get();
@@ -90,10 +90,12 @@ export async function POST(req: NextRequest) {
       assignmentId,
       studentId: decoded.uid,
       answers,
+      questionResults,
       autoScore,
       maxScore,
       pointsAwarded,
-      status: "submitted",
+      needsManualGrading,
+      status: needsManualGrading ? "pending-review" : "submitted",
       startedAt: Date.now(),
       submittedAt: Date.now(),
     });
@@ -124,6 +126,7 @@ export async function POST(req: NextRequest) {
       maxScore,
       pointsAwarded,
       needsManualGrading,
+      status: needsManualGrading ? "pending-review" : "submitted",
     });
   } catch (err: any) {
     console.error("[grade-assignment] error:", err);

@@ -14,7 +14,17 @@ import { Assignment, Question, Attempt } from "@/lib/types";
 import { listenCollection, where } from "@/lib/firestore-helpers";
 import { getAssignmentQuestionIds } from "@/lib/assignmentQuestions";
 
-type PublicQuestion = Omit<Question, "correctAnswer"> & { id: string };
+type PublicQuestion = Omit<Question, "correctAnswer"> & {
+  id: string;
+  blankOptions?: string[];
+  reorderItems?: string[];
+  matchingLeft?: string[];
+  matchingRight?: string[];
+};
+
+function shuffle<T>(items: T[]) {
+  return items.slice().sort(() => Math.random() - 0.5);
+}
 
 export default function TakeAssignmentPage() {
   const { assignmentId } = useParams<{ assignmentId: string }>();
@@ -63,7 +73,19 @@ export default function TakeAssignmentPage() {
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data?.error ?? "تعذر تحميل أسئلة الواجب.");
-        if (!cancelled) setQuestions(data.questions ?? []);
+        if (!cancelled) {
+          const nextQuestions = (data.questions ?? []) as PublicQuestion[];
+          setQuestions(nextQuestions);
+          setAnswers((previous) => {
+            const next = { ...previous };
+            for (const question of nextQuestions) {
+              if (question.type === "reorder" && next[question.id] === undefined) {
+                next[question.id] = shuffle(question.reorderItems ?? []);
+              }
+            }
+            return next;
+          });
+        }
       })
       .catch((err) => {
         if (!cancelled) setError(err?.name === "AbortError" ? "استغرق تحميل الأسئلة وقتًا طويلاً. اضغط إعادة تحميل الصفحة وحاول مجددًا." : err instanceof Error ? err.message : "تعذر تحميل أسئلة الواجب.");
@@ -85,6 +107,20 @@ export default function TakeAssignmentPage() {
   const assignmentQuestions = questions
     .filter((q) => assignmentQuestionIds.includes(q.id))
     .sort((a, b) => assignmentQuestionIds.indexOf(a.id) - assignmentQuestionIds.indexOf(b.id));
+
+  const updateAnswer = (questionId: string, value: string | string[]) => {
+    setAnswers((previous) => ({ ...previous, [questionId]: value }));
+  };
+
+  const moveReorderItem = (questionId: string, index: number, direction: -1 | 1) => {
+    const current = answers[questionId];
+    if (!Array.isArray(current)) return;
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= current.length) return;
+    const next = current.slice();
+    [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+    updateAnswer(questionId, next);
+  };
 
   const handleSubmit = async () => {
     if (!user || submitting || existingAttempt || submitted) return;
@@ -145,45 +181,74 @@ export default function TakeAssignmentPage() {
         <p className="text-brand-textMuted">جاري تحميل الأسئلة...</p>
       ) : (
         <>
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 pb-36">
             {assignmentQuestions.map((q, idx) => (
               <GlassCard key={q.id}>
-                <p className="font-medium text-brand-text mb-3">{idx + 1}. {q.text}</p>
-                {q.type === "mcq" && q.options ? (
-                  <div className="flex flex-col gap-2">
-                    {q.options.map((opt) => (
-                      <label key={opt} className="flex items-center gap-2 text-sm text-brand-text">
-                        <input
-                          type="radio"
-                          name={q.id}
-                          checked={answers[q.id] === opt}
-                          onChange={() => setAnswers({ ...answers, [q.id]: opt })}
-                        />
-                        {opt}
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <p className="font-medium text-brand-text">{idx + 1}. {q.text}</p>
+                  <span className="text-xs text-brand-textMuted whitespace-nowrap">{q.points} درجة</span>
+                </div>
+                {q.instructions && <p className="text-xs text-brand-textMuted mb-3">{q.instructions}</p>}
+                {q.type === "mcq" && (
+                  <div className="grid gap-2">
+                    {(q.options ?? []).map((opt) => (
+                      <label key={opt} className="flex items-center gap-3 rounded-xl border border-brand-primary/20 bg-surface/60 px-3 py-3 text-sm text-brand-text cursor-pointer">
+                        <input type="radio" name={q.id} checked={answers[q.id] === opt} onChange={() => updateAnswer(q.id, opt)} />
+                        <span>{opt}</span>
                       </label>
                     ))}
                   </div>
-                ) : q.type === "true-false" ? (
-                  <div className="flex gap-4">
+                )}
+                {q.type === "true-false" && (
+                  <div className="grid grid-cols-2 gap-2">
                     {[{ value: "true", label: "صح" }, { value: "false", label: "خطأ" }].map((opt) => (
-                      <label key={opt.value} className="flex items-center gap-2 text-sm text-brand-text">
-                        <input
-                          type="radio"
-                          name={q.id}
-                          checked={answers[q.id] === opt.value}
-                          onChange={() => setAnswers({ ...answers, [q.id]: opt.value })}
-                        />
+                      <label key={opt.value} className="flex items-center justify-center gap-2 rounded-xl border border-brand-primary/20 bg-surface/60 px-3 py-3 text-sm text-brand-text cursor-pointer">
+                        <input type="radio" name={q.id} checked={answers[q.id] === opt.value} onChange={() => updateAnswer(q.id, opt.value)} />
                         {opt.label}
                       </label>
                     ))}
                   </div>
-                ) : (
-                  <textarea
-                    value={typeof answers[q.id] === "string" ? answers[q.id] as string : ""}
-                    onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
-                    rows={q.type === "essay" ? 4 : 2}
-                  />
+                )}
+                {q.type === "fill-blank" && (
+                  <select value={typeof answers[q.id] === "string" ? answers[q.id] as string : ""} onChange={(e) => updateAnswer(q.id, e.target.value)} className="w-full px-3 py-3 rounded-xl border border-brand-primary/25 bg-surface/70 text-brand-text">
+                    <option value="">اختر الإجابة المناسبة</option>
+                    {(q.blankOptions ?? q.options ?? []).map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                )}
+                {q.type === "reorder" && (
+                  <div className="flex flex-col gap-2">
+                    {(Array.isArray(answers[q.id]) ? answers[q.id] as string[] : q.reorderItems ?? []).map((item, itemIndex, items) => (
+                      <div key={`${item}-${itemIndex}`} className="flex items-center gap-2 rounded-xl border border-brand-primary/20 bg-surface/60 px-3 py-2 text-brand-text">
+                        <span className="text-xs text-brand-textMuted w-5">{itemIndex + 1}</span>
+                        <span className="flex-1">{item}</span>
+                        <button type="button" disabled={itemIndex === 0} onClick={() => moveReorderItem(q.id, itemIndex, -1)} className="px-2 py-1 rounded-lg bg-surface disabled:opacity-30">↑</button>
+                        <button type="button" disabled={itemIndex === items.length - 1} onClick={() => moveReorderItem(q.id, itemIndex, 1)} className="px-2 py-1 rounded-lg bg-surface disabled:opacity-30">↓</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {q.type === "matching" && (
+                  <div className="flex flex-col gap-3">
+                    {(q.matchingLeft ?? []).map((left, leftIndex) => (
+                      <label key={`${left}-${leftIndex}`} className="grid grid-cols-1 sm:grid-cols-2 items-center gap-2 text-sm text-brand-text">
+                        <span>{left}</span>
+                        <select value={Array.isArray(answers[q.id]) ? (answers[q.id] as string[])[leftIndex] ?? "" : ""} onChange={(e) => {
+                          const next = Array.isArray(answers[q.id]) ? (answers[q.id] as string[]).slice() : [];
+                          next[leftIndex] = e.target.value;
+                          updateAnswer(q.id, next);
+                        }} className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70">
+                          <option value="">اختر المطابقة</option>
+                          {(q.matchingRight ?? []).map((right) => <option key={right} value={right}>{right}</option>)}
+                        </select>
+                      </label>
+                    ))}
+                  </div>
+                )}
+                {(q.type === "short-answer" || q.type === "essay") && (
+                  <>
+                    <textarea value={typeof answers[q.id] === "string" ? answers[q.id] as string : ""} onChange={(e) => updateAnswer(q.id, e.target.value)} className="w-full px-3 py-3 rounded-xl border border-brand-primary/25 bg-surface/70 text-brand-text" rows={q.type === "essay" ? 6 : 3} placeholder={q.type === "essay" ? "اكتب إجابتك بالتفصيل؛ سيراجعها الأستاذ." : "اكتب إجابتك هنا؛ قد تحتاج إلى مراجعة الأستاذ."} />
+                    <p className="text-xs text-brand-textMuted mt-2">هذا السؤال يُرسل للأستاذ للمراجعة اليدوية.</p>
+                  </>
                 )}
               </GlassCard>
             ))}

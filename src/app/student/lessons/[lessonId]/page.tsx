@@ -198,21 +198,10 @@ export default function StudentLessonViewPage() {
               <p className="text-brand-textMuted">لا يوجد محتوى بهذا الدرس بعد.</p>
             )}
           </div>
-          {quizQuestions.length > 0 && (
-            <GlassCard className="mb-6 border-2 border-brand-primary/20 bg-brand-primary/5">
-              <h2 className="font-bold text-brand-text mb-1">كويز الدرس 🧠</h2>
-              <p className="text-sm text-brand-textMuted mb-3">يوجد {quizQuestions.length} {quizQuestions.length === 1 ? "سؤال" : "أسئلة"} بعد محتوى الدرس. اضغط الزر للبدء.</p>
-              <Button onClick={handleNextFromContent}>بدء الكويز الآن</Button>
-            </GlassCard>
-          )}
-          {/* زر ثابت بأسفل الشاشة دائمًا — حتى لو الفيديو أو محتوى الدرس
-              طويل، الطالب لازم يشوف الزر بدون ما يحتاج يدور عليه بالتمرير */}
-          <div className="fixed bottom-0 inset-x-0 z-40 bg-surface/95 backdrop-blur-xl border-t border-surfaceBorder p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
-            <div className="max-w-2xl mx-auto">
-              <Button onClick={handleNextFromContent} className="w-full">
-                {quizQuestions.length > 0 ? "التالي ← الكويز 🧠" : "✅ أنهيت هذا الدرس"}
-              </Button>
-            </div>
+          <div className="mt-6 pb-36">
+            <Button onClick={handleNextFromContent} className="w-full">
+              {quizQuestions.length > 0 ? "التالي ← بدء الكويز" : "✅ أنهيت هذا الدرس"}
+            </Button>
           </div>
         </>
       )}
