@@ -8,23 +8,40 @@ import { jsPDF } from "jspdf";
  * so text-based PDF generation would come out as boxes/garbage. Rendering
  * through the browser's own text engine (via html2canvas) is what actually
  * produces correct Arabic output.
+ *
+ * NOTE: we deliberately do NOT use `foreignObjectRendering: true` here.
+ * It looks like the "correct" fix on paper (it asks the browser itself to
+ * paint via an SVG <foreignObject>), but with html2canvas 1.4.x it's known
+ * to silently taint the canvas — especially with an off-screen-positioned
+ * element and web fonts — and the result is a solid black page instead of
+ * an error. html2canvas's default (non-foreignObject) canvas renderer is
+ * less fancy but far more reliable across real devices/browsers.
  */
 export async function exportHtmlToPdf(element: HTMLElement, filename: string): Promise<File> {
+  // لازم ننتظر تحميل الخط فعلياً (Cairo عبر next/font) قبل أخذ اللقطة، وإلا
+  // بيرسم المتصفح بخط احتياطي مختلف بالمقاسات فيطلع تباعد غريب بين الكلمات.
+  if (typeof document !== "undefined" && "fonts" in document) {
+    try {
+      await document.fonts.ready;
+    } catch {
+      // تجاهل أي بيئة ما بتدعم fonts.ready، منكمل بالتصدير بدون ما نعلّق
+    }
+  }
+  // إطار رسم إضافي يضمن إنه الـ layout خلص يستقر قبل التقاط الصورة.
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
   const canvas = await html2canvas(element, {
-    // رفع الدقة إلى 2.0 لضمان حدة النصوص العربية والرسوم البيانية في الطباعة.
-    scale: 2,
+    // دقة معقولة تحافظ على وضوح النص العربي بدون تكبير حجم الملف كثير.
+    scale: 1.5,
     backgroundColor: "#ffffff",
     useCORS: true,
     logging: false,
     imageTimeout: 0,
-    // تحسين معالجة النصوص والظلال
-    allowTaint: true,
   });
 
-  // استخدام JPEG بجودة عالية جداً (0.95) للحفاظ على التفاصيل مع ضغط معقول للحجم.
-  const imgData = canvas.toDataURL("image/jpeg", 0.95);
+  // JPEG مضغوط أصغر بكثير من PNG، مع بقاء الخطوط والعناصر الملونة واضحة للطباعة والمشاركة.
+  const imgData = canvas.toDataURL("image/jpeg", 0.8);
   const orientation = canvas.width > canvas.height ? "landscape" : "portrait";
-  // تفعيل الضغط الداخلي لـ jsPDF لتقليل الحجم النهائي للملف.
   const pdf = new jsPDF({ orientation, unit: "pt", format: "a4", compress: true });
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
