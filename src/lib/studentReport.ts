@@ -83,19 +83,24 @@ export async function computeStudentReport(
         )
       : 0;
 
-  const assignmentIds = Array.from(new Set(attemptsSnap.docs.map((d) => (d.data() as Attempt).assignmentId)));
-  const assignmentTitles: Record<string, string> = {};
-  await Promise.all(
-    assignmentIds.map(async (id) => {
-      const s = await getDoc(doc(db, "assignments", id));
-      if (s.exists()) assignmentTitles[id] = (s.data() as Assignment).title;
-    })
-  );
-  const recentResults = attemptsSnap.docs
+  const recentAttempts = attemptsSnap.docs
     .map((d) => d.data() as Attempt)
     .filter((a) => a.status === "submitted" || a.status === "graded")
     .sort((a, b) => (b.submittedAt ?? 0) - (a.submittedAt ?? 0))
-    .slice(0, 10)
+    .slice(0, 10);
+  const assignmentIds = Array.from(new Set(recentAttempts.map((a) => a.assignmentId)));
+  const assignmentTitles: Record<string, string> = {};
+  await Promise.all(
+    assignmentIds.map(async (id) => {
+      try {
+        const s = await getDoc(doc(db, "assignments", id));
+        if (s.exists()) assignmentTitles[id] = (s.data() as Assignment).title;
+      } catch {
+        // قد يصبح الواجب مسودة أو يحذف بعد التسليم؛ لا نمنع التقرير كله بسببه.
+      }
+    })
+  );
+  const recentResults = recentAttempts
     .map((a) => ({
       title: assignmentTitles[a.assignmentId] ?? "واجب",
       score: a.finalScore ?? a.autoScore ?? 0,
@@ -110,10 +115,14 @@ export async function computeStudentReport(
   let totalInGroup: number | null = null;
   if (idToken) {
     try {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 5000);
       const res = await fetch("/api/student/rank", {
         method: "POST",
         headers: { Authorization: `Bearer ${idToken}` },
+        signal: controller.signal,
       });
+      window.clearTimeout(timeout);
       if (res.ok) {
         const data = await res.json();
         rank = data.rank ?? null;

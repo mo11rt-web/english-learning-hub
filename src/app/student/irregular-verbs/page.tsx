@@ -58,21 +58,10 @@ function buildQuestions(
       correctAnswer = verb.pastParticiple;
       distractorField = "pastParticiple";
     } else {
-      // sentence: نستخدم المثال إن وجد، وإلا جملة عامة بسيطة.
-      // مهم: /g إجبارية هون — بدونها .replace() كان يطمس أول تكرار بس
-      // للفعل جوا الجملة، فلو تكرر الفعل مرتين بنفس المثال (شي شائع
-      // بجمل تعليمية: "I went home after I went to work") كان التكرار
-      // التاني يضل ظاهر بالنص العادي — يعني الإجابة الصحيحة معروضة
-      // حرفيًا قدام الطالب قبل ما يجاوب.
-      const escaped = verb.pastSimple.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const blanked = verb.example?.trim()
-        ? verb.example.replace(new RegExp(escaped, "gi"), "____")
-        : null;
-      // شبكة أمان إضافية: لو ضل الفعل ظاهر بأي صيغة رغم كل هذا (مثلاً
-      // المثال يستخدم تصريف مختلف شوي عن pastSimple)، نرجع للجملة
-      // العامة الآمنة بدل ما نخاطر بعرض الإجابة.
-      const stillLeaking = blanked && new RegExp(`\\b${escaped}\\b`, "i").test(blanked);
-      prompt = blanked && !stillLeaking ? blanked : `Yesterday, I ____ (${verb.base}) to school.`;
+      // sentence: نستخدم المثال إن وجد، وإلا جملة عامة بسيطة
+      prompt = verb.example?.trim()
+        ? verb.example.replace(new RegExp(verb.pastSimple, "i"), "____")
+        : `Yesterday, I ____ (${verb.base}) to school.`;
       correctAnswer = verb.pastSimple;
       distractorField = "pastSimple";
     }

@@ -14,7 +14,8 @@ import {
   listenCollection,
   where,
 } from "@/lib/firestore-helpers";
-import { Lesson } from "@/lib/types";
+import { Lesson, LessonQuizQuestion, StudentProfile } from "@/lib/types";
+import { matchesStudentGroups } from "@/lib/groupTargeting";
 import { useAuth } from "@/hooks/useAuth";
 import { awardPoints, getPointsSettings } from "@/lib/gamification";
 
@@ -23,11 +24,12 @@ type Stage = "content" | "quiz" | "summary";
 export default function StudentLessonViewPage() {
   const { lessonId } = useParams<{ lessonId: string }>();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [lesson, setLesson] = useState<(Lesson & { id: string }) | null>(null);
   const [siblingLessons, setSiblingLessons] = useState<(Lesson & { id: string })[]>([]);
   const [stage, setStage] = useState<Stage>("content");
   const [pointsGiven, setPointsGiven] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // حالة الكويز
   const [qIndex, setQIndex] = useState(0);
@@ -37,6 +39,9 @@ export default function StudentLessonViewPage() {
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "lessons", lessonId), (snap) => {
       if (snap.exists()) setLesson({ ...(snap.data() as Lesson), id: snap.id });
+      else setLoadError("الدرس غير موجود أو لم يعد منشورًا.");
+    }, (snapshotError) => {
+      setLoadError(snapshotError.message?.toLowerCase().includes("permission") ? "لا تملك صلاحية عرض هذا الدرس أو لم يعد منشورًا." : "تعذر تحميل الدرس.");
     });
     return () => unsub();
   }, [lessonId]);
@@ -45,11 +50,19 @@ export default function StudentLessonViewPage() {
     if (!lesson) return;
     const u = listenCollection<Lesson>(
       "lessons",
-      [where("unitId", "==", lesson.unitId)],
-      (items) => setSiblingLessons(items.slice().sort((a, b) => a.order - b.order))
+      [where("unitId", "==", lesson.unitId), where("status", "==", "published")],
+      (items) => {
+        const student = profile as StudentProfile | null;
+        setSiblingLessons(
+          items
+            .filter((item) => matchesStudentGroups(item.targetGroupIds, student?.groupIds ?? []))
+            .slice()
+            .sort((a, b) => a.order - b.order)
+        );
+      }
     );
     return () => u();
-  }, [lesson?.unitId]);
+  }, [lesson?.unitId, profile]);
 
   useEffect(() => {
     // إعادة الحالة عند فتح درس جديد
@@ -69,7 +82,26 @@ export default function StudentLessonViewPage() {
     );
   }, [user, lessonId]);
 
-  const quizQuestions = lesson?.quizQuestions ?? [];
+  const quizQuestions: LessonQuizQuestion[] = (() => {
+    if (lesson?.quizQuestions?.length) return lesson.quizQuestions.slice().sort((a, b) => a.order - b.order);
+    const legacy = (lesson?.blocks ?? [])
+      .filter((block) => block.type === "quiz-question")
+      .map((block, index) => {
+        try {
+          const parsed = JSON.parse(block.content || "{}");
+          const options = Array.isArray(parsed?.options) ? parsed.options.filter((option: unknown): option is string => typeof option === "string") : [];
+          if (!parsed?.text || options.length < 2) return null;
+          const rawCorrect = parsed.correctIndex ?? parsed.correctAnswer ?? 0;
+          const correctIndex = typeof rawCorrect === "number" ? rawCorrect : options.indexOf(String(rawCorrect));
+          if (correctIndex < 0 || correctIndex >= options.length) return null;
+          return { id: block.id, text: String(parsed.text), options, correctIndex, order: index };
+        } catch {
+          return null;
+        }
+      })
+      .filter((question): question is LessonQuizQuestion => question !== null);
+    return legacy;
+  })();
 
   const nextLesson = (() => {
     if (!lesson) return null;
@@ -141,7 +173,7 @@ export default function StudentLessonViewPage() {
   };
 
   if (!lesson) {
-    return <AppShell requireRole="student"><p>جاري التحميل...</p></AppShell>;
+    return <AppShell requireRole="student"><p className="text-brand-error">{loadError ?? "جاري التحميل..."}</p></AppShell>;
   }
 
   return (
@@ -166,6 +198,13 @@ export default function StudentLessonViewPage() {
               <p className="text-brand-textMuted">لا يوجد محتوى بهذا الدرس بعد.</p>
             )}
           </div>
+          {quizQuestions.length > 0 && (
+            <GlassCard className="mb-6 border-2 border-brand-primary/20 bg-brand-primary/5">
+              <h2 className="font-bold text-brand-text mb-1">كويز الدرس 🧠</h2>
+              <p className="text-sm text-brand-textMuted mb-3">يوجد {quizQuestions.length} {quizQuestions.length === 1 ? "سؤال" : "أسئلة"} بعد محتوى الدرس. اضغط الزر للبدء.</p>
+              <Button onClick={handleNextFromContent}>بدء الكويز الآن</Button>
+            </GlassCard>
+          )}
           {/* زر ثابت بأسفل الشاشة دائمًا — حتى لو الفيديو أو محتوى الدرس
               طويل، الطالب لازم يشوف الزر بدون ما يحتاج يدور عليه بالتمرير */}
           <div className="fixed bottom-0 inset-x-0 z-40 bg-surface/95 backdrop-blur-xl border-t border-surfaceBorder p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">

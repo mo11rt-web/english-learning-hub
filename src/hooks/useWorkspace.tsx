@@ -10,7 +10,7 @@ import {
 import { orderBy } from "@/lib/firestore-helpers";
 import { listenCollection } from "@/lib/firestore-helpers";
 import { Stage } from "@/lib/types";
-import { useAuth } from "./useAuth";
+import { useAuth } from "@/hooks/useAuth";
 
 const STORAGE_KEY = "elh_workspace_stage_id";
 
@@ -35,7 +35,6 @@ const WorkspaceContext = createContext<WorkspaceContextValue>({
 });
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
   const [stages, setStages] = useState<(Stage & { id: string })[]>([]);
   const [stageId, setStageIdState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,17 +42,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   // يتغيّر كل مرة نطلب فيها إعادة المحاولة يدويًا، وبما إنه ضمن deps الأثر
   // تحته، تغييره يعيد تشغيل الاستماع من جديد بدون أي منطق إضافي
   const [retryTick, setRetryTick] = useState(0);
+  const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    // ما نبلّش نستمع لـ"stages" إلا لما يكون فيه مستخدم مسجّل دخول فعليًا.
-    // قبل هذا التعديل كان الاستماع يبلّش فوراً عند تحميل التطبيق (حتى
-    // بصفحة تسجيل الدخول نفسها، قبل أي مصادقة) فيرفضه Firestore برسالة
-    // صلاحية — وهذا بالضبط سبب ظهور تنبيه "لا توجد صلاحية كافية" فوق
-    // صفحة تسجيل الدخول.
+    if (authLoading) return;
     if (!user) {
-      setStages([]);
-      setLoading(true);
+      setLoading(false);
       setError(null);
+      setStages([]);
       return;
     }
     const saved = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
@@ -82,7 +78,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       }
     );
     return () => unsub();
-  }, [retryTick, user]);
+  }, [retryTick, user, authLoading]);
 
   const retry = () => setRetryTick((n) => n + 1);
 

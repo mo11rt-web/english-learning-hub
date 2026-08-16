@@ -14,16 +14,23 @@ export default function StudentResultsPage() {
   const { user } = useAuth();
   const [report, setReport] = useState<StudentReportData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     setLoading(true);
+    setError(null);
+    setReport(null);
     user
-      .getIdToken()
+      .getIdToken(true)
       .then((idToken) => computeStudentReport(user.uid, idToken))
       .then((data) => {
         if (!cancelled) setReport(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "تعذر تحميل تقرير النتائج.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -31,7 +38,7 @@ export default function StudentResultsPage() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, retryKey]);
 
   return (
     <AppShell requireRole="student">
@@ -39,7 +46,19 @@ export default function StudentResultsPage() {
 
       {loading && <p className="text-brand-textMuted">جاري تحميل التقرير...</p>}
 
-      {!loading && report && (
+      {!loading && error && (
+        <GlassCard className="max-w-lg mx-auto text-center">
+          <p className="text-brand-error mb-4">{error}</p>
+          <button
+            onClick={() => setRetryKey((value) => value + 1)}
+            className="px-4 py-2 rounded-xl bg-brand-primary text-white text-sm"
+          >
+            إعادة المحاولة
+          </button>
+        </GlassCard>
+      )}
+
+      {!loading && !error && report && (
         <div className="flex flex-col gap-5">
           <GlassCard>
             <div className="flex flex-wrap justify-center gap-8">

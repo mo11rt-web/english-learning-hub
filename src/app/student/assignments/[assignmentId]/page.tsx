@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
 import { Assignment, Question, Attempt } from "@/lib/types";
 import { listenCollection, where } from "@/lib/firestore-helpers";
+import { getAssignmentQuestionIds } from "@/lib/assignmentQuestions";
 
 type PublicQuestion = Omit<Question, "correctAnswer"> & { id: string };
 
@@ -33,7 +34,7 @@ export default function TakeAssignmentPage() {
     const unsub = onSnapshot(doc(db, "assignments", assignmentId), (s) => {
       if (s.exists()) setAssignment({ ...(s.data() as Assignment), id: s.id });
       else setError("الواجب غير موجود.");
-    }, () => setError("تعذر تحميل بيانات الواجب."));
+    }, (snapshotError) => setError(snapshotError.message?.toLowerCase().includes("permission") ? "لا تملك صلاحية الوصول إلى هذا الواجب أو أنه غير مخصص لحسابك." : "تعذر تحميل بيانات الواجب."));
     return () => unsub();
   }, [assignmentId]);
 
@@ -52,9 +53,12 @@ export default function TakeAssignmentPage() {
     let cancelled = false;
     setLoadingQuestions(true);
     setError(null);
-    user.getIdToken()
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15000);
+    user.getIdToken(true)
       .then((token) => fetch(`/api/student/assignment-questions?assignmentId=${encodeURIComponent(assignmentId)}`, {
         headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
       }))
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
@@ -62,9 +66,10 @@ export default function TakeAssignmentPage() {
         if (!cancelled) setQuestions(data.questions ?? []);
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "تعذر تحميل أسئلة الواجب.");
+        if (!cancelled) setError(err?.name === "AbortError" ? "استغرق تحميل الأسئلة وقتًا طويلاً. اضغط إعادة تحميل الصفحة وحاول مجددًا." : err instanceof Error ? err.message : "تعذر تحميل أسئلة الواجب.");
       })
       .finally(() => {
+        window.clearTimeout(timeout);
         if (!cancelled) setLoadingQuestions(false);
       });
     return () => {
@@ -76,9 +81,10 @@ export default function TakeAssignmentPage() {
     return <AppShell requireRole="student"><p>{error ?? "جاري التحميل..."}</p></AppShell>;
   }
 
+  const assignmentQuestionIds = getAssignmentQuestionIds(assignment as unknown as Record<string, unknown>);
   const assignmentQuestions = questions
-    .filter((q) => assignment.questionIds.includes(q.id))
-    .sort((a, b) => assignment.questionIds.indexOf(a.id) - assignment.questionIds.indexOf(b.id));
+    .filter((q) => assignmentQuestionIds.includes(q.id))
+    .sort((a, b) => assignmentQuestionIds.indexOf(a.id) - assignmentQuestionIds.indexOf(b.id));
 
   const handleSubmit = async () => {
     if (!user || submitting || existingAttempt || submitted) return;

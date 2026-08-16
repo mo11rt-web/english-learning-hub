@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 import { matchesStudentGroups } from "@/lib/groupTargeting";
+import { getAssignmentQuestionIds } from "@/lib/assignmentQuestions";
 
 export const dynamic = "force-dynamic";
 
@@ -36,9 +37,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "هذا الواجب غير مخصص لحسابك." }, { status: 403 });
     }
 
-    const questionIds = Array.isArray(assignment.questionIds)
-      ? assignment.questionIds.filter((id: unknown): id is string => typeof id === "string")
-      : [];
+    const questionIds = getAssignmentQuestionIds(assignment);
+    if (questionIds.length === 0) {
+      return NextResponse.json({ error: "هذا الواجب منشور لكنه لا يحتوي على أسئلة مرتبطة ببنك الأسئلة." }, { status: 422 });
+    }
     const questionSnapshots = await Promise.all(
       questionIds.map((id) => db.doc(`question_bank/${id}`).get())
     );
@@ -61,6 +63,10 @@ export async function GET(req: NextRequest) {
         };
       });
 
+    if (questionIds.length > 0 && questions.length === 0) {
+      return NextResponse.json({ error: "تعذر العثور على أسئلة هذا الواجب في بنك الأسئلة." }, { status: 422 });
+    }
+
     return NextResponse.json({ questions });
   } catch (err: any) {
     console.error("[assignment-questions] error:", err);
@@ -71,7 +77,7 @@ export async function GET(req: NextRequest) {
         ? 401
         : 500;
     return NextResponse.json(
-      { error: status === 401 ? "انتهت صلاحية جلستك، سجّل الدخول من جديد." : "تعذر تحميل أسئلة الواجب." },
+      { error: status === 401 ? "انتهت صلاحية جلستك، سجّل الدخول من جديد." : err?.message?.includes("متغيرات حساب خدمة Firebase") ? "إعدادات Firebase Admin غير مكتملة على الخادم." : "تعذر تحميل أسئلة الواجب. تحقق من إعدادات Firebase Admin ومن نشر بنك الأسئلة." },
       { status }
     );
   }

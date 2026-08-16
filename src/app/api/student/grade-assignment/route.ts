@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 import { matchesStudentGroups } from "@/lib/groupTargeting";
+import { getAssignmentQuestionIds } from "@/lib/assignmentQuestions";
 import { computeAutoScore } from "@/lib/grading";
 import type { Question } from "@/lib/types";
 
@@ -58,9 +59,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "لقد استنفدت عدد المحاولات المسموح به لهذا الواجب." }, { status: 409 });
     }
 
-    const questionIds = Array.isArray(assignment.questionIds)
-      ? assignment.questionIds.filter((id: unknown): id is string => typeof id === "string")
-      : [];
+    const questionIds = getAssignmentQuestionIds(assignment);
     const questionSnapshots = await Promise.all(
       questionIds.map((id) => db.doc(`question_bank/${id}`).get())
     );
@@ -135,7 +134,7 @@ export async function POST(req: NextRequest) {
         ? 401
         : 500;
     return NextResponse.json(
-      { error: status === 401 ? "انتهت صلاحية جلستك، سجّل الدخول من جديد." : "تعذر تصحيح الواجب وحفظ المحاولة." },
+      { error: status === 401 ? "انتهت صلاحية جلستك، سجّل الدخول من جديد." : err?.message?.includes("متغيرات حساب خدمة Firebase") ? "إعدادات Firebase Admin غير مكتملة على الخادم." : "تعذر تصحيح الواجب وحفظ المحاولة." },
       { status }
     );
   }

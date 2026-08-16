@@ -8,8 +8,10 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { listenCollection, orderBy } from "@/lib/firestore-helpers";
 import { PastExamQuestion, Stage } from "@/lib/types";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function StudentPastExamsPage() {
+  const { user } = useAuth();
   const [items, setItems] = useState<(PastExamQuestion & { id: string })[]>([]);
   const [stages, setStages] = useState<(Stage & { id: string })[]>([]);
   const [filterSubject, setFilterSubject] = useState("");
@@ -20,6 +22,7 @@ export default function StudentPastExamsPage() {
   const [revealedAnswers, setRevealedAnswers] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
+    if (!user) return;
     const u1 = listenCollection<PastExamQuestion>(
       "past_exam_questions",
       [orderBy("createdAt", "desc")],
@@ -30,7 +33,7 @@ export default function StudentPastExamsPage() {
       u1();
       u2();
     };
-  }, []);
+  }, [user]);
 
   const subjects = Array.from(new Set(items.map((i) => i.subject))).sort();
   const years = Array.from(new Set(items.map((i) => i.year))).sort((a, b) => b - a);
