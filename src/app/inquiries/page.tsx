@@ -4,7 +4,6 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useMemo, useState } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { CheckCircle2, Clock3, MessageCircle, Paperclip, Search, Send, X } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -53,7 +52,7 @@ export default function TeacherInquiriesPage() {
   const [filter, setFilter] = useState<InquiryStatus | "all">("all");
   const [search, setSearch] = useState("");
   const [reply, setReply] = useState("");
-  const [attachment, setAttachment] = useState<File | null>(null);
+  const [attachmentUrl, setAttachmentUrl] = useState("");
   const [sending, setSending] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
@@ -139,19 +138,15 @@ export default function TeacherInquiriesPage() {
     return () => unsubscribe();
   }, [selectedId, inquiries]);
 
-  const uploadAttachment = async () => {
-    if (!attachment || !user) return null;
-    if (attachment.size > 5 * 1024 * 1024) throw new Error("حجم المرفق يجب ألا يتجاوز 5 ميغابايت.");
-    const storageRef = ref(storage, `inquiry-files/${selectedInquiry?.studentId ?? "teacher"}/${Date.now()}-${attachment.name}`);
-    await uploadBytes(storageRef, attachment);
-    return { url: await getDownloadURL(storageRef), name: attachment.name };
+  const getAttachmentLink = async () => {
+    return attachmentUrl.trim() ? { url: attachmentUrl.trim(), name: "رابط مرفق" } : null;
   };
 
   const sendReply = async () => {
     if (!selectedInquiry || !user || !teacher || sending || !reply.trim()) return;
     setSending(true);
     try {
-      const uploaded = await uploadAttachment();
+      const uploaded = await getAttachmentLink();
       const now = Date.now();
       await createDoc(`inquiries/${selectedInquiry.id}/messages`, {
         senderId: user.uid,
@@ -164,7 +159,7 @@ export default function TeacherInquiriesPage() {
       await updateDocById("inquiries", selectedInquiry.id, { status: "answered", updatedAt: now, lastMessageAt: now, lastMessageBy: teacher.role === "admin" ? "admin" : "teacher" });
       await notifyUsers([selectedInquiry.studentId], { type: "inquiry-reply", title: `تم الرد على سؤالك: ${selectedInquiry.title}`, body: reply.trim(), link: `/student/inquiries?inquiryId=${selectedInquiry.id}` });
       setReply("");
-      setAttachment(null);
+      setAttachmentUrl("");
       showToast("تم إرسال الرد للطالب ✅");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "تعذّر إرسال الرد.", "error");
@@ -198,7 +193,7 @@ export default function TeacherInquiriesPage() {
           {visibleInquiries.length === 0 && <p className="text-sm text-brand-textMuted">لا توجد استفسارات مطابقة.</p>}
         </div>
       ) : (
-        <GlassCard className="mb-6"><div className="flex items-start justify-between gap-3 border-b border-surfaceBorder pb-4 mb-4"><div><h2 className="font-bold text-brand-text">{selectedInquiry.title}</h2><p className="text-xs text-brand-textMuted mt-1">الطالب: {selectedInquiry.studentName} · {selectedInquiry.lessonId && lessons[selectedInquiry.lessonId] ? `الدرس: ${lessons[selectedInquiry.lessonId].title}` : "دون درس محدد"}</p></div><div className="flex items-center gap-2"><span className={`px-2.5 py-1 rounded-lg text-xs ${statusStyles[selectedInquiry.status]}`}>{statusLabels[selectedInquiry.status]}</span><button onClick={() => setSelectedId(null)} aria-label="إغلاق" className="text-brand-textMuted"><X size={18} /></button></div></div><div className="flex flex-col gap-3 max-h-[52vh] overflow-y-auto mb-4">{messages.map((message) => <div key={message.id} className={`max-w-[88%] rounded-2xl p-3 ${message.senderRole === "student" ? "self-start bg-brand-primary/10" : "self-end bg-surfaceBorder/50"}`}><p className="text-xs text-brand-primary font-bold mb-1">{message.senderName}</p><p className="text-sm text-brand-text whitespace-pre-wrap">{message.body}</p>{message.attachmentUrl && <a href={message.attachmentUrl} target="_blank" rel="noreferrer" className="text-xs text-brand-primary underline mt-2 inline-block">📎 {message.attachmentName ?? "فتح المرفق"}</a>}<p className="text-[10px] text-brand-textMuted mt-2">{formatDate(message.createdAt)}</p></div>)}</div><div className="flex flex-col gap-2"><textarea value={reply} onChange={(event) => setReply(event.target.value)} placeholder="اكتب ردك للطالب..." rows={3} className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" /><div className="flex items-center justify-between gap-2"><label className="text-xs text-brand-textMuted flex items-center gap-1 cursor-pointer"><Paperclip size={15} />{attachment?.name ?? "إرفاق"}<input type="file" accept="image/*,.pdf,.doc,.docx" className="hidden" onChange={(event) => setAttachment(event.target.files?.[0] ?? null)} /></label><div className="flex items-center gap-2"><Button onClick={sendReply} disabled={sending || !reply.trim()}><Send size={15} /> إرسال الرد</Button>{selectedInquiry.status !== "resolved" && <button onClick={resolveInquiry} disabled={sending} className="px-3 py-2 rounded-xl bg-brand-success/10 text-brand-success text-sm flex items-center gap-1"><CheckCircle2 size={15} /> تم الحل</button>}</div></div></div></GlassCard>
+        <GlassCard className="mb-6"><div className="flex items-start justify-between gap-3 border-b border-surfaceBorder pb-4 mb-4"><div><h2 className="font-bold text-brand-text">{selectedInquiry.title}</h2><p className="text-xs text-brand-textMuted mt-1">الطالب: {selectedInquiry.studentName} · {selectedInquiry.lessonId && lessons[selectedInquiry.lessonId] ? `الدرس: ${lessons[selectedInquiry.lessonId].title}` : "دون درس محدد"}</p></div><div className="flex items-center gap-2"><span className={`px-2.5 py-1 rounded-lg text-xs ${statusStyles[selectedInquiry.status]}`}>{statusLabels[selectedInquiry.status]}</span><button onClick={() => setSelectedId(null)} aria-label="إغلاق" className="text-brand-textMuted"><X size={18} /></button></div></div><div className="flex flex-col gap-3 max-h-[52vh] overflow-y-auto mb-4">{messages.map((message) => <div key={message.id} className={`max-w-[88%] rounded-2xl p-3 ${message.senderRole === "student" ? "self-start bg-brand-primary/10" : "self-end bg-surfaceBorder/50"}`}><p className="text-xs text-brand-primary font-bold mb-1">{message.senderName}</p><p className="text-sm text-brand-text whitespace-pre-wrap">{message.body}</p>{message.attachmentUrl && <a href={message.attachmentUrl} target="_blank" rel="noreferrer" className="text-xs text-brand-primary underline mt-2 inline-block">📎 {message.attachmentName ?? "فتح المرفق"}</a>}<p className="text-[10px] text-brand-textMuted mt-2">{formatDate(message.createdAt)}</p></div>)}</div><div className="flex flex-col gap-2"><textarea value={reply} onChange={(event) => setReply(event.target.value)} placeholder="اكتب ردك للطالب..." rows={3} className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" /><div className="flex items-center justify-between gap-2"><label className="text-xs text-brand-textMuted flex items-center gap-1"><Paperclip size={15} /><input dir="ltr" value={attachmentUrl} onChange={(event) => setAttachmentUrl(event.target.value)} placeholder="رابط مرفق اختياري" className="w-48 bg-transparent border-b border-brand-primary/20 outline-none" /></label><div className="flex items-center gap-2"><Button onClick={sendReply} disabled={sending || !reply.trim()}><Send size={15} /> إرسال الرد</Button>{selectedInquiry.status !== "resolved" && <button onClick={resolveInquiry} disabled={sending} className="px-3 py-2 rounded-xl bg-brand-success/10 text-brand-success text-sm flex items-center gap-1"><CheckCircle2 size={15} /> تم الحل</button>}</div></div></div></GlassCard>
       )}
       {toast && <Toast message={toast.message} type={toast.type} />}
     </AppShell>

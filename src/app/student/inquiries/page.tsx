@@ -4,7 +4,6 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useMemo, useState } from "react";
 import { collection, getDocs, onSnapshot, query, where } from "firebase/firestore";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { Paperclip, Send, CheckCircle2, Clock3, MessageCircle, X } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -53,7 +52,7 @@ export default function StudentInquiriesPage() {
   const [unitId, setUnitId] = useState("");
   const [lessonId, setLessonId] = useState("");
   const [reply, setReply] = useState("");
-  const [attachment, setAttachment] = useState<File | null>(null);
+  const [attachmentUrl, setAttachmentUrl] = useState("");
   const [sending, setSending] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
@@ -126,30 +125,20 @@ export default function StudentInquiriesPage() {
     setDetails("");
     setUnitId("");
     setLessonId("");
-    setAttachment(null);
+    setAttachmentUrl("");
     setReply("");
-  };
-
-  const uploadAttachment = async () => {
-    if (!attachment || !user) return null;
-    if (attachment.size > 5 * 1024 * 1024) throw new Error("حجم المرفق يجب ألا يتجاوز 5 ميغابايت.");
-    const path = `inquiry-files/${user.uid}/${Date.now()}-${attachment.name}`;
-    const storageRef = ref(storage, path);
-    await uploadBytes(storageRef, attachment);
-    return { url: await getDownloadURL(storageRef), name: attachment.name };
   };
 
   const sendMessage = async () => {
     if (!user || !student || sending || !reply.trim() || !selectedInquiry) return;
     setSending(true);
     try {
-      const uploaded = await uploadAttachment();
       await createDoc(`inquiries/${selectedInquiry.id}/messages`, {
         senderId: user.uid,
         senderRole: "student",
         senderName: student.fullName,
         body: reply.trim(),
-        ...(uploaded ? { attachmentUrl: uploaded.url, attachmentName: uploaded.name } : {}),
+        ...(attachmentUrl.trim() ? { attachmentUrl: attachmentUrl.trim(), attachmentName: "رابط مرفق" } : {}),
         createdAt: Date.now(),
       });
       await updateDocById("inquiries", selectedInquiry.id, {
@@ -165,7 +154,7 @@ export default function StudentInquiriesPage() {
         link: `/student/inquiries?inquiryId=${selectedInquiry.id}`,
       });
       setReply("");
-      setAttachment(null);
+      setAttachmentUrl("");
       showToast("تم إرسال رسالتك للمعلم ✅");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "تعذّر إرسال الرسالة.", "error");
@@ -180,7 +169,6 @@ export default function StudentInquiriesPage() {
     if (!details.trim()) return showToast("اكتب تفاصيل السؤال أولاً.", "error");
     setSending(true);
     try {
-      const uploaded = await uploadAttachment();
       const now = Date.now();
       const inquiryRef = await createDoc("inquiries", {
         studentId: user.uid,
@@ -191,7 +179,7 @@ export default function StudentInquiriesPage() {
         details: details.trim(),
         ...(unitId ? { unitId } : {}),
         ...(lessonId ? { lessonId } : {}),
-        ...(uploaded ? { attachmentUrl: uploaded.url, attachmentName: uploaded.name } : {}),
+        ...(attachmentUrl.trim() ? { attachmentUrl: attachmentUrl.trim(), attachmentName: "رابط مرفق" } : {}),
         status: "new",
         createdAt: now,
         updatedAt: now,
@@ -203,7 +191,7 @@ export default function StudentInquiriesPage() {
         senderRole: "student",
         senderName: student.fullName,
         body: details.trim(),
-        ...(uploaded ? { attachmentUrl: uploaded.url, attachmentName: uploaded.name } : {}),
+        ...(attachmentUrl.trim() ? { attachmentUrl: attachmentUrl.trim(), attachmentName: "رابط مرفق" } : {}),
         createdAt: now,
       });
       await notifyUsers(await getTeacherUids(), {
@@ -247,8 +235,7 @@ export default function StudentInquiriesPage() {
             </select>
             <label className="flex items-center gap-2 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm text-brand-textMuted cursor-pointer">
               <Paperclip size={16} />
-              <span className="truncate">{attachment?.name ?? "إرفاق صورة أو ملف (5 MB)"}</span>
-              <input type="file" accept="image/*,.pdf,.doc,.docx" className="hidden" onChange={(event) => setAttachment(event.target.files?.[0] ?? null)} />
+              <input dir="ltr" value={attachmentUrl} onChange={(event) => setAttachmentUrl(event.target.value)} placeholder="رابط صورة أو ملف خارجي (اختياري)" className="min-w-0 flex-1 bg-transparent outline-none text-xs" />
             </label>
             <textarea value={details} onChange={(event) => setDetails(event.target.value)} placeholder="اكتب تفاصيل سؤالك هنا..." rows={5} className="md:col-span-2 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
           </div>
@@ -270,7 +257,7 @@ export default function StudentInquiriesPage() {
               </div>
             ))}
           </div>
-          {selectedInquiry.status !== "resolved" && <div className="flex flex-col gap-2"><textarea value={reply} onChange={(event) => setReply(event.target.value)} placeholder="أضف توضيحاً أو رسالة للمعلم..." rows={3} className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" /><div className="flex items-center justify-between gap-2"><label className="text-xs text-brand-textMuted flex items-center gap-1 cursor-pointer"><Paperclip size={15} />{attachment?.name ?? "إرفاق"}<input type="file" accept="image/*,.pdf,.doc,.docx" className="hidden" onChange={(event) => setAttachment(event.target.files?.[0] ?? null)} /></label><Button onClick={sendMessage} disabled={sending || !reply.trim()}>{sending ? "جارٍ الإرسال..." : "إرسال"} <Send size={15} /></Button></div></div>}
+          {selectedInquiry.status !== "resolved" && <div className="flex flex-col gap-2"><textarea value={reply} onChange={(event) => setReply(event.target.value)} placeholder="أضف توضيحاً أو رسالة للمعلم..." rows={3} className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" /><div className="flex items-center justify-between gap-2"><label className="text-xs text-brand-textMuted flex items-center gap-1"><Paperclip size={15} /><input dir="ltr" value={attachmentUrl} onChange={(event) => setAttachmentUrl(event.target.value)} placeholder="رابط مرفق اختياري" className="w-48 bg-transparent border-b border-brand-primary/20 outline-none" /></label><Button onClick={sendMessage} disabled={sending || !reply.trim()}>{sending ? "جارٍ الإرسال..." : "إرسال"} <Send size={15} /></Button></div></div>}
           {selectedInquiry.status === "resolved" && <p className="text-sm text-brand-success flex items-center gap-2"><CheckCircle2 size={16} /> تم إغلاق هذا الاستفسار. يمكنك إنشاء سؤال جديد عند الحاجة.</p>}
         </GlassCard>
       )}
