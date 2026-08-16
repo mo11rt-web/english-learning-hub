@@ -251,45 +251,75 @@ export default function IrregularVerbsPage() {
           ))}
         </div>
       </div>
-      <div className="grid md:grid-cols-2 gap-3">
-        {visibleVerbs.map((v) => (
-          <GlassCard key={v.id} className={!v.active ? "opacity-60" : ""}>
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex-1" dir="ltr">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 mb-1">
-                  <span className="font-bold text-brand-primary">{v.base}</span>
-                  <SpeakButton text={v.base} size="sm" />
-                  <span className="text-brand-textMuted">→</span>
-                  <span className="text-brand-text">{v.pastSimple}</span>
-                  <SpeakButton text={v.pastSimple} size="sm" />
-                  <span className="text-brand-textMuted">→</span>
-                  <span className="text-brand-text">{v.pastParticiple}</span>
-                  <SpeakButton text={v.pastParticiple} size="sm" />
-                </div>
-                <p dir="rtl" className="text-sm text-brand-textMuted">
-                  {v.meaningAr} · {levelLabel[v.level]}
-                </p>
-                {v.example && <p dir="ltr" className="text-xs text-brand-textMuted italic mt-1">{v.example}</p>}
-              </div>
-              <div className="flex flex-col gap-1 items-end shrink-0">
-                <button onClick={() => startEdit(v)} className="text-brand-primary text-xs">تعديل</button>
-                <button
-                  onClick={() => updateDocById("irregular_verbs", v.id, { active: !v.active })}
-                  className={`text-xs font-medium ${v.active ? "text-brand-textMuted" : "text-brand-success"}`}
-                >
-                  {v.active ? "تعطيل" : "✓ تفعيل"}
-                </button>
-                <button onClick={() => deleteDocById("irregular_verbs", v.id)} className="text-brand-error text-xs">
-                  حذف
-                </button>
-              </div>
-            </div>
-          </GlassCard>
-        ))}
-        {visibleVerbs.length === 0 && (
-          <p className="text-brand-textMuted">لا توجد أفعال شاذة بهذا الفلتر بعد.</p>
+      <GlassCard className="p-0 overflow-hidden">
+        {visibleVerbs.length > 0 ? (
+          <div className="overflow-x-auto max-h-[68vh] overflow-y-auto">
+            <table className="w-full min-w-[980px] border-collapse text-sm">
+              <thead className="sticky top-0 z-10 bg-surface/95 backdrop-blur border-b border-surfaceBorder">
+                <tr className="text-right text-brand-textMuted">
+                  <th className="px-4 py-3 font-semibold whitespace-nowrap">التصريف الأول<br /><span className="text-[10px] font-normal">Base Form</span></th>
+                  <th className="px-4 py-3 font-semibold whitespace-nowrap">التصريف الثاني<br /><span className="text-[10px] font-normal">Past Simple</span></th>
+                  <th className="px-4 py-3 font-semibold whitespace-nowrap">التصريف الثالث<br /><span className="text-[10px] font-normal">Past Participle</span></th>
+                  <th className="px-4 py-3 font-semibold">الترجمة العربية</th>
+                  <th className="px-4 py-3 font-semibold min-w-[220px]">المثال</th>
+                  <th className="px-4 py-3 font-semibold whitespace-nowrap">المستوى / الحالة</th>
+                  <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surfaceBorder/60">
+                {visibleVerbs.map((v) => (
+                  <tr key={v.id} className={`align-top transition-colors hover:bg-surface/60 ${!v.active ? "opacity-60" : ""}`}>
+                    <td className="px-4 py-4" dir="ltr">
+                      <div className="flex items-center gap-2 min-w-[140px]">
+                        <span className="font-bold text-brand-primary">{v.base}</span>
+                        <SpeakButton text={v.base} size="sm" />
+                      </div>
+                    </td>
+                    <td className="px-4 py-4" dir="ltr">
+                      <div className="flex items-center gap-2 min-w-[140px]">
+                        <span className="font-medium text-brand-text">{v.pastSimple}</span>
+                        <SpeakButton text={v.pastSimple} size="sm" />
+                      </div>
+                    </td>
+                    <td className="px-4 py-4" dir="ltr">
+                      <div className="flex items-center gap-2 min-w-[155px]">
+                        <span className="font-medium text-brand-text">{v.pastParticiple}</span>
+                        <SpeakButton text={v.pastParticiple} size="sm" />
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-brand-text" dir="rtl">{v.meaningAr}</td>
+                    <td className="px-4 py-4 text-brand-textMuted italic" dir="ltr">
+                      {v.example || "—"}
+                    </td>
+                    <td className="px-4 py-4" dir="rtl">
+                      <div className="flex flex-col items-start gap-1.5">
+                        <span className="px-2.5 py-1 rounded-lg bg-brand-primary/10 text-brand-primary text-xs whitespace-nowrap">{levelLabel[v.level]}</span>
+                        <span className={`px-2.5 py-1 rounded-lg text-xs whitespace-nowrap ${v.active ? "bg-brand-success/10 text-brand-success" : "bg-surfaceBorder/50 text-brand-textMuted"}`}>
+                          {v.active ? "مفعّل" : "معطّل"}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex flex-wrap justify-center gap-2 min-w-[170px]">
+                        <button onClick={() => startEdit(v)} className="px-2.5 py-1.5 rounded-lg bg-brand-primary/10 text-brand-primary text-xs hover:bg-brand-primary/20">تعديل</button>
+                        <button
+                          onClick={() => updateDocById("irregular_verbs", v.id, { active: !v.active })}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs ${v.active ? "bg-surfaceBorder/60 text-brand-textMuted hover:bg-surfaceBorder" : "bg-brand-success/10 text-brand-success hover:bg-brand-success/20"}`}
+                        >
+                          {v.active ? "تعطيل" : "✓ تفعيل"}
+                        </button>
+                        <button onClick={() => deleteDocById("irregular_verbs", v.id)} className="px-2.5 py-1.5 rounded-lg bg-brand-error/10 text-brand-error text-xs hover:bg-brand-error/20">حذف</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-brand-textMuted text-center py-10">لا توجد أفعال شاذة بهذا الفلتر بعد.</p>
         )}
-      </div>
+      </GlassCard>
       {toast && <Toast message={toast.message} type={toast.type} />}
     </AppShell>
   );

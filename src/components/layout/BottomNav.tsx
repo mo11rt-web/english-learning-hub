@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import { Home, GraduationCap, BookOpen, ClipboardList, BarChart3, Menu, type LucideIcon } from "lucide-react";
+import { Home, GraduationCap, BookOpen, ClipboardList, BarChart3, Menu, MessageCircle, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMobileMenu } from "@/hooks/useMobileMenu";
 
@@ -12,12 +12,14 @@ const teacherTabs: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/students", label: "الطلاب", icon: GraduationCap },
   { href: "/units", label: "الدروس", icon: BookOpen },
   { href: "/assignments", label: "الواجبات", icon: ClipboardList },
+  { href: "/inquiries", label: "الأسئلة", icon: MessageCircle },
 ];
 
 const studentTabs: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/student/home", label: "الرئيسية", icon: Home },
   { href: "/student/lessons", label: "دروسي", icon: BookOpen },
   { href: "/student/assignments", label: "الواجبات", icon: ClipboardList },
+  { href: "/student/inquiries", label: "أسئلتي", icon: MessageCircle },
   { href: "/student/results", label: "نتائجي", icon: BarChart3 },
 ];
 

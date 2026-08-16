@@ -2,8 +2,9 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { X, ArrowUpLeft, Users, BookOpen, GraduationCap, ClipboardCheck } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -11,21 +12,57 @@ import { StatCard } from "@/components/ui/StatCard";
 import Link from "next/link";
 import { useWorkspace } from "@/hooks/useWorkspace";
 
+type DetailKey = "students" | "groups" | "lessons" | "pending";
+
+type StudentSummary = {
+  id: string;
+  fullName: string;
+  groupIds: string[];
+  lastActivityAt?: number;
+};
+
+type GroupSummary = {
+  id: string;
+  name: string;
+};
+
+type LessonSummary = {
+  id: string;
+  title: string;
+  unitId: string;
+};
+
+type PendingSummary = {
+  id: string;
+  assignmentId: string;
+  assignmentTitle: string;
+  studentName: string;
+  studentId: string;
+  submittedAt?: number;
+};
+
+function formatDate(timestamp?: number) {
+  if (!timestamp) return "غير متوفر";
+  return new Date(timestamp).toLocaleDateString("ar-SY", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export default function DashboardPage() {
   const { stageId, stageName } = useWorkspace();
-  const [counts, setCounts] = useState({
-    students: 0,
-    groups: 0,
-    publishedLessons: 0,
-    ungradedAnswers: 0,
-  });
+  const [students, setStudents] = useState<StudentSummary[]>([]);
+  const [groups, setGroups] = useState<GroupSummary[]>([]);
+  const [publishedLessons, setPublishedLessons] = useState<LessonSummary[]>([]);
+  const [units, setUnits] = useState<{ id: string; title: string }[]>([]);
+  const [assignments, setAssignments] = useState<Record<string, string>>({});
+  const [attempts, setAttempts] = useState<PendingSummary[]>([]);
+  const [activeDetail, setActiveDetail] = useState<DetailKey | null>(null);
 
   useEffect(() => {
     if (!stageId) return;
 
-    // الطلاب: مخزّنون فعليًا داخل profiles بحقل role == "student"، وليس
-    // بكوليكشن منفصل اسمه students — هذا الاستعلام يصحح ذلك ويقتصر على
-    // طلاب القسم النشط فقط (نستثني المحذوفين)
     const studentsQ = query(
       collection(db, "profiles"),
       where("role", "==", "student"),
@@ -37,27 +74,107 @@ export default function DashboardPage() {
       where("stageId", "==", stageId),
       where("status", "==", "published")
     );
+    const unitsQ = query(collection(db, "units"), where("stageId", "==", stageId));
 
     const unsubs = [
-      onSnapshot(studentsQ, (s) =>
-        setCounts((c) => ({
-          ...c,
-          students: s.docs.filter((d) => d.data().status !== "deleted").length,
-        }))
-      ),
-      onSnapshot(groupsQ, (s) => setCounts((c) => ({ ...c, groups: s.size }))),
-      onSnapshot(lessonsQ, (s) =>
-        setCounts((c) => ({ ...c, publishedLessons: s.size }))
-      ),
-      onSnapshot(collection(db, "attempts"), (s) =>
-        setCounts((c) => ({
-          ...c,
-          ungradedAnswers: s.docs.filter((d) => d.data().status === "submitted").length,
-        }))
-      ),
+      onSnapshot(studentsQ, (snapshot) => {
+        setStudents(
+          snapshot.docs
+            .filter((item) => item.data().status !== "deleted")
+            .map((item) => {
+              const data = item.data();
+              return {
+                id: item.id,
+                fullName: data.fullName ?? "طالب بدون اسم",
+                groupIds: Array.isArray(data.groupIds) ? data.groupIds : [],
+                lastActivityAt: data.lastActivityAt ?? data.lastLoginAt,
+              };
+            })
+        );
+      }),
+      onSnapshot(groupsQ, (snapshot) => {
+        setGroups(snapshot.docs.map((item) => ({ id: item.id, name: item.data().name ?? "مجموعة بدون اسم" })));
+      }),
+      onSnapshot(lessonsQ, (snapshot) => {
+        setPublishedLessons(
+          snapshot.docs
+            .map((item) => ({
+              id: item.id,
+              title: item.data().title ?? "درس بدون عنوان",
+              unitId: item.data().unitId ?? "",
+            }))
+            .sort((a, b) => a.title.localeCompare(b.title, "ar"))
+        );
+      }),
+      onSnapshot(unitsQ, (snapshot) => {
+        setUnits(snapshot.docs.map((item) => ({ id: item.id, title: item.data().title ?? "وحدة بدون عنوان" })));
+      }),
+      onSnapshot(collection(db, "assignments"), (snapshot) => {
+        const next: Record<string, string> = {};
+        snapshot.docs.forEach((item) => {
+          next[item.id] = item.data().title ?? "واجب بدون عنوان";
+        });
+        setAssignments(next);
+      }),
+      onSnapshot(collection(db, "attempts"), (snapshot) => {
+        setAttempts(
+          snapshot.docs
+            .filter((item) => item.data().status === "submitted")
+            .map((item) => {
+              const data = item.data();
+              return {
+                id: item.id,
+                assignmentId: data.assignmentId ?? "",
+                assignmentTitle: "",
+                studentName: "",
+                studentId: data.studentId ?? "",
+                submittedAt: data.submittedAt,
+              };
+            })
+        );
+      }),
     ];
-    return () => unsubs.forEach((u) => u());
+
+    return () => unsubs.forEach((unsubscribe) => unsubscribe());
   }, [stageId]);
+
+  const groupNames = useMemo(() => new Map(groups.map((group) => [group.id, group.name])), [groups]);
+  const studentNames = useMemo(() => new Map(students.map((student) => [student.id, student.fullName])), [students]);
+  const unitNames = useMemo(() => new Map(units.map((unit) => [unit.id, unit.title])), [units]);
+
+  const activeStudents = students;
+  const groupDetails = useMemo(
+    () => groups.map((group) => ({ ...group, studentCount: students.filter((student) => student.groupIds.includes(group.id)).length })),
+    [groups, students]
+  );
+  const lessonDetails = publishedLessons;
+  const pendingDetails = useMemo(
+    () => attempts.map((attempt) => ({
+      ...attempt,
+      assignmentTitle: assignments[attempt.assignmentId] ?? "واجب غير معروف",
+      studentName: studentNames.get(attempt.studentId) ?? "طالب غير معروف",
+    })),
+    [attempts, assignments, studentNames]
+  );
+
+  const counts = {
+    students: activeStudents.length,
+    groups: groups.length,
+    publishedLessons: lessonDetails.length,
+    ungradedAnswers: pendingDetails.length,
+  };
+
+  const toggleDetail = (key: DetailKey) => {
+    setActiveDetail((current) => (current === key ? null : key));
+  };
+
+  const selectedTitle = activeDetail === "students"
+    ? "الطلاب النشطون"
+    : activeDetail === "groups"
+      ? "المجموعات"
+      : activeDetail === "lessons"
+        ? "الدروس المنشورة"
+        : "واجبات تنتظر التصحيح";
 
   const shortcuts = [
     { href: "/units", label: "إضافة درس", icon: "📘" },
@@ -94,36 +211,102 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <StatCard label="الطلاب النشطون" value={counts.students} icon="🎓" tone={0} />
-        <StatCard label="المجموعات" value={counts.groups} icon="👥" tone={1} />
-        <StatCard
-          label="الدروس المنشورة"
-          value={counts.publishedLessons}
-          icon="📚"
-          tone={2}
-        />
-        <StatCard
-          label="واجبات تنتظر التصحيح"
-          value={counts.ungradedAnswers}
-          icon="✏️"
-          tone={3}
-        />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+        <StatCard label="الطلاب النشطون" value={counts.students} icon="🎓" tone={0} active={activeDetail === "students"} onClick={() => toggleDetail("students")} />
+        <StatCard label="المجموعات" value={counts.groups} icon="👥" tone={1} active={activeDetail === "groups"} onClick={() => toggleDetail("groups")} />
+        <StatCard label="الدروس المنشورة" value={counts.publishedLessons} icon="📚" tone={2} active={activeDetail === "lessons"} onClick={() => toggleDetail("lessons")} />
+        <StatCard label="واجبات تنتظر التصحيح" value={counts.ungradedAnswers} icon="✏️" tone={3} active={activeDetail === "pending"} onClick={() => toggleDetail("pending")} />
       </div>
+
+      {activeDetail && (
+        <GlassCard className="mb-8 animate-fade-up overflow-hidden">
+          <div className="flex items-center justify-between gap-3 border-b border-surfaceBorder pb-3 mb-3">
+            <div className="flex items-center gap-2">
+              {activeDetail === "students" && <GraduationCap size={19} className="text-brand-primary" />}
+              {activeDetail === "groups" && <Users size={19} className="text-brand-primary" />}
+              {activeDetail === "lessons" && <BookOpen size={19} className="text-brand-primary" />}
+              {activeDetail === "pending" && <ClipboardCheck size={19} className="text-brand-primary" />}
+              <h2 className="font-bold text-brand-text">تفاصيل {selectedTitle}</h2>
+            </div>
+            <button type="button" onClick={() => setActiveDetail(null)} aria-label="إغلاق التفاصيل" className="p-1.5 rounded-lg text-brand-textMuted hover:bg-surfaceBorder/50 hover:text-brand-text">
+              <X size={18} />
+            </button>
+          </div>
+
+          {activeDetail === "students" && (
+            activeStudents.length > 0 ? (
+              <div className="divide-y divide-surfaceBorder/60 max-h-80 overflow-y-auto">
+                {activeStudents.map((student) => (
+                  <Link key={student.id} href="/students" className="flex items-center justify-between gap-3 py-3 hover:bg-surface/60 px-2 rounded-xl transition-colors">
+                    <div className="min-w-0">
+                      <p className="font-medium text-brand-text truncate">{student.fullName}</p>
+                      <p className="text-xs text-brand-textMuted mt-1">{student.groupIds.map((id) => groupNames.get(id)).filter(Boolean).join("، ") || "دون مجموعة"}</p>
+                    </div>
+                    <span className="text-xs text-brand-textMuted shrink-0">آخر نشاط: {formatDate(student.lastActivityAt)} <ArrowUpLeft size={13} className="inline-block mr-1" /></span>
+                  </Link>
+                ))}
+              </div>
+            ) : <p className="text-sm text-brand-textMuted py-4">لا يوجد طلاب نشطون في هذا القسم.</p>
+          )}
+
+          {activeDetail === "groups" && (
+            groupDetails.length > 0 ? (
+              <div className="grid sm:grid-cols-2 gap-2">
+                {groupDetails.map((group) => (
+                  <Link key={group.id} href="/groups" className="flex items-center justify-between gap-3 p-3 rounded-xl bg-surface/60 hover:bg-surface transition-colors">
+                    <span className="text-brand-text font-medium">{group.name}</span>
+                    <span className="text-xs text-brand-textMuted">{group.studentCount} طالب <ArrowUpLeft size={13} className="inline-block mr-1" /></span>
+                  </Link>
+                ))}
+              </div>
+            ) : <p className="text-sm text-brand-textMuted py-4">لا توجد مجموعات في هذا القسم.</p>
+          )}
+
+          {activeDetail === "lessons" && (
+            lessonDetails.length > 0 ? (
+              <div className="divide-y divide-surfaceBorder/60 max-h-80 overflow-y-auto">
+                {lessonDetails.map((lesson) => (
+                  <Link key={lesson.id} href={`/lessons/${lesson.id}`} className="flex items-center justify-between gap-3 py-3 px-2 rounded-xl hover:bg-surface/60 transition-colors">
+                    <div className="min-w-0">
+                      <p className="font-medium text-brand-text truncate">{lesson.title}</p>
+                      <p className="text-xs text-brand-textMuted mt-1">الوحدة: {unitNames.get(lesson.unitId) ?? "غير محددة"}</p>
+                    </div>
+                    <ArrowUpLeft size={15} className="text-brand-primary shrink-0" />
+                  </Link>
+                ))}
+              </div>
+            ) : <p className="text-sm text-brand-textMuted py-4">لا توجد دروس منشورة في هذا القسم.</p>
+          )}
+
+          {activeDetail === "pending" && (
+            pendingDetails.length > 0 ? (
+              <div className="divide-y divide-surfaceBorder/60 max-h-80 overflow-y-auto">
+                {pendingDetails.map((item) => (
+                  <Link key={item.id} href={`/assignments/${item.assignmentId}/grade`} className="flex items-center justify-between gap-3 py-3 px-2 rounded-xl hover:bg-surface/60 transition-colors">
+                    <div className="min-w-0">
+                      <p className="font-medium text-brand-text truncate">{item.assignmentTitle}</p>
+                      <p className="text-xs text-brand-textMuted mt-1">الطالب: {item.studentName}</p>
+                    </div>
+                    <span className="text-xs text-brand-warning shrink-0">بانتظار التصحيح <ArrowUpLeft size={13} className="inline-block mr-1" /></span>
+                  </Link>
+                ))}
+              </div>
+            ) : <p className="text-sm text-brand-textMuted py-4">لا توجد تسليمات بانتظار التصحيح.</p>
+          )}
+        </GlassCard>
+      )}
 
       <GlassCard>
         <h2 className="font-bold text-brand-text mb-4">اختصارات سريعة</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {shortcuts.map((s) => (
+          {shortcuts.map((shortcut) => (
             <Link
-              key={s.href}
-              href={s.href}
+              key={shortcut.href}
+              href={shortcut.href}
               className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-surface/60 hover:bg-surface active:scale-95 transition-all text-center"
             >
-              <span className="text-2xl">{s.icon}</span>
-              <span className="text-sm text-brand-text font-medium">
-                {s.label}
-              </span>
+              <span className="text-2xl">{shortcut.icon}</span>
+              <span className="text-sm text-brand-text font-medium">{shortcut.label}</span>
             </Link>
           ))}
         </div>

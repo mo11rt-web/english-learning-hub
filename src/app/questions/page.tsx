@@ -75,7 +75,7 @@ export default function QuestionsPage() {
   const [stages, setStages] = useState<(Stage & { id: string })[]>([]);
   const [form, setForm] = useState<BuilderForm>(emptyForm());
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const { user } = useAuth();
   const { stageId: workspaceStageId, stageName: workspaceStageName } = useWorkspace();
 
@@ -89,9 +89,11 @@ export default function QuestionsPage() {
     setForm((previous) => ({ ...previous, [key]: value }));
   };
 
+  const showValidationError = (text: string) => setMessage({ text, type: "error" });
+
   const addQuestion = async () => {
     if (!form.text.trim() || !workspaceStageId || !user || saving) {
-      setMessage("اكتب نص السؤال وتأكد من اختيار القسم.");
+      showValidationError(!form.text.trim() ? "يجب إدخال نص السؤال." : "يجب اختيار القسم الحالي قبل الحفظ.");
       return;
     }
 
@@ -106,26 +108,25 @@ export default function QuestionsPage() {
       .filter((pair) => pair.left && pair.right);
 
     if (form.type === "mcq" && (options.length < 2 || !form.correctAnswer.trim())) {
-      setMessage("سؤال الاختيار من متعدد يحتاج خيارين على الأقل وتحديد الإجابة الصحيحة.");
+      showValidationError("سؤال الاختيار من متعدد يحتاج خيارين على الأقل وتحديد الإجابة الصحيحة.");
       return;
     }
     if (form.type === "fill-blank" && (options.length !== 4 || !form.correctAnswer.trim())) {
-      setMessage("إكمال الفراغ يحتاج أربعة خيارات وتحديد الخيار الصحيح.");
+      showValidationError("سؤال إكمال الفراغ يحتاج أربعة خيارات وتحديد الكلمة الصحيحة للفراغ.");
       return;
     }
     if (form.type === "reorder" && reorderItems.length < 2) {
-      setMessage("أضف عبارتين على الأقل في سؤال الترتيب.");
+      showValidationError("سؤال الترتيب يحتاج عبارتين على الأقل، كل عبارة في سطر مستقل.");
       return;
     }
     if (form.type === "matching" && matchingPairs.length < 2) {
-      setMessage("أضف زوجين على الأقل في سؤال المطابقة.");
+      showValidationError("سؤال المطابقة يحتاج زوجين على الأقل بصيغة: العبارة الأولى => العبارة الثانية.");
       return;
     }
 
     const autoGrade = form.type === "mcq" || form.type === "true-false" || form.type === "fill-blank" || form.type === "matching" || form.type === "reorder" || (form.type === "short-answer" && acceptedAnswers.length > 0);
     const payload: Record<string, unknown> = {
       text: form.text.trim(),
-      instructions: form.instructions.trim() || undefined,
       type: form.type,
       options: form.type === "mcq" ? options : [],
       blankOptions: form.type === "fill-blank" ? options : [],
@@ -136,7 +137,6 @@ export default function QuestionsPage() {
       stageId: workspaceStageId,
       autoGrade,
       manualReview: !autoGrade,
-      rubric: form.rubric.trim() || undefined,
       createdBy: user.uid,
       createdAt: Date.now(),
     };
@@ -150,15 +150,29 @@ export default function QuestionsPage() {
       payload.correctAnswer = acceptedAnswers[0];
     }
 
+    if (form.instructions.trim()) payload.instructions = form.instructions.trim();
+    if (form.rubric.trim()) payload.rubric = form.rubric.trim();
+
     setSaving(true);
     setMessage(null);
     try {
-      await createDoc("question_bank", payload);
+      const docRef = await createDoc("question_bank", payload);
+      if (!docRef?.id) throw new Error("لم يُرجع Firestore معرّف السؤال بعد الحفظ.");
       setForm(emptyForm());
-      setMessage("تمت إضافة السؤال إلى البنك بنجاح.");
+      setMessage({ text: "تمت إضافة السؤال إلى البنك بنجاح ✅ وسيظهر مباشرة في القائمة.", type: "success" });
     } catch (error) {
       console.error("[question-bank] create error", error);
-      setMessage("تعذر حفظ السؤال. تحقق من الاتصال والصلاحيات.");
+      const code = typeof error === "object" && error !== null && "code" in error ? String((error as { code?: unknown }).code) : "";
+      const reason = code.includes("permission-denied")
+        ? "لا تملك صلاحية الكتابة في بنك الأسئلة. تأكد من تسجيل الدخول بحساب معلم ومن نشر firestore.rules المحدثة."
+        : code.includes("unavailable") || code.includes("network")
+          ? "تعذر الاتصال بـ Firestore حالياً. تحقق من الإنترنت ثم حاول مرة أخرى."
+          : error instanceof Error && error.message.includes("undefined")
+            ? "يوجد حقل اختياري غير صالح في البيانات. تم إصلاح المعالجة، أعد المحاولة."
+            : error instanceof Error
+              ? `فشل حفظ السؤال: ${error.message}`
+              : "حدث خطأ غير متوقع أثناء حفظ السؤال.";
+      setMessage({ text: reason, type: "error" });
     } finally {
       setSaving(false);
     }
@@ -215,7 +229,7 @@ export default function QuestionsPage() {
           <input type="number" min={1} placeholder="الدرجة" value={form.points} onChange={(e) => updateForm("points", Number(e.target.value))} className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-brand-text" />
           <select value={form.difficulty} onChange={(e) => updateForm("difficulty", e.target.value as Question["difficulty"])} className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-brand-text"><option value="easy">سهل</option><option value="medium">متوسط</option><option value="hard">صعب</option></select>
         </div>
-        {message && <p className="text-xs text-brand-error mt-3">{message}</p>}
+        {message && <p className={`text-xs mt-3 ${message.type === "success" ? "text-brand-success" : "text-brand-error"}`}>{message.text}</p>}
         <Button onClick={addQuestion} disabled={saving} className="mt-3">{saving ? "جارٍ الحفظ..." : "إضافة السؤال إلى البنك"}</Button>
       </GlassCard>
 

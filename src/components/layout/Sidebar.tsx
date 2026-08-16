@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import {
   Home, GraduationCap, Users, BookOpen, Type, RotateCcw, Paperclip,
-  HelpCircle, FolderArchive, ClipboardList, Megaphone, Settings,
+  HelpCircle, FolderArchive, ClipboardList, Megaphone, Settings, MessageCircle,
   BarChart3, LogOut, FolderOpen, Sun, Moon, type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,6 +25,7 @@ const teacherLinks: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/questions", label: "بنك الأسئلة", icon: HelpCircle },
   { href: "/past-exams", label: "أسئلة الدورات السابقة", icon: FolderArchive },
   { href: "/assignments", label: "الواجبات والاختبارات", icon: ClipboardList },
+  { href: "/inquiries", label: "أسئلة الطلاب", icon: MessageCircle },
   { href: "/announcements", label: "الإعلانات", icon: Megaphone },
   { href: "/settings", label: "إعدادات النقاط", icon: Settings },
 ];
@@ -35,6 +36,7 @@ const studentLinks: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/student/vocabulary", label: "الكلمات", icon: Type },
   { href: "/student/irregular-verbs", label: "الأفعال الشاذة", icon: RotateCcw },
   { href: "/student/assignments", label: "الواجبات", icon: ClipboardList },
+  { href: "/student/inquiries", label: "أسئلتي واستفساراتي", icon: MessageCircle },
   { href: "/student/past-exams", label: "أسئلة الدورات السابقة", icon: FolderArchive },
   { href: "/student/results", label: "نتائجي", icon: BarChart3 },
 ];

@@ -16,6 +16,9 @@ const TYPE_ICON: Record<Notification["type"], string> = {
   announcement: "📣",
   submission: "📥",
   graded: "✅",
+  "inquiry-new": "💬",
+  "inquiry-reply": "💬",
+  "inquiry-resolved": "✅",
   system: "🔔",
 };
 

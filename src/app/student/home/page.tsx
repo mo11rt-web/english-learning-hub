@@ -8,7 +8,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { useAuth } from "@/hooks/useAuth";
 import { listenCollection, where, orderBy } from "@/lib/firestore-helpers";
-import { Lesson, Assignment, Announcement, StudentProfile } from "@/lib/types";
+import { Announcement, Assignment, LeaderboardEntry, LeaderboardSettings, Lesson, StudentProfile } from "@/lib/types";
 import { computeLevel } from "@/lib/gamification";
 import { matchesStudentGroups } from "@/lib/groupTargeting";
 
@@ -18,6 +18,7 @@ export default function StudentHomePage() {
   const [lessons, setLessons] = useState<(Lesson & { id: string })[]>([]);
   const [assignments, setAssignments] = useState<(Assignment & { id: string })[]>([]);
   const [announcements, setAnnouncements] = useState<(Announcement & { id: string })[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardSettings | null>(null);
 
   useEffect(() => {
     if (!student) return;
@@ -37,9 +38,23 @@ export default function StudentHomePage() {
     const u3 = listenCollection<Announcement>(
       "announcements",
       [orderBy("createdAt", "desc")],
-      (all) => setAnnouncements(all.filter((a) => matchesStudentGroups(a.targetGroupIds, student.groupIds)))
+      (all) => {
+        const now = Date.now();
+        setAnnouncements(all.filter((announcement) =>
+          (!announcement.stageId || announcement.stageId === student.stageId) &&
+          (!announcement.status || announcement.status === "published") &&
+          (!announcement.startAt || announcement.startAt <= now) &&
+          (!announcement.endAt || announcement.endAt >= now) &&
+          matchesStudentGroups(announcement.targetGroupIds, student.groupIds)
+        ));
+      }
     );
-    return () => { u1(); u2(); u3(); };
+    const u4 = listenCollection<LeaderboardSettings>(
+      "public_leaderboards",
+      [where("enabled", "==", true)],
+      (all) => setLeaderboard(all.find((item) => item.stageId === student.stageId) ?? null)
+    );
+    return () => { u1(); u2(); u3(); u4(); };
   }, [student]);
 
   if (!student) {
@@ -86,6 +101,8 @@ export default function StudentHomePage() {
         })()}
       </div>
 
+      {announcements.filter((announcement) => announcement.featured).slice(0, 1).map((announcement) => <a key={`featured-${announcement.id}`} href={announcement.linkUrl || "#announcements"} target={announcement.linkUrl ? "_blank" : undefined} rel={announcement.linkUrl ? "noreferrer" : undefined} className="block mb-6"><div className="overflow-hidden rounded-3xl bg-gradient-to-l from-brand-sidebar via-brand-primary to-brand-secondary text-white shadow-glass hover:shadow-xl transition-all">{announcement.imageUrl && <img src={announcement.imageUrl} alt="" className="w-full max-h-56 object-cover opacity-90" />}<div className="p-5"><div className="flex items-center gap-2 text-xs text-white/70 mb-2"><span>📣</span> إعلان مهم</div><h2 className="text-xl font-bold">{announcement.title}</h2><p className="text-sm text-white/80 mt-2 whitespace-pre-wrap">{announcement.body}</p></div></div></a>)}
+
       <div className="grid md:grid-cols-2 gap-6">
         <GlassCard>
           <h2 className="font-bold text-brand-text mb-4">📚 دروسي الجديدة</h2>
@@ -113,18 +130,21 @@ export default function StudentHomePage() {
           </div>
         </GlassCard>
 
-        <GlassCard className="md:col-span-2">
-          <h2 className="font-bold text-brand-text mb-4">📣 الإعلانات</h2>
-          <div className="flex flex-col gap-2">
-            {announcements.slice(0, 3).map((a) => (
-              <div key={a.id} className="px-3 py-2 rounded-xl bg-surface/60 text-sm">
-                <p className="font-medium text-brand-text">{a.title}</p>
-                <p className="text-brand-textMuted">{a.body}</p>
-              </div>
+        <div id="announcements"><GlassCard className="md:col-span-2">
+          <h2 className="font-bold text-brand-text mb-4">📣 إعلانات المنصة</h2>
+          <div className="grid md:grid-cols-2 gap-3">
+            {announcements.slice(0, 4).map((announcement) => (
+              <a key={announcement.id} href={announcement.linkUrl || "#"} target={announcement.linkUrl ? "_blank" : undefined} rel={announcement.linkUrl ? "noreferrer" : undefined} className="overflow-hidden rounded-2xl bg-surface/60 hover:bg-surface border border-brand-primary/10 transition-all">
+                {announcement.imageUrl && <img src={announcement.imageUrl} alt="" className="w-full h-28 object-cover" />}
+                <div className="p-3"><p className="font-bold text-brand-text">{announcement.title}</p><p className="text-brand-textMuted text-sm mt-1 whitespace-pre-wrap">{announcement.body}</p></div>
+              </a>
             ))}
-            {announcements.length === 0 && <p className="text-brand-textMuted text-sm">لا إعلانات بعد.</p>}
+            {announcements.length === 0 && <p className="text-brand-textMuted text-sm">لا إعلانات منشورة حالياً.</p>}
           </div>
         </GlassCard>
+
+        {leaderboard?.enabled && <GlassCard className="md:col-span-2 overflow-hidden"><div className="flex items-center justify-between mb-4"><div><h2 className="font-bold text-brand-text">🏆 نجوم هذا الشهر</h2><p className="text-xs text-brand-textMuted mt-1">اجتهد، اجمع النقاط، وقد يكون اسمك هنا قريباً ⭐</p></div><span className="text-3xl">🏆</span></div><div className="grid md:grid-cols-3 gap-2">{leaderboard.entries.map((entry) => <div key={`${entry.rank}-${entry.studentName}`} className={`flex items-center gap-3 rounded-2xl px-3 py-3 ${entry.rank === 1 ? "bg-brand-gold/15 ring-1 ring-brand-gold/30" : "bg-surface/60"}`}><span className="text-xl">{entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : "⭐"}</span><span className="min-w-0 flex-1"><span className="block font-bold text-brand-text truncate">{entry.studentName}</span><span className="block text-xs text-brand-textMuted truncate">{entry.groupName ?? "طالب"}</span></span><span className="text-sm font-bold text-brand-primary whitespace-nowrap">{entry.points} نقطة</span></div>)}</div></GlassCard>}
+        </div>
       </div>
     </AppShell>
   );

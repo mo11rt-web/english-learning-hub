@@ -39,6 +39,9 @@ export const auth = (app ? getAuth(app) : null) as Auth;
 export const db = (
   app
     ? initializeFirestore(app, {
+        // بعض حقول السؤال اختيارية (مثل rubric و instructions). حذف القيم
+        // undefined قبل الإرسال يمنع Firestore من رفض المستند أثناء الحفظ.
+        ignoreUndefinedProperties: true,
         localCache: persistentLocalCache({
           tabManager: persistentMultipleTabManager(),
         }),

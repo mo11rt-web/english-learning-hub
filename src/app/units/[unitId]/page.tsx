@@ -3,11 +3,10 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
-import { Eye, Pencil, Rocket, Pause, Target } from "lucide-react";
+import { Eye, Pencil, Rocket, Pause, Target, Trash2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { db, storage } from "@/lib/firebase";
+import { deleteDoc, doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
@@ -15,6 +14,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Modal, Toast } from "@/components/ui/Modal";
 import { toStoredTargetGroupIds, isTargetedAtAll, ALL_GROUPS_SENTINEL } from "@/lib/groupTargeting";
 import { LessonBlockView } from "@/components/LessonBlockView";
+import { LessonContentBuilder } from "@/components/LessonContentBuilder";
 import {
   listenCollection,
   createDoc,
@@ -23,9 +23,6 @@ import {
 } from "@/lib/firestore-helpers";
 import { Lesson, Unit, LessonBlock, LessonQuizQuestion, Group } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
-import { getYoutubeEmbedUrl, getDriveEmbedUrl } from "@/lib/embed";
-
-const MAX_PDF_BYTES = 4 * 1024 * 1024; // 4 MB حسب طلبك بالضبط
 
 // ===== حالة سؤال الكويز أثناء التحرير بالنموذج (قبل الحفظ) =====
 interface DraftQuestion {
@@ -56,12 +53,14 @@ function LessonCard({
   onPreview,
   onTogglePublish,
   onUpdateGroups,
+  onDelete,
 }: {
   lesson: Lesson & { id: string };
   groupsInUnit: (Group & { id: string })[];
   onPreview: () => void;
   onTogglePublish: () => void;
   onUpdateGroups: (groupIds: string[]) => void;
+  onDelete: () => void;
 }) {
   const router = useRouter();
   const [editingGroups, setEditingGroups] = useState(false);
@@ -128,6 +127,14 @@ function LessonCard({
         >
           <Target size={14} />
           تحديد المجموعات
+        </Button>
+        <Button
+          onClick={onDelete}
+          variant="danger"
+          className="!py-2 !px-3.5 text-xs flex items-center gap-1.5"
+        >
+          <Trash2 size={14} />
+          حذف الدرس
         </Button>
       </div>
 
@@ -360,10 +367,8 @@ export default function UnitLessonsPage() {
   const { user } = useAuth();
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ title: "", description: "", videoUrl: "", notes: "" });
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [pdfError, setPdfError] = useState("");
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [form, setForm] = useState({ title: "", description: "" });
+  const [draftBlocks, setDraftBlocks] = useState<LessonBlock[]>([]);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [previewLesson, setPreviewLesson] = useState<(Lesson & { id: string }) | null>(null);
@@ -419,35 +424,9 @@ export default function UnitLessonsPage() {
 
   const groupsInUnit = groups.filter((g) => g.stageId === unit?.stageId);
 
-  const handlePdfSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    setPdfError("");
-    if (!file) {
-      setPdfFile(null);
-      return;
-    }
-    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-      setPdfError("الملف يجب أن يكون بصيغة PDF فقط.");
-      setPdfFile(null);
-      e.target.value = "";
-      return;
-    }
-    if (file.size >= MAX_PDF_BYTES) {
-      setPdfError(
-        `حجم الملف (${(file.size / (1024 * 1024)).toFixed(1)} MB) أكبر من الحد المسموح (4 MB).`
-      );
-      setPdfFile(null);
-      e.target.value = "";
-      return;
-    }
-    setPdfFile(file);
-  };
-
   const resetForm = () => {
-    setForm({ title: "", description: "", videoUrl: "", notes: "" });
-    setPdfFile(null);
-    setPdfError("");
-    setUploadProgress(null);
+    setForm({ title: "", description: "" });
+    setDraftBlocks([]);
     setSelectedGroupIds(new Set());
     setQuizDrafts([]);
     setQuizError("");
@@ -524,42 +503,10 @@ export default function UnitLessonsPage() {
 
     setSaving(true);
     try {
-      const blocks: LessonBlock[] = [];
-      let order = 0;
-
-      if (form.videoUrl.trim()) {
-        const isYoutube = !!getYoutubeEmbedUrl(form.videoUrl.trim());
-        const isDrive = !!getDriveEmbedUrl(form.videoUrl.trim());
-        if (isYoutube) {
-          blocks.push({ id: crypto.randomUUID(), type: "youtube", content: form.videoUrl.trim(), order: order++ });
-        } else if (isDrive) {
-          blocks.push({ id: crypto.randomUUID(), type: "google-drive", content: form.videoUrl.trim(), order: order++ });
-        } else {
-          // رابط فيديو غير معروف الصيغة: نضيفه كرابط يوتيوب كمحاولة افتراضية،
-          // ويمكن للمعلم تعديل نوع الكتلة لاحقًا من محرر الدرس الكامل
-          blocks.push({ id: crypto.randomUUID(), type: "youtube", content: form.videoUrl.trim(), order: order++ });
-        }
-      }
-
-      if (pdfFile) {
-        setUploadProgress(0);
-        const path = `lesson-files/${Date.now()}-${pdfFile.name}`;
-        const storageRef = ref(storage, path);
-        const task = uploadBytesResumable(storageRef, pdfFile);
-        const pdfUrl = await new Promise<string>((resolve, reject) => {
-          task.on(
-            "state_changed",
-            (snap) => setUploadProgress((snap.bytesTransferred / snap.totalBytes) * 100),
-            (err) => reject(err),
-            async () => resolve(await getDownloadURL(task.snapshot.ref))
-          );
-        });
-        blocks.push({ id: crypto.randomUUID(), type: "pdf", content: pdfUrl, order: order++ });
-      }
-
-      if (form.notes.trim()) {
-        blocks.push({ id: crypto.randomUUID(), type: "note", content: form.notes.trim(), order: order++ });
-      }
+      const blocks: LessonBlock[] = draftBlocks
+        .slice()
+        .sort((a, b) => a.order - b.order)
+        .map((block, index) => ({ ...block, order: index }));
 
       const quizQuestions: LessonQuizQuestion[] = quizDrafts.map((d, i) => ({
         id: crypto.randomUUID(),
@@ -601,17 +548,14 @@ export default function UnitLessonsPage() {
       showToast(`تعذّر حفظ الدرس: ${msg}`, "error");
     } finally {
       setSaving(false);
-      setUploadProgress(null);
     }
   };
 
   // بعد نجاح الحفظ منسكر نموذج الإدخال (ما في داعي نعيد تعبيته) بس منحافظ
   // على lesson المُنشأ حديثًا حتى نقدر نعرض "معاينة كطالب" فورًا
   const resetFormKeepSuccessModal = () => {
-    setForm({ title: "", description: "", videoUrl: "", notes: "" });
-    setPdfFile(null);
-    setPdfError("");
-    setUploadProgress(null);
+    setForm({ title: "", description: "" });
+    setDraftBlocks([]);
     setSelectedGroupIds(new Set());
     setQuizDrafts([]);
     setQuizError("");
@@ -625,7 +569,7 @@ export default function UnitLessonsPage() {
         <h1 className="text-2xl font-bold text-brand-text">
           دروس الوحدة {unit ? `— ${unit.title}` : ""}
         </h1>
-        <Button onClick={() => setModalOpen(true)}>+ إضافة درس</Button>
+        <Button onClick={() => { resetForm(); setJustCreatedLesson(null); setModalOpen(true); }}>+ إضافة درس</Button>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
@@ -658,6 +602,17 @@ export default function UnitLessonsPage() {
                 showToast(`تعذّر تحديث المجموعات: ${msg}`, "error");
               }
             }}
+            onDelete={async () => {
+              const confirmed = window.confirm(`هل أنت متأكد من حذف الدرس "${l.title}"؟ لا يمكن التراجع عن هذا الإجراء.`);
+              if (!confirmed) return;
+              try {
+                await deleteDoc(doc(db, "lessons", l.id));
+                showToast("تم حذف الدرس بنجاح ✅");
+              } catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                showToast(`تعذّر حذف الدرس: ${msg}`, "error");
+              }
+            }}
           />
         ))}
         {lessons.length === 0 && (
@@ -672,7 +627,7 @@ export default function UnitLessonsPage() {
           resetForm();
         }}
         title={justCreatedLesson ? "تم إنشاء الدرس" : "إضافة درس جديد"}
-        maxWidth="max-w-lg"
+        maxWidth="max-w-4xl"
       >
         {justCreatedLesson ? (
           <div className="flex flex-col gap-4 items-center text-center py-2">
@@ -746,43 +701,11 @@ export default function UnitLessonsPage() {
               />
             </div>
 
-            <div>
-              <label className="text-sm text-brand-text block mb-1.5">رابط الفيديو (اختياري)</label>
-              <input
-                placeholder="رابط يوتيوب أو Google Drive"
-                dir="ltr"
-                value={form.videoUrl}
-                onChange={(e) => setForm({ ...form, videoUrl: e.target.value })}
-                className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm text-brand-text block mb-1.5">
-                ملف PDF (اختياري — حد أقصى 4 MB)
-              </label>
-              <input type="file" accept=".pdf,application/pdf" onChange={handlePdfSelect} className="text-sm" />
-              {pdfError && <p className="text-brand-error text-xs mt-1">{pdfError}</p>}
-              {pdfFile && !pdfError && (
-                <p className="text-brand-success text-xs mt-1">
-                  ✅ {pdfFile.name} ({(pdfFile.size / (1024 * 1024)).toFixed(2)} MB)
-                </p>
-              )}
-              {uploadProgress !== null && (
-                <p className="text-brand-textMuted text-xs mt-1">جارٍ الرفع {Math.round(uploadProgress)}%</p>
-              )}
-            </div>
-
-            <div>
-              <label className="text-sm text-brand-text block mb-1.5">ملاحظات الدرس (اختياري)</label>
-              <textarea
-                placeholder="شرح إضافي أو ملاحظات للطالب..."
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                rows={3}
-                className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
-              />
-            </div>
+            <LessonContentBuilder
+              blocks={draftBlocks}
+              onChange={setDraftBlocks}
+              saving={saving}
+            />
 
             <div>
               <label className="text-sm text-brand-text block mb-1.5">

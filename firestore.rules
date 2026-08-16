@@ -26,7 +26,8 @@ service cloud.firestore {
     // نظام النقاط، وحالة "يجب تغيير كلمة المرور")، ولا يقدر يغيّر دوره أو
     // حالة حسابه أو أي حقل إداري آخر.
     match /profiles/{uid} {
-      allow read: if isOwner(uid) || isTeacherOrAdmin();
+      allow read: if isOwner(uid) || isTeacherOrAdmin() ||
+        (isActive() && resource.data.role in ['admin', 'teacher']);
       allow create: if isTeacherOrAdmin();
       allow update: if isTeacherOrAdmin() ||
         (isOwner(uid) &&
@@ -76,7 +77,19 @@ service cloud.firestore {
     // صفحة الطالب تستخدم مساري API اللذين يعيدان الأسئلة العامة ويصححان
     // الإجابات على الخادم.
     match /question_bank/{id} { allow read: if isTeacherOrAdmin(); allow write: if isTeacherOrAdmin(); }
-    match /announcements/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
+    match /announcements/{id} {
+      // الإعلان المنشور المعلن للعامة فقط يمكن عرضه قبل تسجيل الدخول.
+      allow read: if isTeacherOrAdmin() || isActive() ||
+        (resource.data.status == 'published' && resource.data.public == true);
+      allow write: if isTeacherOrAdmin();
+    }
+
+    // نسخة عامة مختصرة من لوحة المتفوقين، لا تحتوي إلا الاسم المختصر
+    // والمجموعة والنقاط والترتيب، ويقرأها أي زائر فقط عندما تكون مفعّلة.
+    match /public_leaderboards/{stageId} {
+      allow read: if resource.data.enabled == true;
+      allow write: if isTeacherOrAdmin();
+    }
 
     match /assignments/{id} {
       allow read: if isTeacherOrAdmin() ||
@@ -111,6 +124,26 @@ service cloud.firestore {
       allow create: if isSignedIn();
     }
 
+    // الاستفسارات: الطالب يرى ويحدّث حالته وأسئلته فقط، والمعلم/المدير
+    // يرى استفسارات طلاب الأقسام التي يديرها. الرسائل تُنشأ فقط ولا تُعدّل
+    // أو تُحذف، حتى يبقى سجل المحادثة كاملاً.
+    match /inquiries/{inquiryId} {
+      allow read: if isTeacherOrAdmin() ||
+        (isActive() && resource.data.studentId == request.auth.uid);
+      allow create: if isActive() && request.resource.data.studentId == request.auth.uid;
+      allow update: if isTeacherOrAdmin() ||
+        (isActive() && resource.data.studentId == request.auth.uid);
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if isTeacherOrAdmin() ||
+          (isActive() && get(/databases/$(database)/documents/inquiries/$(inquiryId)).data.studentId == request.auth.uid);
+        allow create: if isTeacherOrAdmin() ||
+          (isActive() && get(/databases/$(database)/documents/inquiries/$(inquiryId)).data.studentId == request.auth.uid);
+        allow update, delete: if false;
+      }
+    }
+
     // الإشعارات: كل مستخدم يقرأ/يحذف إشعاراته فقط (نموذج "احذف عند القراءة"
     // — لا حاجة لحقل isRead لأن الإشعار المقروء يُحذف مباشرة). المعلم/المدير
     // يقدر ينشئ أي إشعار (عند نشر درس/واجب/إعلان)؛ الطالب يقدر بس ينشئ
@@ -120,7 +153,7 @@ service cloud.firestore {
       allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow create: if isTeacherOrAdmin() ||
         (isActive() &&
-         request.resource.data.type == 'submission' &&
+         request.resource.data.type in ['submission', 'inquiry-new'] &&
          get(/databases/$(database)/documents/profiles/$(request.resource.data.userId)).data.role in ['admin', 'teacher']);
     }
   }

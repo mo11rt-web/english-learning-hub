@@ -14,12 +14,20 @@ import {
   LEVELS,
 } from "@/lib/gamification";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { useAuth } from "@/hooks/useAuth";
+import { useWorkspace } from "@/hooks/useWorkspace";
+import { getLeaderboardSettings, refreshPublicLeaderboard } from "@/lib/leaderboard";
+import { LeaderboardPeriod } from "@/lib/types";
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<PointsSettings>(DEFAULT_POINTS_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [leaderboard, setLeaderboard] = useState({ enabled: true, limit: 5, period: "month" as LeaderboardPeriod });
+  const [leaderboardSaved, setLeaderboardSaved] = useState(false);
+  const { user } = useAuth();
+  const { stageId, stageName } = useWorkspace();
 
   useEffect(() => {
     getPointsSettings().then((s) => {
@@ -27,6 +35,11 @@ export default function SettingsPage() {
       setLoading(false);
     });
   }, []);
+
+  useEffect(() => {
+    if (!stageId) return;
+    getLeaderboardSettings(stageId).then((value) => setLeaderboard({ enabled: value.enabled, limit: value.limit, period: value.period })).catch(() => {});
+  }, [stageId]);
 
   const field = (key: keyof PointsSettings, label: string, hint?: string) => (
     <div>
@@ -47,6 +60,15 @@ export default function SettingsPage() {
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
+  };
+
+  const handleLeaderboardSave = async () => {
+    if (!stageId || !user) return;
+    setSaving(true);
+    await refreshPublicLeaderboard(stageId, leaderboard, user.uid);
+    setSaving(false);
+    setLeaderboardSaved(true);
+    setTimeout(() => setLeaderboardSaved(false), 2500);
   };
 
   if (loading) {
@@ -76,6 +98,17 @@ export default function SettingsPage() {
           {saving ? "جارٍ الحفظ..." : "حفظ الإعدادات"}
         </Button>
         {saved && <p className="text-brand-success text-sm mt-2">✅ تم الحفظ</p>}
+      </GlassCard>
+
+      <GlassCard className="mb-6">
+        <div className="flex items-start justify-between gap-3"><div><h2 className="font-bold text-brand-text mb-1">🏆 لوحة الطلاب الأوائل</h2><p className="text-xs text-brand-textMuted">القسم الحالي: {stageName ?? "—"}. يتم ترتيب الطلاب تلقائياً حسب نقاطهم الحالية.</p></div><span className="text-2xl">⭐</span></div>
+        <div className="grid md:grid-cols-3 gap-4 mt-4">
+          <label className="flex items-center gap-2 text-sm text-brand-text"><input type="checkbox" checked={leaderboard.enabled} onChange={(event) => setLeaderboard({ ...leaderboard, enabled: event.target.checked })} /> إظهار اللوحة للطلاب والزوار</label>
+          <label className="text-sm text-brand-text">عدد الطلاب<select value={leaderboard.limit} onChange={(event) => setLeaderboard({ ...leaderboard, limit: Number(event.target.value) })} className="w-full mt-1 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"><option value={3}>3 طلاب</option><option value={5}>5 طلاب</option><option value={10}>10 طلاب</option></select></label>
+          <label className="text-sm text-brand-text">الفترة<select value={leaderboard.period} onChange={(event) => setLeaderboard({ ...leaderboard, period: event.target.value as LeaderboardPeriod })} className="w-full mt-1 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"><option value="week">هذا الأسبوع</option><option value="month">هذا الشهر</option><option value="term">الفصل الحالي</option><option value="all">الترتيب العام</option></select></label>
+        </div>
+        <Button onClick={handleLeaderboardSave} disabled={saving || !stageId} className="mt-4">{saving ? "جارٍ التحديث..." : "حفظ وتحديث اللوحة"}</Button>
+        {leaderboardSaved && <p className="text-brand-success text-sm mt-2">✅ تم تحديث لوحة المتفوقين</p>}
       </GlassCard>
 
       <GlassCard>

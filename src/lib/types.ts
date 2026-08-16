@@ -284,8 +284,39 @@ export interface IrregularVerb {
   createdAt: number;
 }
 
-export interface Notification {
+export type InquiryStatus = "new" | "viewed" | "answered" | "resolved";
+
+export interface InquiryMessage {
   id: string;
+  senderId: string;
+  senderRole: "student" | "teacher" | "admin";
+  senderName: string;
+  body: string;
+  attachmentUrl?: string;
+  attachmentName?: string;
+  createdAt: number;
+}
+
+export interface Inquiry {
+  id: string;
+  studentId: string;
+  studentName: string;
+  stageId: string;
+  groupIds: string[];
+  title: string;
+  details: string;
+  unitId?: string;
+  lessonId?: string;
+  attachmentUrl?: string;
+  attachmentName?: string;
+  status: InquiryStatus;
+  createdAt: number;
+  updatedAt: number;
+  lastMessageAt: number;
+  lastMessageBy: "student" | "teacher" | "admin";
+}
+
+export interface Notification {
   userId: string; // uid المستلم
   title: string;
   body?: string;
@@ -298,16 +329,50 @@ export interface Notification {
     | "announcement"
     | "submission" // للمعلم: طالب سلّم واجب
     | "graded" // للطالب: اكتمل تصحيح الواجب
+    | "inquiry-new"
+    | "inquiry-reply"
+    | "inquiry-resolved"
     | "system";
   link?: string; // رابط داخلي يفتح عند الضغط
   createdAt: number;
 }
+
+export type AnnouncementStatus = "draft" | "published" | "expired";
 
 export interface Announcement {
   id: string;
   title: string;
   body: string;
   targetGroupIds: string[]; // فارغ = الجميع
+  stageId?: string;
+  imageUrl?: string;
+  linkUrl?: string;
+  startAt?: number;
+  endAt?: number;
+  featured?: boolean;
+  public?: boolean;
+  status?: AnnouncementStatus;
   createdBy: string;
   createdAt: number;
+  updatedAt?: number;
+}
+
+export type LeaderboardPeriod = "week" | "month" | "term" | "all";
+
+export interface LeaderboardEntry {
+  rank: number;
+  studentName: string;
+  groupName?: string;
+  points: number;
+}
+
+export interface LeaderboardSettings {
+  id?: string;
+  stageId: string;
+  enabled: boolean;
+  limit: number;
+  period: LeaderboardPeriod;
+  entries: LeaderboardEntry[];
+  updatedAt: number;
+  updatedBy: string;
 }
