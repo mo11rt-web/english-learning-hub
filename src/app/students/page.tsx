@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useRef, useState } from "react";
 import { initializeApp, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, getDocs, limit, query, setDoc, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -18,7 +18,7 @@ import {
   updateDocById,
   orderBy,
 } from "@/lib/firestore-helpers";
-import { StudentProfile, Stage, Group } from "@/lib/types";
+import { Profile, StudentProfile, Stage, Group } from "@/lib/types";
 import { phoneToEmail, normalizePhone } from "@/lib/phone";
 import { computeLevel } from "@/lib/gamification";
 import { publishResultsShare, setShareEnabled, computeStudentReportSnapshot, StudentReportSnapshot } from "@/lib/shareResults";
@@ -132,7 +132,7 @@ export default function StudentsPage() {
   const [restoring, setRestoring] = useState(false);
   const restoreFileInputRef = useRef<HTMLInputElement>(null);
 
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { stageId: workspaceStageId, stageName: workspaceStageName } = useWorkspace();
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
@@ -441,7 +441,19 @@ export default function StudentsPage() {
   // لأنه jsPDF نفسه ما بيدعم رسم الخط العربي، فلازم نمرّ عبر محرك عرض
   // النصوص تبع المتصفح نفسه حتى يطلع العربي صحيح مش مربعات فاضية.
   const [pdfExportTarget, setPdfExportTarget] = useState<
-    (StudentProfile & { id: string; report: StudentReportSnapshot; teacherNotes: string }) | null
+    (StudentProfile & {
+      id: string;
+      report: StudentReportSnapshot;
+      teacherNotes: string;
+      reportMeta: {
+        teacherName: string;
+        teacherPhone: string;
+        adminPhone: string;
+        creatorName: string;
+        creatorPhone: string;
+        issuedAt: number;
+      };
+    }) | null
   >(null);
   const [exportingPdfId, setExportingPdfId] = useState<string | null>(null);
 
@@ -452,18 +464,82 @@ export default function StudentsPage() {
 
   const generatePdfReport = async () => {
     const student = pdfNotesTarget;
-    if (!student || exportingPdfId) return;
+    if (!student || exportingPdfId || !user) return;
     setExportingPdfId(student.id);
     try {
       const report = await computeStudentReportSnapshot(student.id);
-      setPdfExportTarget({ ...student, report, teacherNotes: pdfTeacherNotes.trim() });
+      const creatorName = profile?.fullName || user.displayName || "مستخدم النظام";
+      const creatorPhone = profile?.phone || "";
+
+      // عند إنشاء التقرير من حساب المدير، نحاول اختيار المعلم المرتبط بمجموعة الطالب.
+      const linkedTeacherId = student.groupIds
+        ?.map((groupId) => groups.find((group) => group.id === groupId)?.teacherIds?.[0])
+        .find((id): id is string => Boolean(id));
+      let linkedTeacher: Profile | null = null;
+      if (linkedTeacherId && profile?.role !== "teacher") {
+        try {
+          const teacherSnap = await getDoc(doc(db, "profiles", linkedTeacherId));
+          if (teacherSnap.exists()) linkedTeacher = teacherSnap.data() as Profile;
+        } catch {
+          // بيانات المعلم اختيارية؛ لا نمنع إصدار التقرير عند تعذر تحميلها.
+        }
+      }
+
+      let adminProfile: Profile | null = profile?.role === "admin" ? profile : null;
+      if (!adminProfile) {
+        try {
+          const adminSnap = await getDocs(
+            query(collection(db, "profiles"), where("role", "==", "admin"), limit(1))
+          );
+          if (!adminSnap.empty) adminProfile = adminSnap.docs[0].data() as Profile;
+        } catch {
+          // رقم الإدارة اختياري، لذلك يبقى التقرير قابلاً للإنشاء.
+        }
+      }
+
+      const teacherProfile = profile?.role === "teacher" ? profile : linkedTeacher || profile;
+      const reportMeta = {
+        teacherName: teacherProfile?.fullName || creatorName,
+        teacherPhone: teacherProfile?.phone || "",
+        adminPhone: adminProfile?.phone || "",
+        creatorName,
+        creatorPhone,
+        issuedAt: Date.now(),
+      };
+
+      setPdfExportTarget({
+        ...student,
+        report,
+        teacherNotes: pdfTeacherNotes.trim(),
+        reportMeta,
+      });
       setPdfNotesTarget(null);
       await new Promise((resolve) => setTimeout(resolve, 80));
       const element = document.getElementById("student-pdf-template");
       if (!element) throw new Error("تعذّر تجهيز قالب التقرير");
       const file = await exportHtmlToPdf(element, `تقرير-${student.fullName}.pdf`);
       setPdfReady({ student, file });
-      showToast("تم إنشاء تقرير PDF احترافي ✅");
+
+      // يحفظ هوية منشئ التقرير وبيانات التواصل في سجل النشاط الإداري.
+      // العملية لمرة واحدة ولا تضيف أي خدمة مدفوعة أو عملية خلفية.
+      await addDoc(collection(db, "activity_logs"), {
+        type: "student_report_generated",
+        action: "generate_student_report",
+        studentId: student.id,
+        studentName: student.fullName,
+        createdBy: user.uid,
+        createdByName: creatorName,
+        createdByPhone: creatorPhone,
+        teacherName: reportMeta.teacherName,
+        teacherPhone: reportMeta.teacherPhone,
+        adminPhone: reportMeta.adminPhone,
+        issuedAt: reportMeta.issuedAt,
+        createdAt: reportMeta.issuedAt,
+      }).catch(() => {
+        // لا نعطل التقرير إذا كانت قواعد Firestore القديمة لم تُنشر بعد.
+      });
+
+      showToast("تم إنشاء تقرير PDF احترافي وحفظ بيانات منشئه ✅");
     } catch (error: any) {
       showToast("تعذر إنشاء PDF: " + (error?.message ?? "خطأ غير معروف"), "error");
     } finally {
@@ -1081,8 +1157,10 @@ export default function StudentsPage() {
             <div style={{ height: 10, background: "#556B2F", borderRadius: 8, marginBottom: 24 }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 20 }}>
               <div>
-                <p style={{ color: "#8b9b64", fontSize: 12, margin: 0 }}>ENGLISH HUB · تقرير متابعة أكاديمي</p>
-                <h1 style={{ color: "#3f5323", fontSize: 28, fontWeight: 800, margin: "6px 0" }}>تقرير نتائج الطالب</h1>
+                <p style={{ color: "#3f5323", fontSize: 18, fontWeight: 800, letterSpacing: 1, margin: 0 }}>ENGLISH HUB</p>
+                <p style={{ color: "#6b7280", fontSize: 12, margin: "4px 0 0" }}>الأستاذ {pdfExportTarget.reportMeta.teacherName}</p>
+                <p style={{ color: "#8b9b64", fontSize: 11, margin: "5px 0 0", letterSpacing: 0.4 }}>متابعة • التزام • مراقبة • تأهيل • تطوير</p>
+                <h1 style={{ color: "#3f5323", fontSize: 28, fontWeight: 800, margin: "10px 0 6px" }}>تقرير نتائج الطالب</h1>
                 <p style={{ color: "#6b7280", fontSize: 13, margin: 0 }}>{pdfExportTarget.fullName} — {pdfExportTarget.report.stageName} — {pdfExportTarget.report.groupName}</p>
               </div>
               <div style={{ width: 84, height: 84, borderRadius: "50%", background: `conic-gradient(#556B2F ${pdfExportTarget.report.completionPercentage * 3.6}deg, #e8eddf 0deg)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1131,7 +1209,17 @@ export default function StudentsPage() {
               <h2 style={{ fontSize: 16, fontWeight: 800, color: "#3f5323", margin: "0 0 8px" }}>ملاحظات المعلم</h2>
               <p style={{ color: "#374151", fontSize: 13, lineHeight: 1.9, whiteSpace: "pre-wrap", margin: 0 }}>{pdfExportTarget.teacherNotes || "لا توجد ملاحظات عامة مضافة لهذا التقرير."}</p>
             </div>
-            <p style={{ color: "#9ca3af", fontSize: 11, marginTop: 28, textAlign: "center" }}>تم إصدار التقرير بتاريخ {new Date().toLocaleDateString("ar-EG")} · هذا التقرير تعليمي وإرشادي</p>
+
+            <div style={{ marginTop: 18, padding: 16, borderRadius: 14, background: "#fbfcf9", border: "1px solid #e1e8d8" }}>
+              <h2 style={{ fontSize: 16, fontWeight: 800, color: "#3f5323", margin: "0 0 8px" }}>للتواصل مع المدرس</h2>
+              <p style={{ color: "#374151", fontSize: 13, margin: "0 0 5px" }}>الأستاذ: {pdfExportTarget.reportMeta.teacherName}</p>
+              <p dir="ltr" style={{ color: "#374151", fontSize: 13, margin: "0 0 5px", textAlign: "right" }}>رقم التواصل: {pdfExportTarget.reportMeta.teacherPhone || "غير متوفر"}</p>
+              <p dir="ltr" style={{ color: "#374151", fontSize: 13, margin: "0 0 5px", textAlign: "right" }}>للتواصل مع الإدارة: {pdfExportTarget.reportMeta.adminPhone || "غير متوفر"}</p>
+              <p style={{ color: "#6b7280", fontSize: 11, margin: "8px 0 0" }}>أنشأ التقرير: {pdfExportTarget.reportMeta.creatorName}{pdfExportTarget.reportMeta.creatorPhone ? ` · ${pdfExportTarget.reportMeta.creatorPhone}` : ""}</p>
+            </div>
+
+            <p style={{ color: "#6b7280", fontSize: 11, lineHeight: 1.8, marginTop: 22, textAlign: "center" }}>ENGLISH HUB — نتابع، نراقب، نؤهل، ونساعد أبناءكم على التطور والنجاح.</p>
+            <p style={{ color: "#9ca3af", fontSize: 11, marginTop: 8, textAlign: "center" }}>تم إصدار التقرير بتاريخ: {new Date(pdfExportTarget.reportMeta.issuedAt).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })} · هذا التقرير تعليمي وإرشادي</p>
           </div>
         </div>
       )}
