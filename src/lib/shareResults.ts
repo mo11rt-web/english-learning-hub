@@ -27,6 +27,10 @@ export interface StudentReportSnapshot {
   lessonsTotal: number;
   completionPercentage: number;
   quizAveragePercentage: number;
+  quizTotalScore: number;
+  quizMaxScore: number;
+  quizPercentage: number;
+  quizPerformanceLabel: string;
   rank: number | null;
   totalInGroup: number | null;
   quizResults: { title: string; score: number; maxScore: number; date: number; status: Attempt["status"] }[];
@@ -119,6 +123,27 @@ export async function computeStudentReportSnapshot(
             100
         )
       : 0;
+  const quizTotalScore = gradedForAverage.reduce(
+    (sum, attempt) => sum + (attempt.finalScore ?? attempt.autoScore ?? 0),
+    0
+  );
+  const quizMaxScore = gradedForAverage.reduce(
+    (sum, attempt) => sum + (attempt.maxScore ?? 0),
+    0
+  );
+  const quizPercentage = quizMaxScore > 0 ? Math.round((quizTotalScore / quizMaxScore) * 100) : 0;
+  const quizPerformanceLabel =
+    gradedForAverage.length === 0
+      ? "لا توجد نتائج"
+      : quizPercentage >= 90
+        ? "ممتاز"
+        : quizPercentage >= 80
+          ? "جيد جداً"
+          : quizPercentage >= 70
+            ? "جيد"
+            : quizPercentage >= 60
+              ? "مقبول"
+              : "يحتاج إلى متابعة";
 
   let rank: number | null = null;
   let totalInGroup: number | null = null;
@@ -147,6 +172,10 @@ export async function computeStudentReportSnapshot(
     lessonsTotal,
     completionPercentage,
     quizAveragePercentage,
+    quizTotalScore,
+    quizMaxScore,
+    quizPercentage,
+    quizPerformanceLabel,
     rank,
     totalInGroup,
     quizResults,

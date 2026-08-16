@@ -11,14 +11,18 @@ import { jsPDF } from "jspdf";
  */
 export async function exportHtmlToPdf(element: HTMLElement, filename: string): Promise<File> {
   const canvas = await html2canvas(element, {
-    scale: 2,
+    // القالب نفسه بحجم A4 تقريباً؛ دقة 1.25 كافية للنص العربي وتقلل حجم الملف مقارنةً بـ PNG وscale=2.
+    scale: 1.25,
     backgroundColor: "#ffffff",
     useCORS: true,
+    logging: false,
+    imageTimeout: 0,
   });
 
-  const imgData = canvas.toDataURL("image/png");
+  // JPEG مضغوط أصغر بكثير من PNG، مع بقاء الخطوط والعناصر الملونة واضحة للطباعة والمشاركة.
+  const imgData = canvas.toDataURL("image/jpeg", 0.78);
   const orientation = canvas.width > canvas.height ? "landscape" : "portrait";
-  const pdf = new jsPDF({ orientation, unit: "pt", format: "letter" });
+  const pdf = new jsPDF({ orientation, unit: "pt", format: "a4", compress: true });
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
   const scale = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
@@ -26,7 +30,7 @@ export async function exportHtmlToPdf(element: HTMLElement, filename: string): P
   const imageHeight = canvas.height * scale;
   const offsetX = (pageWidth - imageWidth) / 2;
   const offsetY = (pageHeight - imageHeight) / 2;
-  pdf.addImage(imgData, "PNG", offsetX, offsetY, imageWidth, imageHeight);
+  pdf.addImage(imgData, "JPEG", offsetX, offsetY, imageWidth, imageHeight, undefined, "FAST");
 
   const blob = pdf.output("blob");
   return new File([blob], filename, { type: "application/pdf" });

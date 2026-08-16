@@ -1153,88 +1153,102 @@ export default function StudentsPage() {
       {/* قالب PDF مخفي؛ يُرسم داخل المتصفح حتى تظهر العربية والرسوم بشكل صحيح. */}
       {pdfExportTarget && (
         <div style={{ position: "fixed", left: -99999, top: 0 }}>
-          <div id="student-pdf-template" style={{ position: "relative", width: 816, minHeight: 1056, boxSizing: "border-box", padding: "42px 48px", overflow: "hidden", background: "#ffffff", fontFamily: "Cairo, sans-serif", direction: "rtl", color: "#111827" }}>
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", zIndex: 0 }}>
-              <div style={{ transform: "rotate(-32deg)", color: "#556B2F", opacity: 0.075, fontSize: 54, fontWeight: 800, whiteSpace: "nowrap", letterSpacing: 1 }}>الأستاذ مهند علاوي</div>
-            </div>
+          <div id="student-pdf-template" style={{ position: "relative", width: 794, minHeight: 1123, boxSizing: "border-box", padding: "34px 46px 28px", overflow: "hidden", background: "#ffffff", fontFamily: "Cairo, sans-serif", direction: "rtl", color: "#111827", border: "2px solid #556B2F", borderRadius: 15, boxShadow: "inset 0 0 0 3px #eef1e9" }}>
+            <div style={{ position: "absolute", top: 285, left: -120, transform: "rotate(-32deg)", color: "#70845e", opacity: 0.07, fontSize: 48, fontWeight: 800, whiteSpace: "nowrap", pointerEvents: "none", zIndex: 0 }}>الأستاذ مهند علاوي</div>
             <div style={{ position: "relative", zIndex: 1 }}>
-              <div style={{ height: 8, background: "#556B2F", borderRadius: 8, marginBottom: 22 }} />
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 20 }}>
-                <div>
-                  <p style={{ color: "#111827", fontSize: 22, fontWeight: 800, letterSpacing: 1, margin: 0 }}>ENGLISH HUB</p>
-                  <p style={{ color: "#556B2F", fontSize: 13, fontWeight: 700, margin: "5px 0 0" }}>{REPORT_TEACHER_NAME}</p>
-                  <h1 style={{ color: "#111827", fontSize: 26, fontWeight: 800, margin: "18px 0 5px" }}>تقرير تقدم الطالب</h1>
-                  <p style={{ color: "#6b7280", fontSize: 12, margin: 0 }}>متابعة تعليمية مختصرة وواضحة</p>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, minHeight: 162 }}>
+                <div style={{ textAlign: "right" }}>
+                  <p style={{ color: "#111827", fontSize: 24, fontWeight: 900, letterSpacing: 0.8, margin: 0 }}>ENGLISH HUB</p>
+                  <p style={{ color: "#556B2F", fontSize: 13, fontWeight: 700, margin: "4px 0 0" }}>{REPORT_TEACHER_NAME}</p>
+                  <h1 style={{ color: "#111827", fontSize: 27, fontWeight: 900, margin: "26px 0 4px" }}>تقرير تقدم الطالب</h1>
+                  <p style={{ color: "#6b7280", fontSize: 13, margin: 0 }}>متابعة تعليمية دقيقة ونتائج واضحة</p>
                 </div>
-                <div style={{ width: 116, height: 116, borderRadius: "50%", background: `conic-gradient(#556B2F ${pdfExportTarget.report.completionPercentage * 3.6}deg, #edf1e8 0deg)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <div style={{ width: 88, height: 88, borderRadius: "50%", background: "#ffffff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#111827" }}>
-                    <strong style={{ color: "#556B2F", fontSize: 25, lineHeight: 1 }}>{pdfExportTarget.report.completionPercentage}%</strong>
-                    <span style={{ color: "#6b7280", fontSize: 11, marginTop: 7 }}>نسبة التقدم</span>
+                <div style={{ width: 142, textAlign: "center", flexShrink: 0 }}>
+                  <div style={{ width: 42, height: 42, margin: "0 auto 7px", borderRadius: "50%", border: "1px solid #cfd7c7", background: "#f8faf6", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="#556B2F" /><path d="M7.5 12.3 10.5 15l6-6" stroke="#fff" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
                   </div>
+                  <strong style={{ display: "block", color: "#556B2F", fontSize: 34, lineHeight: 1 }}>{pdfExportTarget.report.completionPercentage}%</strong>
+                  <span style={{ display: "block", color: "#111827", fontSize: 12, marginTop: 7 }}>نسبة التقدم الإجمالية</span>
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginTop: 24 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#556B2F", fontSize: 17, fontWeight: 800, margin: "2px 0 10px" }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5" fill="#556B2F" /><path d="M5 20c.7-3.6 3.1-5.5 7-5.5s6.3 1.9 7 5.5" fill="#556B2F" /></svg>
+                <span style={{ borderBottom: "3px solid #a63d40", paddingBottom: 3 }}>معلومات الطالب</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0, background: "#fbfcfa", border: "1px solid #d8ded4", borderRadius: 13, overflow: "hidden" }}>
                 {[
                   ["اسم الطالب", pdfExportTarget.fullName],
                   ["المجموعة", pdfExportTarget.report.groupName || "غير محددة"],
                   ["الصف", pdfExportTarget.report.stageName || "غير محدد"],
-                ].map(([label, value]) => (
-                  <div key={label} style={{ background: "#f7f8f5", border: "1px solid #dfe5d7", borderRadius: 10, padding: "12px 13px", minHeight: 62 }}>
-                    <p style={{ color: "#6b7280", fontSize: 10, margin: 0 }}>{label}</p>
-                    <p style={{ color: "#111827", fontSize: 14, fontWeight: 800, margin: "6px 0 0", overflowWrap: "anywhere" }}>{value}</p>
+                ].map(([label, value], index) => (
+                  <div key={label} style={{ padding: "13px 15px", minHeight: 68, borderLeft: index < 2 ? "1px solid #d8ded4" : undefined }}>
+                    <p style={{ color: "#556B2F", fontSize: 12, fontWeight: 700, margin: 0 }}>{label}</p>
+                    <p style={{ color: "#111827", fontSize: 16, fontWeight: 800, margin: "8px 0 0", overflowWrap: "anywhere" }}>{value}</p>
                   </div>
                 ))}
               </div>
 
-              <div style={{ marginTop: 20, padding: 16, borderRadius: 12, border: "1px solid #dfe5d7", background: "#ffffff" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "#111827", fontSize: 13, fontWeight: 800 }}>
-                  <span>نسبة التقدم في الدروس</span>
-                  <span style={{ color: "#556B2F" }}>{pdfExportTarget.report.lessonsCompleted} من {pdfExportTarget.report.lessonsTotal}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#556B2F", fontSize: 17, fontWeight: 800, margin: "22px 0 10px" }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0V2h4v17h-4Z" fill="#556B2F" /></svg>
+                <span style={{ borderBottom: "3px solid #a63d40", paddingBottom: 3 }}>نسبة التقدم في الدروس</span>
+              </div>
+              <div style={{ display: "flex", direction: "ltr", alignItems: "center", gap: 24, padding: 18, border: "1px solid #d8ded4", borderRadius: 14, background: "#ffffff", minHeight: 178 }}>
+                <div style={{ width: 155, height: 155, borderRadius: "50%", background: `conic-gradient(#556B2F ${pdfExportTarget.report.completionPercentage * 3.6}deg, #edf1e8 0deg)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <div style={{ width: 102, height: 102, borderRadius: "50%", background: "#ffffff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", direction: "rtl" }}>
+                    <strong style={{ color: "#556B2F", fontSize: 19, lineHeight: 1.2 }}>{pdfExportTarget.report.lessonsCompleted} من {pdfExportTarget.report.lessonsTotal}</strong>
+                    <strong style={{ color: "#556B2F", fontSize: 20, marginTop: 5 }}>{pdfExportTarget.report.completionPercentage}%</strong>
+                  </div>
                 </div>
-                <div style={{ height: 16, background: "#edf1e8", borderRadius: 10, marginTop: 12, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${pdfExportTarget.report.completionPercentage}%`, background: "#556B2F", borderRadius: 10 }} />
+                <div style={{ flex: 1, direction: "rtl", color: "#111827" }}>
+                  <p style={{ color: "#556B2F", fontSize: 15, fontWeight: 800, margin: "0 0 7px" }}>{pdfExportTarget.report.completionPercentage === 100 ? "أنت على المسار الصحيح!" : "استمر في التقدم!"}</p>
+                  <p style={{ color: "#374151", fontSize: 13, margin: "0 0 12px" }}>{pdfExportTarget.report.completionPercentage === 100 ? "لقد أتممت جميع الدروس." : `أتممت ${pdfExportTarget.report.lessonsCompleted} من أصل ${pdfExportTarget.report.lessonsTotal} دروس.`}</p>
+                  <div style={{ height: 13, background: "#edf1e8", borderRadius: 10, overflow: "hidden", direction: "rtl" }}><div style={{ height: "100%", width: `${pdfExportTarget.report.completionPercentage}%`, background: "#556B2F", borderRadius: 10 }} /></div>
+                  <p style={{ color: "#6b7280", fontSize: 11, margin: "8px 0 0" }}>النسبة محسوبة بناءً على الدروس المكتملة من إجمالي الدروس المتاحة.</p>
+                  <ul style={{ margin: "8px 0 0", paddingRight: 20, color: "#374151", fontSize: 11, lineHeight: 1.7 }}><li>استمر في التعلم لتحقيق المزيد من التقدم والتميز.</li></ul>
                 </div>
-                <p style={{ color: "#6b7280", fontSize: 11, margin: "9px 0 0" }}>النسبة محسوبة من الدروس المكتملة مقارنةً بإجمالي دروس الصف.</p>
               </div>
 
-              <div style={{ marginTop: 20 }}>
-                <h2 style={{ color: "#556B2F", fontSize: 17, fontWeight: 800, margin: "0 0 9px", borderRight: "4px solid #a63d40", paddingRight: 9 }}>نتائج الاختبارات</h2>
-                <ul style={{ margin: 0, paddingRight: 22, color: "#111827", fontSize: 12, lineHeight: 1.8 }}>
-                  {pdfExportTarget.report.quizResults.length === 0 ? (
-                    <li>لا توجد نتائج اختبارات مسجلة حتى الآن.</li>
-                  ) : pdfExportTarget.report.quizResults.slice(0, 6).map((result, index) => {
-                    const pending = result.status === "pending-review";
-                    const percentage = result.maxScore > 0 ? Math.round((result.score / result.maxScore) * 100) : 0;
-                    return <li key={`${result.title}-${index}`} style={{ marginBottom: 7 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                        <span style={{ width: 165, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{result.title}</span>
-                        <div style={{ flex: 1, height: 9, background: "#edf1e8", borderRadius: 8, overflow: "hidden" }}><div style={{ height: "100%", width: `${pending ? 0 : percentage}%`, background: pending ? "#a63d40" : "#556B2F", borderRadius: 8 }} /></div>
-                        <strong style={{ minWidth: 44, color: pending ? "#a63d40" : "#556B2F", textAlign: "left" }}>{pending ? "مراجعة" : `${percentage}%`}</strong>
-                      </div>
-                    </li>;
-                  })}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#556B2F", fontSize: 17, fontWeight: 800, margin: "22px 0 10px" }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2" fill="none" stroke="#556B2F" strokeWidth="2" /><path d="m8 12 2.3 2.3L16 8.7M8 17h8" fill="none" stroke="#556B2F" strokeWidth="2" strokeLinecap="round" /></svg>
+                <span style={{ borderBottom: "3px solid #a63d40", paddingBottom: 3 }}>نتائج الاختبارات</span>
+              </div>
+              <div style={{ padding: "12px 18px", border: "1px solid #d8ded4", borderRadius: 14, background: "#ffffff" }}>
+                <ul style={{ margin: 0, paddingRight: 22, color: "#111827", fontSize: 13, lineHeight: 1.85 }}>
+                  <li>مجموع درجات الاختبارات: <strong>{pdfExportTarget.report.quizTotalScore}</strong></li>
+                  <li>الدرجة الكلية: <strong>{pdfExportTarget.report.quizMaxScore}</strong></li>
+                  <li>النسبة المئوية: <strong style={{ color: "#556B2F" }}>{pdfExportTarget.report.quizPercentage}%</strong></li>
+                  <li>مستوى الأداء: <strong style={{ color: pdfExportTarget.report.quizPercentage < 60 ? "#a63d40" : "#556B2F" }}>{pdfExportTarget.report.quizPerformanceLabel}</strong></li>
                 </ul>
               </div>
 
-              <div style={{ marginTop: 20, padding: 15, borderRadius: 12, background: "#f7f8f5", borderRight: "5px solid #a63d40" }}>
-                <h2 style={{ color: "#111827", fontSize: 16, fontWeight: 800, margin: "0 0 8px" }}>ملاحظات المعلم</h2>
-                <ul style={{ margin: 0, paddingRight: 21, color: "#111827", fontSize: 12, lineHeight: 1.9 }}>
-                  {toReportBullets(pdfExportTarget.teacherNotes, "لا توجد ملاحظات مضافة لهذا التقرير.").map((note, index) => <li key={`${note}-${index}`}>{note}</li>)}
-                </ul>
-              </div>
-
-              <div style={{ marginTop: 18, padding: 14, borderRadius: 12, background: "#ffffff", border: "1px solid #dfe5d7" }}>
-                <h2 style={{ color: "#556B2F", fontSize: 15, fontWeight: 800, margin: "0 0 8px" }}>للتواصل مع الأستاذ</h2>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#111827", fontSize: 13 }}>
-                  <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#25D366" /><path fill="#ffffff" d="M16.7 13.9c-.2-.1-1.2-.6-1.4-.7-.2-.1-.3-.1-.5.1-.1.2-.5.7-.6.8-.1.1-.2.1-.4 0-1.1-.5-1.9-1-2.6-2.1-.2-.4.2-.4.5-1.2.1-.2 0-.3-.1-.4-.1-.1-.5-1.2-.7-1.6-.2-.5-.4-.4-.4-.4-.1 0-.3.1-.4.2-.4.2-.7.6-.7 1.4 0 .8.6 1.6.7 1.7.1.1 1.2 1.9 3 2.6 1.1.5 1.5.5 2.1.4.3 0 .9-.4 1.1-.7.1-.3.2-.6.1-.7-.1-.1-.2-.1-.5-.2z" /></svg>
-                  <span>واتساب الأستاذ مهند علاوي:</span>
-                  <a dir="ltr" href={`https://wa.me/${pdfExportTarget.reportMeta.teacherPhone.replace(/[^0-9]/g, "")}`} style={{ color: "#a63d40", fontWeight: 800, textDecoration: "none" }}>{pdfExportTarget.reportMeta.teacherPhone}</a>
+              {pdfExportTarget.teacherNotes.trim() && <>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#556B2F", fontSize: 17, fontWeight: 800, margin: "22px 0 10px" }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16 9.8-9.8 4 4L8 20H4v-4Z" fill="none" stroke="#a63d40" strokeWidth="2" strokeLinejoin="round" /><path d="m14 6 2-2 4 4-2 2" fill="none" stroke="#a63d40" strokeWidth="2" /></svg>
+                  <span style={{ borderBottom: "3px solid #a63d40", paddingBottom: 3 }}>ملاحظات المعلم</span>
                 </div>
+                <div style={{ padding: "12px 18px", border: "1px solid #e1b7b8", borderRight: "5px solid #a63d40", borderRadius: 14, background: "#fffdfd" }}>
+                  <ul style={{ margin: 0, paddingRight: 22, color: "#111827", fontSize: 13, lineHeight: 1.85 }}>
+                    {toReportBullets(pdfExportTarget.teacherNotes, "").map((note, index) => <li key={`${note}-${index}`}>{note}</li>)}
+                  </ul>
+                </div>
+              </>}
+
+              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#556B2F", fontSize: 17, fontWeight: 800, margin: "22px 0 10px" }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a9.8 9.8 0 0 0-8.5 14.7L2 22l5.5-1.4A10 10 0 1 0 12 2Z" fill="none" stroke="#25D366" strokeWidth="2" /><path d="M8.5 8.5c.2 3.3 3.7 6.8 7 7 .7 0 1.2-.4 1.5-1.1l.3-.8-2.2-1-.7.9c-1.4-.5-2.5-1.6-3-3l.9-.7-1-2.2-.8.3c-.7.3-1.1.8-1.1 1.6Z" fill="#25D366" /></svg>
+                <span style={{ borderBottom: "3px solid #a63d40", paddingBottom: 3 }}>للتواصل مع الأستاذ</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, padding: "13px 18px", border: "1px solid #d8ded4", borderRadius: 14, background: "#ffffff" }}>
+                <div style={{ color: "#111827", fontSize: 13 }}><strong>{REPORT_TEACHER_NAME}</strong><br /><span style={{ color: "#a63d40", fontWeight: 700 }}>تواصل عبر واتساب</span></div>
+                <a dir="ltr" href={`https://wa.me/${pdfExportTarget.reportMeta.teacherPhone.replace(/[^0-9]/g, "")}`} style={{ display: "inline-flex", alignItems: "center", gap: 9, color: "#25D366", fontSize: 18, fontWeight: 900, textDecoration: "none" }}>
+                  <svg width="27" height="27" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#25D366" /><path fill="#ffffff" d="M16.7 13.9c-.2-.1-1.2-.6-1.4-.7-.2-.1-.3-.1-.5.1-.1.2-.5.7-.6.8-.1.1-.2.1-.4 0-1.1-.5-1.9-1-2.6-2.1-.2-.4.2-.4.5-1.2.1-.2 0-.3-.1-.4-.1-.1-.5-1.2-.7-1.6-.2-.5-.4-.4-.4-.4-.1 0-.3.1-.4.2-.4.2-.7.6-.7 1.4 0 .8.6 1.6.7 1.7.1.1 1.2 1.9 3 2.6 1.1.5 1.5.5 2.1.4.3 0 .9-.4 1.1-.7.1-.3.2-.6.1-.7-.1-.1-.2-.1-.5-.2z" /></svg>
+                  {pdfExportTarget.reportMeta.teacherPhone}
+                </a>
               </div>
 
-              <div style={{ borderTop: "1px solid #dfe5d7", marginTop: 22, paddingTop: 12, textAlign: "center" }}>
-                <p style={{ color: "#556B2F", fontSize: 11, margin: 0 }}>ENGLISH HUB — متابعة واضحة تساعد الطالب على التطور والنجاح.</p>
+              <div style={{ borderTop: "1px solid #cfd7c7", marginTop: 22, paddingTop: 12, textAlign: "center" }}>
+                <p style={{ color: "#556B2F", fontSize: 11, margin: 0 }}>ENGLISH HUB — منصة تعليمية متكاملة لتعلم اللغة الإنجليزية</p>
+                <p style={{ color: "#556B2F", fontSize: 11, margin: "5px 0 0" }}>تعلم <span style={{ color: "#a63d40" }}>•</span> أتقن <span style={{ color: "#a63d40" }}>•</span> تميز</p>
                 <p style={{ color: "#6b7280", fontSize: 10, margin: "6px 0 0" }}>تم إصدار التقرير بتاريخ: {new Date(pdfExportTarget.reportMeta.issuedAt).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}</p>
               </div>
             </div>
