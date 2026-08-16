@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { collection, onSnapshot, query, where, orderBy, deleteDoc, doc } from "firebase/firestore";
+import { collection, onSnapshot, query, where, orderBy, limit, deleteDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
 import { Notification } from "@/lib/types";
@@ -40,7 +40,8 @@ export function NotificationBell() {
     const q = query(
       collection(db, "notifications"),
       where("userId", "==", user.uid),
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc"),
+      limit(20)
     );
     const unsub = onSnapshot(q, (snap) => {
       setItems(snap.docs.map((d) => ({ ...(d.data() as Notification), id: d.id })));

@@ -48,8 +48,8 @@ export function GlobalErrorToast() {
 
   return (
     <div
-      className="fixed z-[60] left-1/2 -translate-x-1/2 flex flex-col gap-2 items-center w-[calc(100%-2rem)] max-w-sm"
-      style={{ bottom: "calc(6.5rem + env(safe-area-inset-bottom, 0px))" }}
+      className="fixed z-[60] left-1/2 -translate-x-1/2 flex flex-col gap-2 items-center w-[calc(100%-2rem)] max-w-sm pointer-events-none"
+      style={{ bottom: "calc(9rem + env(safe-area-inset-bottom, 0px))" }}
     >
       {toasts.map((t) => (
         <div

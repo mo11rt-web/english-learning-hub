@@ -24,7 +24,7 @@ export default function StudentResultsPage() {
     setError(null);
     setReport(null);
     user
-      .getIdToken(true)
+      .getIdToken()
       .then((idToken) => computeStudentReport(user.uid, idToken))
       .then((data) => {
         if (!cancelled) setReport(data);

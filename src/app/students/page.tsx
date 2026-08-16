@@ -352,7 +352,11 @@ export default function StudentsPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
         },
-        body: JSON.stringify({ uid: permanentDeleteTarget.id }),
+        body: JSON.stringify({
+          uid: permanentDeleteTarget.uid || permanentDeleteTarget.id,
+          profileId: permanentDeleteTarget.id,
+          phone: permanentDeleteTarget.phone || permanentDeleteTarget.username || "",
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -384,7 +388,12 @@ export default function StudentsPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
         },
-        body: JSON.stringify({ uid: passwordInfoTarget.id, newPassword: newPasswordValue.trim() }),
+        body: JSON.stringify({
+          uid: passwordInfoTarget.uid || passwordInfoTarget.id,
+          profileId: passwordInfoTarget.id,
+          phone: passwordInfoTarget.phone || passwordInfoTarget.username || "",
+          newPassword: newPasswordValue.trim(),
+        }),
       });
       const data = await res.json();
       if (!res.ok) {

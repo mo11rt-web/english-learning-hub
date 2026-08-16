@@ -110,7 +110,7 @@ export function AppShell({
         <MobileSidebar />
         <div className="flex-1 min-w-0 flex flex-col">
           <TopBar />
-          <main className="flex-1 p-4 md:p-8 pb-28 md:pb-8 max-w-full overflow-x-hidden">
+          <main className="flex-1 p-4 md:p-8 pb-36 md:pb-8 max-w-full overflow-x-hidden">
             {children}
           </main>
         </div>

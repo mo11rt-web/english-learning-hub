@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
+import { findStudentProfile } from "@/lib/adminStudentLookup";
 
 function getBearerToken(req: NextRequest) {
   const value = req.headers.get("authorization") ?? "";
@@ -7,7 +8,7 @@ function getBearerToken(req: NextRequest) {
 }
 
 function errorMessage(err: any) {
-  if (typeof err?.message === "string" && err.message.includes("متغيرات حساب خدمة Firebase")) {
+  if (typeof err?.message === "string" && (err.message.includes("متغيرات حساب خدمة Firebase") || err.message.includes("حساب خدمة Firebase JSON"))) {
     return "إعدادات Firebase Admin غير مكتملة على الخادم.";
   }
   if (err?.code === "auth/user-not-found") return "حساب الطالب غير موجود في Firebase Authentication.";
@@ -35,26 +36,27 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
     const uid = typeof body?.uid === "string" ? body.uid.trim() : "";
+    const profileId = typeof body?.profileId === "string" ? body.profileId.trim() : "";
+    const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
     const newPassword = typeof body?.newPassword === "string" ? body.newPassword : "";
-    if (!uid || !newPassword) {
+    if (!(uid || profileId) || !newPassword) {
       return NextResponse.json({ error: "معرّف الطالب وكلمة المرور مطلوبان." }, { status: 400 });
     }
     if (newPassword.length < 6) {
       return NextResponse.json({ error: "كلمة المرور يجب أن تكون 6 أحرف/أرقام على الأقل." }, { status: 400 });
     }
-    if (uid === decoded.uid) {
+    const target = await findStudentProfile(db, profileId || uid, phone);
+    if (!target) {
+      return NextResponse.json({ error: "ملف الطالب غير موجود." }, { status: 404 });
+    }
+    if (target.data.role !== "student") {
+      return NextResponse.json({ error: "يمكن تغيير كلمات مرور الطلاب فقط من هذه الصفحة." }, { status: 400 });
+    }
+    if (target.authUid === decoded.uid) {
       return NextResponse.json({ error: "استخدم إعدادات حسابك لتغيير كلمة مرورك أنت." }, { status: 400 });
     }
 
-    const targetSnap = await db.doc(`profiles/${uid}`).get();
-    if (!targetSnap.exists) {
-      return NextResponse.json({ error: "ملف الطالب غير موجود." }, { status: 404 });
-    }
-    if (targetSnap.data()?.role !== "student") {
-      return NextResponse.json({ error: "يمكن تغيير كلمات مرور الطلاب فقط من هذه الصفحة." }, { status: 400 });
-    }
-
-    await auth.updateUser(uid, { password: newPassword });
+    await auth.updateUser(target.authUid, { password: newPassword });
     return NextResponse.json({ ok: true });
   } catch (err: any) {
     console.error("[reset-password] error:", err);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 import type { Firestore } from "firebase-admin/firestore";
+import { findStudentProfile } from "@/lib/adminStudentLookup";
 
 const CLEANUP_QUERIES: { collection: string; field: string }[] = [
   { collection: "attempts", field: "studentId" },
@@ -14,7 +15,7 @@ function errorMessage(err: any) {
   if (err?.code === "auth/argument-error" || err?.code === "auth/invalid-id-token") {
     return "جلسة الدخول غير صالحة، سجّل الدخول من جديد.";
   }
-  if (typeof err?.message === "string" && err.message.includes("متغيرات حساب خدمة Firebase")) {
+  if (typeof err?.message === "string" && (err.message.includes("متغيرات حساب خدمة Firebase") || err.message.includes("حساب خدمة Firebase JSON"))) {
     return "إعدادات Firebase Admin غير مكتملة على الخادم.";
   }
   return "حدث خطأ أثناء الحذف النهائي.";
@@ -65,24 +66,25 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
     const uid = typeof body?.uid === "string" ? body.uid.trim() : "";
-    if (!uid) {
+    const profileId = typeof body?.profileId === "string" ? body.profileId.trim() : "";
+    const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
+    if (!(uid || profileId)) {
       return NextResponse.json({ error: "معرّف الطالب مطلوب." }, { status: 400 });
     }
-    if (uid === decoded.uid) {
+
+    const target = await findStudentProfile(db, profileId || uid, phone);
+    if (!target) {
+      return NextResponse.json({ error: "ملف الطالب غير موجود." }, { status: 404 });
+    }
+    if (target.data.role !== "student") {
+      return NextResponse.json({ error: "يمكن حذف حسابات الطلاب فقط." }, { status: 400 });
+    }
+    if (target.authUid === decoded.uid) {
       return NextResponse.json({ error: "لا يمكن حذف حسابك الحالي من هذه الصفحة." }, { status: 400 });
     }
 
-    const targetRef = db.doc(`profiles/${uid}`);
-    const targetSnap = await targetRef.get();
-    if (!targetSnap.exists) {
-      return NextResponse.json({ error: "ملف الطالب غير موجود." }, { status: 404 });
-    }
-    if (targetSnap.data()?.role !== "student") {
-      return NextResponse.json({ error: "يمكن حذف حسابات الطلاب فقط." }, { status: 400 });
-    }
-
     try {
-      await auth.deleteUser(uid);
+      await auth.deleteUser(target.authUid);
     } catch (err: any) {
       // إذا كان حساب Auth محذوفًا مسبقًا، نكمل تنظيف Firestore حتى لا يبقى
       // ملف محذوف يمنع إدارة البيانات لاحقًا.
@@ -90,9 +92,9 @@ export async function POST(req: NextRequest) {
     }
 
     for (const query of CLEANUP_QUERIES) {
-      await deleteMatchingDocuments(db, query.collection, query.field, uid);
+      await deleteMatchingDocuments(db, query.collection, query.field, target.authUid);
     }
-    await targetRef.delete();
+    await target.ref.delete();
 
     return NextResponse.json({ ok: true });
   } catch (err: any) {

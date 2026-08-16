@@ -55,7 +55,7 @@ export default function TakeAssignmentPage() {
     setError(null);
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 15000);
-    user.getIdToken(true)
+    user.getIdToken()
       .then((token) => fetch(`/api/student/assignment-questions?assignmentId=${encodeURIComponent(assignmentId)}`, {
         headers: { Authorization: `Bearer ${token}` },
         signal: controller.signal,
