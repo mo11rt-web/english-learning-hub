@@ -51,6 +51,19 @@ function toReportBullets(value: string, fallback: string) {
   return items.length > 0 ? items : [fallback];
 }
 
+const SYRIAN_MONTHS = [
+  "كانون الثاني", "شباط", "آذار", "نيسان", "أيار", "حزيران",
+  "تموز", "آب", "أيلول", "تشرين الأول", "تشرين الثاني", "كانون الأول"
+];
+
+function formatSyrianDate(timestamp: number) {
+  const date = new Date(timestamp);
+  const day = date.getDate();
+  const month = SYRIAN_MONTHS[date.getMonth()];
+  const year = date.getFullYear();
+  return `${day} ${month} ${year}`;
+}
+
 type StudentBackupRecord = {
   uid?: string;
   fullName: string;
@@ -1154,8 +1167,8 @@ export default function StudentsPage() {
       {pdfExportTarget && (
         <div style={{ position: "fixed", left: -99999, top: 0 }}>
           <div id="student-pdf-template" style={{ position: "relative", width: "794px", minHeight: "1123px", boxSizing: "border-box", padding: "45px 50px 35px", overflow: "hidden", background: "#ffffff", fontFamily: "var(--font-arabic), Cairo, Tahoma, sans-serif", direction: "rtl", color: "#111827", wordSpacing: "normal", letterSpacing: "normal", fontKerning: "normal", border: "2px solid #556B4F", borderRadius: "12px" }}>
-            {/* العلامة المائية: هادئة، مائلة، وبشفافية منخفضة جداً */}
-            <div style={{ position: "absolute", zIndex: 0, pointerEvents: "none", userSelect: "none", color: "#556B4F", opacity: 0.045, fontSize: "42px", fontWeight: 800, transform: "rotate(-28deg)", whiteSpace: "nowrap", right: "-25mm", bottom: "55mm" }}>
+            {/* العلامة المائية: هادئة، مائلة، وبشفافية خفيفة (تم رفعها قليلاً لتكون ظاهرة) */}
+            <div style={{ position: "absolute", zIndex: 0, pointerEvents: "none", userSelect: "none", color: "#556B4F", opacity: 0.08, fontSize: "46px", fontWeight: 800, transform: "rotate(-28deg)", whiteSpace: "nowrap", right: "-20mm", bottom: "60mm" }}>
               الأستاذ مهند علاوي
             </div>
 
@@ -1181,7 +1194,7 @@ export default function StudentsPage() {
               {/* معلومات الطالب */}
               <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#556B4F", fontSize: "16px", fontWeight: 800, marginBottom: "12px" }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                <span style={{ borderBottom: "3px solid #B33A3A", paddingBottom: "2px" }}>معلومات الطالب</span>
+                <span style={{ borderBottom: "3px solid #B33A3A", paddingBottom: "5px", display: "inline-block" }}>معلومات الطالب</span>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", background: "#FFFDF8", border: "1px solid #DDE4D8", borderRadius: "10px", overflow: "hidden", marginBottom: "30px" }}>
                 {[
@@ -1199,7 +1212,7 @@ export default function StudentsPage() {
               {/* نسبة التقدم في الدروس */}
               <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#556B4F", fontSize: "16px", fontWeight: 800, marginBottom: "12px" }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
-                <span style={{ borderBottom: "3px solid #B33A3A", paddingBottom: "2px" }}>نسبة التقدم في الدروس</span>
+                <span style={{ borderBottom: "3px solid #B33A3A", paddingBottom: "5px", display: "inline-block" }}>نسبة التقدم في الدروس</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "35px", padding: "22px", border: "1px solid #DDE4D8", borderRadius: "12px", background: "#ffffff", marginBottom: "30px" }}>
                 <div style={{ position: "relative", width: "115px", height: "115px", flexShrink: 0 }}>
@@ -1232,7 +1245,7 @@ export default function StudentsPage() {
               {/* نتائج الاختبارات */}
               <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#556B4F", fontSize: "16px", fontWeight: 800, marginBottom: "12px" }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
-                <span style={{ borderBottom: "3px solid #B33A3A", paddingBottom: "2px" }}>نتائج الاختبارات</span>
+                <span style={{ borderBottom: "3px solid #B33A3A", paddingBottom: "5px", display: "inline-block" }}>نتائج الاختبارات</span>
               </div>
               <div style={{ padding: "18px 22px", border: "1px solid #DDE4D8", borderRadius: "12px", background: "#ffffff", marginBottom: "30px" }}>
                 <ul style={{ margin: 0, paddingRight: "20px", color: "#111827", fontSize: "13px", lineHeight: 2 }}>
@@ -1247,8 +1260,9 @@ export default function StudentsPage() {
               {pdfExportTarget.teacherNotes.trim() && (
                 <>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#556B4F", fontSize: "16px", fontWeight: 800, marginBottom: "12px" }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                    <span style={{ borderBottom: "3px solid #B33A3A", paddingBottom: "2px" }}>ملاحظات المعلم</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#B33A3A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                    <span style={{ borderBottom: "3px solid #B33A3A", paddingBottom: "5px", display: "inline-block" }}>ملاحظات المعلم</span>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B33A3A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: "auto" }}><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                   </div>
                   <div style={{ padding: "18px 22px", background: "#FCFCFA", borderRight: "4px solid #B33A3A", borderRadius: "12px", marginBottom: "30px" }}>
                     <ul style={{ margin: 0, paddingRight: "20px", color: "#111827", fontSize: "13px", lineHeight: 2 }}>
@@ -1261,24 +1275,24 @@ export default function StudentsPage() {
               {/* التواصل مع الأستاذ */}
               <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#556B4F", fontSize: "16px", fontWeight: 800, marginBottom: "12px" }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.79 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l2.18-2.18a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                <span style={{ borderBottom: "3px solid #B33A3A", paddingBottom: "2px" }}>للتواصل مع الأستاذ</span>
+                <span style={{ borderBottom: "3px solid #B33A3A", paddingBottom: "5px", display: "inline-block" }}>للتواصل مع الأستاذ</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 22px", border: "1px solid #DDE4D8", borderRadius: "12px", background: "#ffffff", marginBottom: "35px" }}>
                 <div>
                   <p style={{ color: "#111827", fontSize: "14px", fontWeight: 800, margin: 0 }}>الأستاذ مهند علاوي</p>
                   <p style={{ color: "#B33A3A", fontSize: "12px", fontWeight: 700, margin: "4px 0 0" }}>تواصل عبر واتساب</p>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                   <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#25D366" /><path fill="#ffffff" d="M16.7 13.9c-.2-.1-1.2-.6-1.4-.7-.2-.1-.3-.1-.5.1-.1.2-.5.7-.6.8-.1.1-.2.1-.4 0-1.1-.5-1.9-1-2.6-2.1-.2-.4.2-.4.5-1.2.1-.2 0-.3-.1-.4-.1-.1-.5-1.2-.7-1.6-.2-.5-.4-.4-.4-.4-.1 0-.3.1-.4.2-.4.2-.7.6-.7 1.4 0 .8.6 1.6.7 1.7.1.1 1.2 1.9 3 2.6 1.1.5 1.5.5 2.1.4.3 0 .9-.4 1.1-.7.1-.3.2-.6.1-.7-.1-.1-.2-.1-.5-.2z" /></svg>
-                  <span dir="ltr" style={{ color: "#111827", fontSize: "18px", fontWeight: 900 }}>{pdfExportTarget.reportMeta.teacherPhone}</span>
+                  <span dir="ltr" style={{ color: "#111827", fontSize: "20px", fontWeight: 900, display: "flex", alignItems: "center" }}>{pdfExportTarget.reportMeta.teacherPhone}</span>
                 </div>
               </div>
 
               {/* Footer */}
               <div style={{ borderTop: "1px solid #DDE4D8", paddingTop: "15px", textAlign: "center" }}>
-                <p style={{ color: "#556B4F", fontSize: "11px", fontWeight: 700, margin: 0 }}>ENGLISH HUB — منصة تعليمية متكاملة لتعلم اللغة الإنجليزية</p>
+                <p style={{ color: "#556B4F", fontSize: "12px", fontWeight: 700, margin: 0 }}>ENGLISH HUB — المنصة الأولى من نوعها في منبج لتعلم اللغة الإنجليزية ✅ 📚 🎓</p>
                 <p style={{ color: "#556B4F", fontSize: "11px", margin: "6px 0 0" }}>تعلم <span style={{ color: "#B33A3A" }}>•</span> أتقن <span style={{ color: "#B33A3A" }}>•</span> تميز</p>
-                <p style={{ color: "#6B7280", fontSize: "10px", margin: "8px 0 0" }}>تم إصدار التقرير بتاريخ: {new Date(pdfExportTarget.reportMeta.issuedAt).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}</p>
+                <p style={{ color: "#6B7280", fontSize: "10px", margin: "8px 0 0" }}>تم إصدار التقرير بتاريخ: {formatSyrianDate(pdfExportTarget.reportMeta.issuedAt)}</p>
               </div>
             </div>
           </div>
