@@ -44,20 +44,12 @@ service cloud.firestore {
     match /units/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
 
     match /lessons/{id} {
-      // منشور بس ما بيكفي — لازم كمان الدرس يكون بدون تحديد مجموعات
-      // (يفتح لكل الطلاب، ويُخزَّن بالقيمة المميزة "__all__") أو الطالب
-      // يكون فعليًا بواحدة من المجموعات المستهدفة. الشرط هون لازم يطابق
-      // استعلام صفحة الطالب بالضبط (array-contains-any) — Firestore ما
-      // بيسمح بتنفيذ استعلام "list" إلا إذا قدر يثبت مسبقًا أن كل نتيجة
-      // محتملة بتحقق شرط القاعدة، وهذا غير ممكن إذا كان الشرط هون يعتمد
-      // حقل (targetGroupIds) مش موجود أصلًا كشرط where بنفس الاستعلام.
-      // الشرط هون مكتوب كـ hasAny() وحيدة على قائمة واحدة (مجموعات الطالب +
-      // القيمة المميزة) بدل شرطين OR منفصلين، لأن Firestore بيتحقق مسبقًا
-      // من توافق استعلامات array-contains-any مع القاعدة فقط لما تكون
-      // مكتوبة بهذا الشكل البسيط المطابق تمامًا لقيمة الاستعلام نفسها.
+      // الاستعلام العام في واجهة الطالب يقيّد المرحلة والحالة فقط، ثم تُطبّق
+      // تصفية المجموعات في الواجهة. هذا ضروري لدعم الدروس القديمة التي كانت
+      // تُحفظ بمصفوفة targetGroupIds فارغة قبل اعتماد القيمة __all__، ولمنع
+      // Firestore من رفض الاستعلام برسالة صلاحيات قبل وصول النتائج.
       allow read: if isTeacherOrAdmin() ||
-        (isActive() && resource.data.status == 'published' &&
-         resource.data.targetGroupIds.hasAny(myProfile().get('groupIds', []) + ["__all__"]));
+        (isActive() && resource.data.status == 'published');
       allow write: if isTeacherOrAdmin();
     }
 
@@ -78,12 +70,12 @@ service cloud.firestore {
       allow read: if resource.data.enabled == true;
       allow write: if isTeacherOrAdmin();
     }
-    // ملاحظة: القراءة متاحة لأي مستخدم موثّق حتى يتمكن الطالب من عرض أسئلة
-    // الواجب المخصص له وحل الاختبار من جهة العميل. هذا يعني أن الإجابة
-    // الصحيحة (correctAnswer) قابلة للقراءة تقنيًا من المتصفح — وهو قيد معروف
-    // لهذا الإصدار (MVP). لمنع ذلك تمامًا، انقل التصحيح إلى Cloud Function
-    // في المرحلة القادمة بدل التصحيح من جهة العميل.
-    match /question_bank/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
+    // بنك الأسئلة يُقرأ من الخادم فقط عند حل الواجب؛ لا نسمح للطالب
+    // بقراءة الوثائق الخام لأنها تحتوي على مفاتيح التصحيح.
+    // بنك الأسئلة يحتوي correctAnswer، لذلك لا يُقرأ مباشرة من جهاز الطالب.
+    // صفحة الطالب تستخدم مساري API اللذين يعيدان الأسئلة العامة ويصححان
+    // الإجابات على الخادم.
+    match /question_bank/{id} { allow read: if isTeacherOrAdmin(); allow write: if isTeacherOrAdmin(); }
     match /announcements/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
 
     match /assignments/{id} {

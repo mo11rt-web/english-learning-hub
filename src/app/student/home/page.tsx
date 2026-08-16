@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { listenCollection, where, orderBy } from "@/lib/firestore-helpers";
 import { Lesson, Assignment, Announcement, StudentProfile } from "@/lib/types";
 import { computeLevel } from "@/lib/gamification";
-import { queryTargetGroupIds } from "@/lib/groupTargeting";
+import { matchesStudentGroups } from "@/lib/groupTargeting";
 
 export default function StudentHomePage() {
   const { profile } = useAuth();
@@ -26,33 +26,18 @@ export default function StudentHomePage() {
       [
         where("stageId", "==", student.stageId),
         where("status", "==", "published"),
-        where("targetGroupIds", "array-contains-any", queryTargetGroupIds(student.groupIds)),
       ],
-      setLessons
+      (all) => setLessons(all.filter((l) => matchesStudentGroups(l.targetGroupIds, student.groupIds)))
     );
     const u2 = listenCollection<Assignment>(
       "assignments",
       [where("status", "==", "published")],
-      (all) =>
-        setAssignments(
-          all.filter(
-            (a) =>
-              a.targetGroupIds.length === 0 ||
-              a.targetGroupIds.some((g) => student.groupIds?.includes(g))
-          )
-        )
+      (all) => setAssignments(all.filter((a) => matchesStudentGroups(a.targetGroupIds, student.groupIds)))
     );
     const u3 = listenCollection<Announcement>(
       "announcements",
       [orderBy("createdAt", "desc")],
-      (all) =>
-        setAnnouncements(
-          all.filter(
-            (a) =>
-              a.targetGroupIds.length === 0 ||
-              a.targetGroupIds.some((g) => student.groupIds?.includes(g))
-          )
-        )
+      (all) => setAnnouncements(all.filter((a) => matchesStudentGroups(a.targetGroupIds, student.groupIds)))
     );
     return () => { u1(); u2(); u3(); };
   }, [student]);

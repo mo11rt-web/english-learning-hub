@@ -15,6 +15,7 @@ import { Assignment, Question, Group, QuestionType } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { notifyUsers, getStudentUidsForStage } from "@/lib/notifications";
+import { matchesStudentGroups } from "@/lib/groupTargeting";
 
 const qTypeLabels: Record<QuestionType, string> = {
   mcq: "اختيار من متعدد", "true-false": "صح أو خطأ", "fill-blank": "إكمال الفراغ",
@@ -37,6 +38,8 @@ export default function AssignmentsPage() {
     title: "", type: "homework" as Assignment["type"],
     targetGroupId: "", selectedQ: new Set<string>(),
   });
+  const [creatingAssignment, setCreatingAssignment] = useState(false);
+  const [assignmentMessage, setAssignmentMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   useEffect(() => {
     const u1 = listenCollection<Question>("question_bank", [orderBy("createdAt", "desc")], setQuestions);
@@ -48,8 +51,8 @@ export default function AssignmentsPage() {
   const groupsInWorkspace = groups.filter((g) => g.stageId === workspaceStageId);
   const groupIdsInWorkspace = new Set(groupsInWorkspace.map((g) => g.id));
   const questionsInWorkspace = questions.filter((q) => q.stageId === workspaceStageId);
-  const assignmentsInWorkspace = assignments.filter(
-    (a) => a.targetGroupIds.length === 0 || a.targetGroupIds.some((g) => groupIdsInWorkspace.has(g))
+  const assignmentsInWorkspace = assignments.filter((a) =>
+    matchesStudentGroups(a.targetGroupIds, Array.from(groupIdsInWorkspace))
   );
 
   const addQuestion = async () => {
@@ -76,31 +79,57 @@ export default function AssignmentsPage() {
   };
 
   const createAssignment = async () => {
-    if (!aForm.title.trim() || aForm.selectedQ.size === 0 || !user || !workspaceStageId) return;
-    await createDoc("assignments", {
-      title: aForm.title,
-      type: aForm.type,
-      targetGroupIds: aForm.targetGroupId ? [aForm.targetGroupId] : [],
-      lessonIds: [],
-      questionIds: Array.from(aForm.selectedQ),
-      maxAttempts: 1,
-      passingScore: 60,
-      showScoreImmediately: true,
-      showCorrectAnswers: false,
-      shuffleQuestions: true,
-      status: "published",
-      createdBy: user.uid,
-      createdAt: Date.now(),
-    });
+    const title = aForm.title.trim();
+    const selectedQuestionIds = Array.from(aForm.selectedQ);
+    if (!title || selectedQuestionIds.length === 0 || !user || !workspaceStageId || creatingAssignment) {
+      setAssignmentMessage({ text: "أدخل عنوان الواجب واختر سؤالًا واحدًا على الأقل.", type: "error" });
+      return;
+    }
+
+    const assignmentType = aForm.type;
     const targetGroups = aForm.targetGroupId ? [aForm.targetGroupId] : [];
-    const studentUids = await getStudentUidsForStage(workspaceStageId, targetGroups);
-    await notifyUsers(studentUids, {
-      title: aForm.type === "exam" ? "اختبار جديد" : "واجب جديد",
-      body: aForm.title,
-      type: aForm.type === "exam" ? "new-exam" : "new-exercise",
-      link: "/student/assignments",
-    });
-    setAForm({ title: "", type: "homework", targetGroupId: "", selectedQ: new Set() });
+    setCreatingAssignment(true);
+    setAssignmentMessage(null);
+    try {
+      await createDoc("assignments", {
+        title,
+        type: assignmentType,
+        targetGroupIds: targetGroups,
+        lessonIds: [],
+        questionIds: selectedQuestionIds,
+        maxAttempts: 1,
+        passingScore: 60,
+        showScoreImmediately: true,
+        showCorrectAnswers: false,
+        shuffleQuestions: true,
+        status: "published",
+        createdBy: user.uid,
+        createdAt: Date.now(),
+      });
+
+      // نفرغ النموذج فور نجاح إنشاء المستند، قبل إرسال الإشعارات؛ لأن فشل
+      // الإشعار سابقًا كان يترك البيانات القديمة في النموذج ويؤدي إلى إنشاء
+      // نفس الواجب مرة ثانية عند الضغط مجددًا.
+      setAForm({ title: "", type: "homework", targetGroupId: "", selectedQ: new Set() });
+      setAssignmentMessage({ text: "تم نشر الواجب بنجاح ويمكنك إضافة واجب آخر الآن.", type: "success" });
+
+      try {
+        const studentUids = await getStudentUidsForStage(workspaceStageId, targetGroups);
+        await notifyUsers(studentUids, {
+          title: assignmentType === "exam" ? "اختبار جديد" : "واجب جديد",
+          body: title,
+          type: assignmentType === "exam" ? "new-exam" : "new-exercise",
+          link: "/student/assignments",
+        });
+      } catch (notificationError) {
+        console.error("[create-assignment] notification error:", notificationError);
+      }
+    } catch (error) {
+      console.error("[create-assignment] error:", error);
+      setAssignmentMessage({ text: "تعذر نشر الواجب. تحقق من الاتصال والصلاحيات ثم حاول مجددًا.", type: "error" });
+    } finally {
+      setCreatingAssignment(false);
+    }
   };
 
   return (
@@ -176,7 +205,14 @@ export default function AssignmentsPage() {
             ))}
             {questionsInWorkspace.length === 0 && <p className="text-xs text-brand-textMuted">أضف أسئلة أولًا.</p>}
           </div>
-          <Button onClick={createAssignment}>نشر الواجب</Button>
+          {assignmentMessage && (
+            <p className={`text-xs mb-2 ${assignmentMessage.type === "success" ? "text-brand-success" : "text-brand-error"}`}>
+              {assignmentMessage.text}
+            </p>
+          )}
+          <Button onClick={createAssignment} disabled={creatingAssignment}>
+            {creatingAssignment ? "جارٍ النشر..." : "نشر الواجب"}
+          </Button>
         </GlassCard>
       </div>
 

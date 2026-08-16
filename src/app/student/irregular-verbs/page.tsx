@@ -58,10 +58,21 @@ function buildQuestions(
       correctAnswer = verb.pastParticiple;
       distractorField = "pastParticiple";
     } else {
-      // sentence: نستخدم المثال إن وجد، وإلا جملة عامة بسيطة
-      prompt = verb.example?.trim()
-        ? verb.example.replace(new RegExp(verb.pastSimple, "i"), "____")
-        : `Yesterday, I ____ (${verb.base}) to school.`;
+      // sentence: نستخدم المثال إن وجد، وإلا جملة عامة بسيطة.
+      // مهم: /g إجبارية هون — بدونها .replace() كان يطمس أول تكرار بس
+      // للفعل جوا الجملة، فلو تكرر الفعل مرتين بنفس المثال (شي شائع
+      // بجمل تعليمية: "I went home after I went to work") كان التكرار
+      // التاني يضل ظاهر بالنص العادي — يعني الإجابة الصحيحة معروضة
+      // حرفيًا قدام الطالب قبل ما يجاوب.
+      const escaped = verb.pastSimple.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const blanked = verb.example?.trim()
+        ? verb.example.replace(new RegExp(escaped, "gi"), "____")
+        : null;
+      // شبكة أمان إضافية: لو ضل الفعل ظاهر بأي صيغة رغم كل هذا (مثلاً
+      // المثال يستخدم تصريف مختلف شوي عن pastSimple)، نرجع للجملة
+      // العامة الآمنة بدل ما نخاطر بعرض الإجابة.
+      const stillLeaking = blanked && new RegExp(`\\b${escaped}\\b`, "i").test(blanked);
+      prompt = blanked && !stillLeaking ? blanked : `Yesterday, I ____ (${verb.base}) to school.`;
       correctAnswer = verb.pastSimple;
       distractorField = "pastSimple";
     }
@@ -271,9 +282,10 @@ export default function IrregularVerbsTrainerPage() {
               const isCorrect = opt === current.correctAnswer;
               const isSelected = opt === selected;
               let cls = "border-brand-primary/20 bg-surface/70";
-              if (selected !== null) {
-                if (isCorrect) cls = "border-brand-success bg-brand-success/10";
-                else if (isSelected) cls = "border-brand-error bg-brand-error/10";
+              if (selected !== null && isSelected) {
+                cls = isCorrect
+                  ? "border-brand-success bg-brand-success/10"
+                  : "border-brand-error bg-brand-error/10";
               }
               return (
                 <button
@@ -296,9 +308,9 @@ export default function IrregularVerbsTrainerPage() {
                   selected === current.correctAnswer ? "text-brand-success" : "text-brand-error"
                 }`}
               >
-                {selected === current.correctAnswer
-                  ? "إجابة صحيحة ✓"
-                  : `إجابة خاطئة ✕ — الصحيحة: ${current.correctAnswer}`}
+                  {selected === current.correctAnswer
+                    ? "إجابة صحيحة ✓"
+                    : "إجابة خاطئة ✕ — حاول مراجعة الفعل ثم تابع"}
               </p>
               <Button onClick={next}>
                 {qIndex + 1 < questions.length ? "التالي" : "عرض النتيجة"}

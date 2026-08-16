@@ -7,8 +7,9 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { StudentProfile, Attempt, Assignment } from "@/lib/types";
+import { StudentProfile, Attempt, Assignment, Lesson } from "@/lib/types";
 import { computeLevel } from "@/lib/gamification";
+import { matchesStudentGroups } from "@/lib/groupTargeting";
 
 export interface StudentReportData {
   lessonsTotal: number;
@@ -55,8 +56,15 @@ export async function computeStudentReport(
     getDocs(query(collection(db, "attempts"), where("studentId", "==", studentId))),
   ]);
 
-  const lessonsTotal = lessonsSnap?.size ?? 0;
-  const lessonsCompleted = progressSnap.docs.filter((d) => d.data().completed).length;
+  const allPublishedLessons = lessonsSnap?.docs.map((d) => ({ ...(d.data() as Lesson), id: d.id })) ?? [];
+  const studentLessons = allPublishedLessons.filter((l) =>
+    matchesStudentGroups(l.targetGroupIds, student.groupIds)
+  );
+  const lessonsTotal = studentLessons.length;
+  const lessonsCompleted = progressSnap.docs.filter((d) => {
+    const data = d.data();
+    return data.completed && studentLessons.some((l) => l.id === data.lessonId);
+  }).length;
   const completionPercentage =
     lessonsTotal > 0 ? Math.round((lessonsCompleted / lessonsTotal) * 100) : 0;
 

@@ -12,7 +12,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useAuth } from "@/hooks/useAuth";
 import { listenCollection, where } from "@/lib/firestore-helpers";
 import { Lesson, StudentProfile } from "@/lib/types";
-import { queryTargetGroupIds, matchesStudentGroups } from "@/lib/groupTargeting";
+import { matchesStudentGroups } from "@/lib/groupTargeting";
 
 export default function StudentLessonsPage() {
   const { profile, user } = useAuth();
@@ -22,19 +22,14 @@ export default function StudentLessonsPage() {
 
   useEffect(() => {
     if (!student) return;
-    // نطابق الاستعلام هون تمامًا مع شرط قاعدة الأمان بـ firestore.rules —
-    // بما فيها ذات المصفوفة (targetGroupIds) عبر array-contains-any، حتى
-    // يقدر Firestore يتحقق مسبقًا إن كل نتيجة محتملة رح تحقق الصلاحية.
-    // قبل هذا التعديل كان الاستعلام يجيب فقط status/stageId بدون أي شرط
-    // على targetGroupIds رغم إن قاعدة الأمان فيها هذا الشرط — فكان
-    // Firestore يرفض الاستعلام بالكامل بخطأ "صلاحية غير كافية"، وهذا هو
-    // السبب الحقيقي وراء عدم ظهور أي درس منشور مهما كان.
+    // نقيّد القراءة بالمرحلة والحالة فقط. تصفية المجموعات تتم بعد الجلب
+    // عبر matchesStudentGroups حتى تعمل أيضًا مع الدروس القديمة التي كانت
+    // تُخزّن targetGroupIds كمصفوفة فارغة قبل اعتماد __all__.
     const u = listenCollection<Lesson>(
       "lessons",
       [
         where("stageId", "==", student.stageId),
         where("status", "==", "published"),
-        where("targetGroupIds", "array-contains-any", queryTargetGroupIds(student.groupIds)),
       ],
       setLessons
     );

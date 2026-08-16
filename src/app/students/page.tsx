@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { initializeApp, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
@@ -42,6 +42,52 @@ function randomPassword() {
 const PLATFORM_URL =
   typeof window !== "undefined" ? window.location.origin : "";
 
+type StudentBackupRecord = {
+  uid?: string;
+  fullName: string;
+  phone: string;
+  username?: string;
+  address?: string;
+  studentNumber?: string;
+  stageId?: string;
+  groupIds?: string[];
+  status?: "active" | "disabled" | "deleted";
+  points?: number;
+  mustChangePassword?: boolean;
+  level?: string;
+  guardianName?: string;
+  guardianPhone?: string;
+  notes?: string;
+  createdAt?: number;
+};
+
+type RestorePreview = {
+  fileName: string;
+  students: StudentBackupRecord[];
+  invalidCount: number;
+  duplicateCount: number;
+};
+
+type RestoreResult = {
+  created: number;
+  updated: number;
+  failed: number;
+  credentials: { fullName: string; phone: string; password: string }[];
+  errors: { row: number; phone?: string; message: string }[];
+};
+
+function downloadJson(fileName: string, data: unknown) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 export default function StudentsPage() {
   const [students, setStudents] = useState<(StudentProfile & { id: string })[]>([]);
   const [stages, setStages] = useState<(Stage & { id: string })[]>([]);
@@ -73,9 +119,15 @@ export default function StudentsPage() {
   const [editForm, setEditForm] = useState({ fullName: "", address: "", stageId: "", groupId: "" });
 
   const [deleteTarget, setDeleteTarget] = useState<(StudentProfile & { id: string }) | null>(null);
+  const [permanentDeleteTarget, setPermanentDeleteTarget] = useState<(StudentProfile & { id: string }) | null>(null);
   const [passwordInfoTarget, setPasswordInfoTarget] = useState<(StudentProfile & { id: string }) | null>(null);
   const [newPasswordValue, setNewPasswordValue] = useState("");
   const [resettingPassword, setResettingPassword] = useState(false);
+  const [permanentlyDeleting, setPermanentlyDeleting] = useState(false);
+  const [restorePreview, setRestorePreview] = useState<RestorePreview | null>(null);
+  const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null);
+  const [restoring, setRestoring] = useState(false);
+  const restoreFileInputRef = useRef<HTMLInputElement>(null);
 
   const { user } = useAuth();
   const { stageId: workspaceStageId, stageName: workspaceStageName } = useWorkspace();
@@ -99,6 +151,113 @@ export default function StudentsPage() {
       u3();
     };
   }, []);
+
+  const handleExportStudents = () => {
+    if (students.length === 0) {
+      showToast("لا يوجد طلاب لتصديرهم", "error");
+      return;
+    }
+    const backup = {
+      format: "english-hub-students",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      note: "هذا الملف لا يحتوي على كلمات المرور. الحسابات الجديدة عند الاستعادة تحصل على كلمات مرور مؤقتة.",
+      students: students.map((student) => ({
+        uid: student.id,
+        fullName: student.fullName,
+        phone: student.phone || student.username || "",
+        username: student.username,
+        address: student.address || "",
+        studentNumber: student.studentNumber,
+        stageId: student.stageId,
+        groupIds: student.groupIds || [],
+        status: student.status,
+        points: student.points || 0,
+        mustChangePassword: student.mustChangePassword !== false,
+        level: student.level,
+        guardianName: student.guardianName,
+        guardianPhone: student.guardianPhone,
+        notes: student.notes,
+        createdAt: student.createdAt,
+      })),
+    };
+    const date = new Date().toISOString().slice(0, 10);
+    downloadJson(`english-hub-students-${date}.json`, backup);
+    showToast(`تم تنزيل نسخة احتياطية لـ ${students.length} طالب ✅`);
+  };
+
+  const handleRestoreFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const parsed = JSON.parse(await file.text());
+      const rawStudents = Array.isArray(parsed) ? parsed : parsed?.students;
+      if (!Array.isArray(rawStudents)) throw new Error("صيغة الملف غير صحيحة");
+
+      const uniqueByPhone = new Map<string, StudentBackupRecord>();
+      let invalidCount = 0;
+      let duplicateCount = 0;
+      for (const raw of rawStudents) {
+        const fullName = typeof raw?.fullName === "string" ? raw.fullName.trim() : "";
+        const phone = normalizePhone(typeof raw?.phone === "string" ? raw.phone : typeof raw?.username === "string" ? raw.username : "");
+        if (!fullName || !phone) {
+          invalidCount += 1;
+          continue;
+        }
+        if (uniqueByPhone.has(phone)) {
+          duplicateCount += 1;
+          continue;
+        }
+        uniqueByPhone.set(phone, {
+          uid: typeof raw?.uid === "string" ? raw.uid : undefined,
+          fullName,
+          phone,
+          username: phone,
+          address: typeof raw?.address === "string" ? raw.address : "",
+          studentNumber: typeof raw?.studentNumber === "string" ? raw.studentNumber : undefined,
+          stageId: typeof raw?.stageId === "string" ? raw.stageId : undefined,
+          groupIds: Array.isArray(raw?.groupIds) ? raw.groupIds.filter((id: unknown): id is string => typeof id === "string") : [],
+          status: raw?.status === "disabled" ? "disabled" : raw?.status === "deleted" ? "deleted" : "active",
+          points: typeof raw?.points === "number" ? raw.points : 0,
+          mustChangePassword: raw?.mustChangePassword !== false,
+          level: typeof raw?.level === "string" ? raw.level : undefined,
+          guardianName: typeof raw?.guardianName === "string" ? raw.guardianName : undefined,
+          guardianPhone: typeof raw?.guardianPhone === "string" ? raw.guardianPhone : undefined,
+          notes: typeof raw?.notes === "string" ? raw.notes : undefined,
+          createdAt: typeof raw?.createdAt === "number" ? raw.createdAt : undefined,
+        });
+      }
+
+      const validStudents = Array.from(uniqueByPhone.values());
+      if (validStudents.length === 0) throw new Error("لم يتم العثور على سجلات طلاب صالحة");
+      setRestorePreview({ fileName: file.name, students: validStudents, invalidCount, duplicateCount });
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "تعذر قراءة ملف JSON", "error");
+    }
+  };
+
+  const handleRestoreStudents = async () => {
+    if (!restorePreview || !user || restoring) return;
+    setRestoring(true);
+    try {
+      const token = await user.getIdToken(true);
+      const response = await fetch("/api/admin/restore-students", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ students: restorePreview.students }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error ?? "تعذر استعادة الطلاب");
+      setRestorePreview(null);
+      setRestoreResult(data as RestoreResult);
+      showToast(`تمت الاستعادة: ${data.created ?? 0} جديد و${data.updated ?? 0} محدث ✅`);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "تعذر استعادة الطلاب", "error");
+    } finally {
+      setRestoring(false);
+    }
+  };
 
   const handleCreate = async () => {
     if (!form.fullName.trim() || !form.phone.trim() || !workspaceStageId) {
@@ -179,7 +338,35 @@ export default function StudentsPage() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     await updateDocById("profiles", deleteTarget.id, { status: "deleted" });
-    showToast(`تم حذف الطالب "${deleteTarget.fullName}"`);
+    showToast(`تم نقل الطالب "${deleteTarget.fullName}" إلى سلة المهملات`);
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!permanentDeleteTarget || !user) return;
+    setPermanentlyDeleting(true);
+    try {
+      const idToken = await user.getIdToken(true);
+      const res = await fetch("/api/admin/delete-student", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ uid: permanentDeleteTarget.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(data?.error ?? "تعذّر الحذف النهائي", "error");
+        return;
+      }
+      showToast(`تم حذف الطالب "${permanentDeleteTarget.fullName}" نهائيًا`);
+      setPermanentDeleteTarget(null);
+      setShowDeleted(true);
+    } catch {
+      showToast("تعذّر الاتصال بالخادم، حاول مجددًا", "error");
+    } finally {
+      setPermanentlyDeleting(false);
+    }
   };
 
   const handleResetPassword = async () => {
@@ -190,7 +377,7 @@ export default function StudentsPage() {
     }
     setResettingPassword(true);
     try {
-      const idToken = await user.getIdToken();
+      const idToken = await user.getIdToken(true);
       const res = await fetch("/api/admin/reset-password", {
         method: "POST",
         headers: {
@@ -439,9 +626,33 @@ export default function StudentsPage() {
 
         <GlassCard className="lg:col-span-2">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-            <h2 className="font-bold text-brand-text">
-              قائمة الطلاب ({filtered.length})
-            </h2>
+            <div>
+              <h2 className="font-bold text-brand-text">
+                قائمة الطلاب ({filtered.length})
+              </h2>
+              <p className="text-[11px] text-brand-textMuted mt-1">النسخة الاحتياطية تشمل بيانات الطلاب فقط ولا تشمل كلمات المرور.</p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={handleExportStudents}
+                className="px-3 py-2 rounded-xl text-xs font-semibold text-brand-primary border border-brand-primary/25 hover:bg-brand-primary/10"
+              >
+                تنزيل نسخة JSON
+              </button>
+              <button
+                onClick={() => restoreFileInputRef.current?.click()}
+                className="px-3 py-2 rounded-xl text-xs font-semibold text-white bg-brand-primary hover:bg-brand-secondary"
+              >
+                استعادة من JSON
+              </button>
+              <input
+                ref={restoreFileInputRef}
+                type="file"
+                accept=".json,application/json"
+                onChange={handleRestoreFileChange}
+                className="hidden"
+              />
+            </div>
             <label className="flex items-center gap-1.5 text-xs text-brand-textMuted">
               <input
                 type="checkbox"
@@ -499,12 +710,21 @@ export default function StudentsPage() {
                       tone={s.status === "active" ? "success" : s.status === "deleted" ? "muted" : "error"}
                     />
                     {s.status === "deleted" ? (
-                      <button
-                        onClick={() => handleRestore(s)}
-                        className="text-brand-success text-xs font-semibold px-2"
-                      >
-                        ↩ استرجاع
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleRestore(s)}
+                          className="text-brand-success text-xs font-semibold px-2"
+                        >
+                          ↩ استرجاع
+                        </button>
+                        <button
+                          onClick={() => setPermanentDeleteTarget(s)}
+                          disabled={permanentlyDeleting}
+                          className="text-brand-error text-xs font-semibold px-2 disabled:opacity-50"
+                        >
+                          🗑 حذف نهائي
+                        </button>
+                      </div>
                     ) : (
                       <ActionsDropdown
                         actions={[
@@ -695,13 +915,85 @@ export default function StudentsPage() {
         )}
       </Modal>
 
+      <Modal
+        open={!!restorePreview}
+        onClose={() => !restoring && setRestorePreview(null)}
+        title="تأكيد استعادة الطلاب"
+        maxWidth="max-w-lg"
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-brand-text">
+            الملف <strong>{restorePreview?.fileName}</strong> جاهز للاستعادة.
+          </p>
+          <div className="grid grid-cols-3 gap-2 text-center text-sm">
+            <div className="rounded-xl bg-brand-primary/10 p-3"><strong className="block text-lg text-brand-primary">{restorePreview?.students.length ?? 0}</strong>سجل صالح</div>
+            <div className="rounded-xl bg-brand-warning/10 p-3"><strong className="block text-lg text-brand-warning">{restorePreview?.duplicateCount ?? 0}</strong>مكرر</div>
+            <div className="rounded-xl bg-brand-error/10 p-3"><strong className="block text-lg text-brand-error">{restorePreview?.invalidCount ?? 0}</strong>غير صالح</div>
+          </div>
+          <p className="text-sm text-brand-textMuted">
+            سيتم تحديث الحسابات الموجودة بنفس رقم الهاتف، وإنشاء الحسابات المفقودة. الحسابات الجديدة ستظهر كلمات مرور مؤقتة بعد انتهاء الاستعادة.
+          </p>
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setRestorePreview(null)} disabled={restoring} className="px-4 py-2 rounded-xl text-sm border border-brand-primary/25 text-brand-text">إلغاء</button>
+            <button onClick={handleRestoreStudents} disabled={restoring} className="px-4 py-2 rounded-xl text-sm text-white bg-brand-primary disabled:opacity-50">
+              {restoring ? "جارٍ الاستعادة..." : "تأكيد الاستعادة"}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!restoreResult}
+        onClose={() => setRestoreResult(null)}
+        title="نتيجة استعادة الطلاب"
+        maxWidth="max-w-lg"
+      >
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-3 gap-2 text-center text-sm">
+            <div className="rounded-xl bg-brand-success/10 p-3"><strong className="block text-lg text-brand-success">{restoreResult?.created ?? 0}</strong>حساب جديد</div>
+            <div className="rounded-xl bg-brand-primary/10 p-3"><strong className="block text-lg text-brand-primary">{restoreResult?.updated ?? 0}</strong>محدث</div>
+            <div className="rounded-xl bg-brand-error/10 p-3"><strong className="block text-lg text-brand-error">{restoreResult?.failed ?? 0}</strong>فشل</div>
+          </div>
+          {(restoreResult?.credentials.length ?? 0) > 0 && (
+            <>
+              <p className="text-sm text-brand-textMuted">كلمات المرور التالية مؤقتة للحسابات الجديدة فقط. نزّلها واحفظها بأمان؛ لن تظهر مرة أخرى بعد إغلاق هذه النافذة.</p>
+              <div className="max-h-48 overflow-y-auto rounded-xl border border-surfaceBorder p-2 text-sm">
+                {restoreResult?.credentials.slice(0, 30).map((credential) => (
+                  <div key={credential.phone} className="flex items-center justify-between gap-3 px-2 py-1.5 border-b border-surfaceBorder last:border-0">
+                    <span className="truncate text-brand-text">{credential.fullName}</span>
+                    <span dir="ltr" className="font-mono text-brand-primary shrink-0">{credential.phone} / {credential.password}</span>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => downloadJson(`english-hub-restored-credentials-${new Date().toISOString().slice(0, 10)}.json`, { createdAt: new Date().toISOString(), credentials: restoreResult?.credentials ?? [] })}
+                className="px-4 py-2 rounded-xl text-sm text-white bg-brand-primary"
+              >
+                تنزيل كلمات المرور كملف JSON
+              </button>
+            </>
+          )}
+          {(restoreResult?.errors.length ?? 0) > 0 && <p className="text-sm text-brand-error">عدد السجلات التي لم تستعد: {restoreResult?.errors.length}</p>}
+          <button onClick={() => setRestoreResult(null)} className="self-end px-4 py-2 rounded-xl text-sm border border-brand-primary/25 text-brand-text">إغلاق</button>
+        </div>
+      </Modal>
+
       <ConfirmDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
-        title="حذف الطالب"
-        message={`هل أنت متأكد من حذف الطالب "${deleteTarget?.fullName ?? ""}"؟ سيتم إخفاء بياناته ووقف وصوله للمنصة فورًا. يمكنك استرجاعه لاحقًا من قائمة "عرض المحذوفين".`}
-        confirmLabel="حذف"
+        title="نقل الطالب إلى سلة المهملات"
+        message={`هل أنت متأكد من نقل الطالب "${deleteTarget?.fullName ?? ""}" إلى سلة المهملات؟ سيتم إخفاؤه وإيقاف دخوله، ويمكن استرجاعه لاحقًا.`}
+        confirmLabel="نقل إلى السلة"
+      />
+
+      <ConfirmDialog
+        open={!!permanentDeleteTarget}
+        onClose={() => setPermanentDeleteTarget(null)}
+        onConfirm={handlePermanentDelete}
+        title="حذف نهائي لا يمكن التراجع عنه"
+        message={`سيتم حذف الطالب "${permanentDeleteTarget?.fullName ?? ""}" نهائيًا من Firebase Authentication وFirestore وحذف بياناته التابعة. بعد ذلك يمكن إنشاء حساب جديد بنفس رقم الهاتف. هل تريد المتابعة؟`}
+        confirmLabel="حذف نهائي"
       />
 
       {/* قالب طباعة مخفي لتصدير PDF — نفس أسلوب علاوي نت بالضبط: عنصر

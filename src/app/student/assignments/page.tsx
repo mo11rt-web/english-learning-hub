@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { listenCollection, where } from "@/lib/firestore-helpers";
 import { Assignment, Attempt, StudentProfile } from "@/lib/types";
+import { matchesStudentGroups } from "@/lib/groupTargeting";
 
 export default function StudentAssignmentsPage() {
   const { user, profile } = useAuth();
@@ -26,10 +27,8 @@ export default function StudentAssignmentsPage() {
     return () => u1();
   }, [user]);
 
-  const myAssignments = assignments.filter(
-    (a) =>
-      a.targetGroupIds.length === 0 ||
-      a.targetGroupIds.some((g) => student?.groupIds?.includes(g))
+  const myAssignments = assignments.filter((a) =>
+    matchesStudentGroups(a.targetGroupIds, student?.groupIds)
   );
 
   return (

@@ -13,11 +13,14 @@ function getAdminApp(): App {
   const apps = getApps();
   if (apps.length) return apps[0];
 
-  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-  // مفتاح Firebase الخاص عادة بيجي بأسطر جديدة مكتوبة \n حرفياً بمتغيرات
-  // البيئة، لازم نحوّلها لأسطر جديدة فعلية.
-  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL?.trim();
+  // مفتاح Firebase الخاص قد يصل بأسطر مكتوبة حرفيًا كـ \\n  // أو محاطًا بعلامات اقتباس من إعدادات الاستضافة، لذلك نطبّعه قبل تمريره
+  // إلى Firebase Admin SDK.
+  const rawPrivateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.trim();
+  const privateKey = rawPrivateKey
+    ?.replace(/^\"([\\s\\S]*)\"$/, "$1")
+    .replace(/\\n/g, "\n");
 
   if (!projectId || !clientEmail || !privateKey) {
     throw new Error(

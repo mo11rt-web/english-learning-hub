@@ -28,10 +28,32 @@ export default function GradeAssignmentPage() {
   }, [assignmentId]);
 
   useEffect(() => {
-    const u1 = listenCollection<Attempt>("attempts", [where("assignmentId", "==", assignmentId)], setAttempts);
+    const u1 = listenCollection<Attempt>("attempts", [where("assignmentId", "==", assignmentId)], (items) => {
+      setAttempts(items);
+      // بدلاً من تحميل كل الطلاب، نفتح اشتراكاً فقط للطلاب الذين لديهم محاولات
+      // بهذا الواجب لتقليل استهلاك القراءات في الخطة المجانية.
+      const uids = Array.from(new Set(items.map((a) => a.studentId)));
+      if (uids.length > 0) {
+        // لا نستخدم "uid" في where لأن Firestore لا يحتوي دائمًا على حقل uid داخل المستند،
+        // ولكن Document ID نفسه هو الـ uid. للأسف listenCollection المساعدة حاليًا
+        // لا تدعم FieldPath.documentId() بسهولة، لذلك نجلبهم بشكل منفصل لتقليل التكلفة.
+        Promise.all(
+          uids.slice(0, 30).map((id) =>
+            import("firebase/firestore").then(({ getDoc, doc }) =>
+              getDoc(doc(db, "profiles", id))
+            )
+          )
+        ).then((snaps) => {
+          setStudents(
+            snaps
+              .filter((s) => s.exists())
+              .map((s) => ({ ...(s.data() as Profile), id: s.id }))
+          );
+        });
+      }
+    });
     const u2 = listenCollection<Question>("question_bank", [], setQuestions);
-    const u3 = listenCollection<Profile>("profiles", [], setStudents);
-    return () => { u1(); u2(); u3(); };
+    return () => { u1(); u2(); };
   }, [assignmentId]);
 
   const setManualScore = async (att: Attempt & { id: string }, score: number) => {
