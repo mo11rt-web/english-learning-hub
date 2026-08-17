@@ -374,7 +374,12 @@ export default function StudentsPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        showToast(data?.error ?? "تعذّر الحذف النهائي", "error");
+        const error = data?.error ?? "تعذّر الحذف النهائي";
+        if (error.includes("إعدادات Firebase Admin")) {
+          showToast("يجب إضافة ملف Service Account في Vercel لتفعيل الحذف النهائي", "error");
+        } else {
+          showToast(error, "error");
+        }
         return;
       }
       showToast(`تم حذف الطالب "${permanentDeleteTarget.fullName}" نهائيًا`);
@@ -579,7 +584,8 @@ export default function StudentsPage() {
       s.studentNumber?.includes(search)
   );
 
-  const activeCount = students.filter((s) => s.status === "active").length;
+  const stageStudents = students.filter((s) => s.stageId === workspaceStageId && s.status !== "deleted");
+  const activeCount = stageStudents.filter((s) => s.status === "active").length;
 
   return (
     <AppShell requireRole="teacher">
@@ -594,7 +600,7 @@ export default function StudentsPage() {
           <div className="w-px h-10 bg-white/10" />
           <div>
             <p className="text-white/60 text-xs mb-0.5">إجمالي المسجّلين</p>
-            <p className="text-2xl font-bold text-brand-goldLight">{students.length}</p>
+            <p className="text-2xl font-bold text-brand-goldLight">{stageStudents.length}</p>
           </div>
         </div>
       </div>

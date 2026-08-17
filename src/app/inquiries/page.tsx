@@ -186,7 +186,24 @@ export default function TeacherInquiriesPage() {
   return (
     <AppShell requireRole="teacher">
       <div className="flex items-start justify-between gap-3 mb-6"><div><h1 className="text-2xl font-bold text-brand-text">أسئلة الطلاب <span className="text-sm align-middle px-2 py-1 rounded-full bg-brand-warning/15 text-brand-warning">{unreadCount} جديد</span></h1><p className="text-sm text-brand-textMuted mt-1">القسم الحالي: {stageName ?? "—"}</p></div><MessageCircle size={28} className="text-brand-primary" /></div>
-      <GlassCard className="mb-5"><div className="flex flex-wrap gap-2"><div className="relative flex-1 min-w-[220px]"><Search size={16} className="absolute right-3 top-3 text-brand-textMuted" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث باسم الطالب أو عنوان السؤال" className="w-full pr-9 pl-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" /></div><div className="flex flex-wrap gap-1 bg-surfaceBorder/40 rounded-xl p-1">{(["all", "new", "viewed", "answered", "resolved"] as const).map((item) => <button key={item} onClick={() => setFilter(item)} className={`px-3 py-1.5 rounded-lg text-xs ${filter === item ? "bg-surface shadow text-brand-primary" : "text-brand-textMuted"}`}>{item === "all" ? "الكل" : statusLabels[item]}</button>)}</div></div></GlassCard>
+      <GlassCard className="mb-5">
+        <div className="flex flex-wrap gap-2">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search size={16} className="absolute right-3 top-3 text-brand-textMuted" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث باسم الطالب أو عنوان السؤال" className="w-full pr-9 pl-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
+          </div>
+          <div className="flex flex-wrap gap-1 bg-surfaceBorder/40 rounded-xl p-1">
+            {(["all", "new", "viewed", "answered", "resolved"] as const).map((item) => (
+              <button key={item} onClick={() => setFilter(item)} className={`px-3 py-1.5 rounded-lg text-xs ${filter === item ? "bg-surface shadow text-brand-primary" : "text-brand-textMuted"}`}>
+                {item === "all" ? "الكل" : statusLabels[item]}
+              </button>
+            ))}
+          </div>
+        </div>
+        <p className="text-[10px] text-brand-textMuted mt-3 leading-relaxed border-t border-surfaceBorder pt-2">
+          💡 كل سؤال من الطالب يحتاج إلى رد واحد فقط. بعد الرد، اضغط على «تم الحل» لإغلاق السؤال. بعد إغلاق السؤال لن يتمكن الطالب من إرسال رد إضافي على نفس السؤال.
+        </p>
+      </GlassCard>
 
       {!selectedInquiry ? (
         <div className="flex flex-col gap-3 pb-24">
@@ -194,7 +211,41 @@ export default function TeacherInquiriesPage() {
           {visibleInquiries.length === 0 && <p className="text-sm text-brand-textMuted">لا توجد استفسارات مطابقة.</p>}
         </div>
       ) : (
-        <GlassCard className="mb-6"><div className="flex items-start justify-between gap-3 border-b border-surfaceBorder pb-4 mb-4"><div><h2 className="font-bold text-brand-text">{selectedInquiry.title}</h2><p className="text-xs text-brand-textMuted mt-1">الطالب: {selectedInquiry.studentName} · {selectedInquiry.lessonId && lessons[selectedInquiry.lessonId] ? `الدرس: ${lessons[selectedInquiry.lessonId].title}` : "دون درس محدد"}</p></div><div className="flex items-center gap-2"><span className={`px-2.5 py-1 rounded-lg text-xs ${statusStyles[selectedInquiry.status]}`}>{statusLabels[selectedInquiry.status]}</span><button onClick={() => setSelectedId(null)} aria-label="إغلاق" className="text-brand-textMuted"><X size={18} /></button></div></div><div className="flex flex-col gap-3 max-h-[52vh] overflow-y-auto mb-4">{messages.map((message) => <div key={message.id} className={`max-w-[88%] rounded-2xl p-3 ${message.senderRole === "student" ? "self-start bg-brand-primary/10" : "self-end bg-surfaceBorder/50"}`}><p className="text-xs text-brand-primary font-bold mb-1">{message.senderName}</p><p className="text-sm text-brand-text whitespace-pre-wrap">{message.body}</p>{message.attachmentUrl && <a href={message.attachmentUrl} target="_blank" rel="noreferrer" className="text-xs text-brand-primary underline mt-2 inline-block">📎 {message.attachmentName ?? "فتح المرفق"}</a>}<p className="text-[10px] text-brand-textMuted mt-2">{formatDate(message.createdAt)}</p></div>)}</div><div className="flex flex-col gap-2"><textarea value={reply} onChange={(event) => setReply(event.target.value)} placeholder="اكتب ردك للطالب..." rows={3} className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" /><div className="flex items-center justify-between gap-2"><label className="text-xs text-brand-textMuted flex items-center gap-1"><Paperclip size={15} /><input dir="ltr" value={attachmentUrl} onChange={(event) => setAttachmentUrl(event.target.value)} placeholder="رابط مرفق اختياري" className="w-48 bg-transparent border-b border-brand-primary/20 outline-none" /></label><div className="flex flex-wrap items-center gap-2"><Button onClick={sendReply} disabled={sending || !reply.trim()} className="flex-1 md:flex-none"><Send size={15} /> إرسال الرد</Button>{selectedInquiry.status !== "resolved" && <button onClick={resolveInquiry} disabled={sending} className="flex-1 md:flex-none px-3 py-2 rounded-xl bg-brand-success/10 text-brand-success text-sm font-bold flex items-center justify-center gap-1 hover:bg-brand-success/20 transition-colors"><CheckCircle2 size={15} /> تم الحل</button>}</div></div></div></GlassCard>
+        <GlassCard className="mb-6"><div className="flex items-start justify-between gap-3 border-b border-surfaceBorder pb-4 mb-4"><div><h2 className="font-bold text-brand-text">{selectedInquiry.title}</h2><p className="text-xs text-brand-textMuted mt-1">الطالب: {selectedInquiry.studentName} · {selectedInquiry.lessonId && lessons[selectedInquiry.lessonId] ? `الدرس: ${lessons[selectedInquiry.lessonId].title}` : "دون درس محدد"}</p></div><div className="flex items-center gap-2"><span className={`px-2.5 py-1 rounded-lg text-xs ${statusStyles[selectedInquiry.status]}`}>{statusLabels[selectedInquiry.status]}</span><button onClick={() => setSelectedId(null)} aria-label="إغلاق" className="text-brand-textMuted"><X size={18} /></button></div></div><div className="flex flex-col gap-3 max-h-[52vh] overflow-y-auto mb-4">{messages.map((message) => <div key={message.id} className={`max-w-[88%] rounded-2xl p-3 ${message.senderRole === "student" ? "self-start bg-brand-primary/10" : "self-end bg-surfaceBorder/50"}`}><p className="text-xs text-brand-primary font-bold mb-1">{message.senderName}</p><p className="text-sm text-brand-text whitespace-pre-wrap">{message.body}</p>{message.attachmentUrl && <a href={message.attachmentUrl} target="_blank" rel="noreferrer" className="text-xs text-brand-primary underline mt-2 inline-block">📎 {message.attachmentName ?? "فتح المرفق"}</a>}<p className="text-[10px] text-brand-textMuted mt-2">{formatDate(message.createdAt)}</p></div>)}</div>{selectedInquiry.status !== "resolved" ? (
+            <div className="flex flex-col gap-3 bg-surfaceBorder/20 p-4 rounded-2xl">
+              <textarea 
+                value={reply} 
+                onChange={(event) => setReply(event.target.value)} 
+                placeholder="اكتب ردك الواضح والنهائي للطالب..." 
+                rows={3} 
+                className="w-full px-4 py-3 rounded-xl border border-brand-primary/20 bg-surface/80 focus:bg-surface outline-none transition-all" 
+              />
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <label className="text-xs text-brand-textMuted flex items-center gap-2 flex-1 min-w-[150px]">
+                  <Paperclip size={14} />
+                  <input dir="ltr" value={attachmentUrl} onChange={(event) => setAttachmentUrl(event.target.value)} placeholder="رابط مرفق اختياري" className="w-full bg-transparent border-b border-brand-primary/20 outline-none text-[11px]" />
+                </label>
+                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                  <Button onClick={sendReply} disabled={sending || !reply.trim()} className="flex-1 md:flex-none">
+                    <Send size={15} className="ml-2" /> إرسال الرد
+                  </Button>
+                  <button 
+                    onClick={resolveInquiry} 
+                    disabled={sending} 
+                    className="flex-1 md:flex-none px-4 py-2 rounded-xl bg-brand-success text-white text-sm font-bold flex items-center justify-center gap-1 hover:bg-brand-success/90 transition-colors shadow-sm"
+                  >
+                    <CheckCircle2 size={15} /> تم الحل وإغلاق السؤال
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-brand-secondary/5 border border-brand-secondary/20 rounded-2xl p-4 text-center">
+              <p className="text-sm text-brand-secondary font-bold flex items-center justify-center gap-2">
+                <CheckCircle2 size={18} /> تم حل هذا السؤال وإغلاقه
+              </p>
+            </div>
+          )}</GlassCard>
       )}
       {toast && <Toast message={toast.message} type={toast.type} />}
     </AppShell>

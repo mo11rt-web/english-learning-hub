@@ -3,9 +3,8 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useMemo, useState } from "react";
-
 import { collection, getDocs, onSnapshot, query, where } from "firebase/firestore";
-import { Paperclip, Send, CheckCircle2, Clock3, MessageCircle, X } from "lucide-react";
+import { Paperclip, Send, CheckCircle2, Clock3, MessageCircle, X, HelpCircle, Plus } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
@@ -47,6 +46,7 @@ export default function StudentInquiriesPage() {
   useEffect(() => {
     setInquiryIdFromUrl(new URLSearchParams(window.location.search).get("inquiryId"));
   }, []);
+
   const student = profile as StudentProfile | null;
   const [inquiries, setInquiries] = useState<InquiryWithId[]>([]);
   const [units, setUnits] = useState<(Unit & { id: string })[]>([]);
@@ -57,10 +57,10 @@ export default function StudentInquiriesPage() {
   const [details, setDetails] = useState("");
   const [unitId, setUnitId] = useState("");
   const [lessonId, setLessonId] = useState("");
-  const [reply, setReply] = useState("");
   const [attachmentUrl, setAttachmentUrl] = useState("");
   const [sending, setSending] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [showComposer, setShowComposer] = useState(false);
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
     setToast({ message, type });
@@ -128,41 +128,6 @@ export default function StudentInquiriesPage() {
     setUnitId("");
     setLessonId("");
     setAttachmentUrl("");
-    setReply("");
-  };
-
-  const sendMessage = async () => {
-    if (!user || !student || sending || !reply.trim() || !selectedInquiry) return;
-    setSending(true);
-    try {
-      await createDoc(`inquiries/${selectedInquiry.id}/messages`, {
-        senderId: user.uid,
-        senderRole: "student",
-        senderName: student.fullName,
-        body: reply.trim(),
-        ...(attachmentUrl.trim() ? { attachmentUrl: attachmentUrl.trim(), attachmentName: "رابط مرفق" } : {}),
-        createdAt: Date.now(),
-      });
-      await updateDocById("inquiries", selectedInquiry.id, {
-        status: "new",
-        updatedAt: Date.now(),
-        lastMessageAt: Date.now(),
-        lastMessageBy: "student",
-      });
-      await notifyUsers(await getTeacherUids(), {
-        type: "inquiry-new",
-        title: `سؤال جديد من الطالب ${student.fullName}`,
-        body: selectedInquiry.title,
-        link: `/student/inquiries?inquiryId=${selectedInquiry.id}`,
-      });
-      setReply("");
-      setAttachmentUrl("");
-      showToast("تم إرسال رسالتك للمعلم ✅");
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : "تعذّر إرسال الرسالة.", "error");
-    } finally {
-      setSending(false);
-    }
   };
 
   const createInquiry = async () => {
@@ -204,6 +169,7 @@ export default function StudentInquiriesPage() {
       });
       resetComposer();
       setSelectedId(inquiryRef.id);
+      setShowComposer(false);
       showToast("تم إرسال السؤال للمعلم ✅");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "تعذّر إرسال السؤال.", "error");
@@ -222,9 +188,12 @@ export default function StudentInquiriesPage() {
         <MessageCircle className="text-brand-primary mt-1" size={28} />
       </div>
 
-      {!selectedInquiry ? (
-        <GlassCard className="mb-6">
-          <h2 className="font-bold text-brand-text mb-4">سؤال جديد</h2>
+      {!selectedId && showComposer && (
+        <GlassCard className="mb-6 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-bold text-brand-text">سؤال جديد</h2>
+            <button onClick={() => setShowComposer(false)} className="text-brand-textMuted hover:text-brand-error transition-colors"><X size={18} /></button>
+          </div>
           <div className="grid md:grid-cols-2 gap-3">
             <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="عنوان السؤال" className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
             <select value={unitId} onChange={(event) => { setUnitId(event.target.value); setLessonId(""); }} className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70">
@@ -241,33 +210,104 @@ export default function StudentInquiriesPage() {
             </label>
             <textarea value={details} onChange={(event) => setDetails(event.target.value)} placeholder="اكتب تفاصيل سؤالك هنا..." rows={5} className="md:col-span-2 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
           </div>
-          <Button onClick={createInquiry} disabled={sending} className="mt-4">{sending ? "جارٍ الإرسال..." : "إرسال للمعلم"} <Send size={15} /></Button>
+          <div className="mt-4 flex flex-col gap-3">
+            <Button onClick={createInquiry} disabled={sending} className="w-full">{sending ? "جارٍ الإرسال..." : "إرسال السؤال للمعلم"} <Send size={15} className="mr-2" /></Button>
+            <p className="text-[11px] text-brand-textMuted leading-relaxed">
+              يمكنك إرسال سؤال واحد للمدرس، وسيتم الرد عليه من خلال هذه النافذة. بعد تحديد السؤال كتم الحل، يمكنك إرسال سؤال جديد فقط.
+            </p>
+          </div>
         </GlassCard>
-      ) : (
-        <GlassCard className="mb-6">
+      )}
+
+      {!selectedId && !showComposer && (
+        <Button onClick={() => setShowComposer(true)} className="w-full mb-6 py-4 rounded-2xl shadow-lg">
+          <Plus size={18} className="ml-2" /> طرح سؤال جديد
+        </Button>
+      )}
+
+      {selectedInquiry ? (
+        <GlassCard className="mb-6 animate-in fade-in zoom-in-95 duration-200">
           <div className="flex items-start justify-between gap-3 border-b border-surfaceBorder pb-4 mb-4">
             <div><h2 className="font-bold text-brand-text">{selectedInquiry.title}</h2><p className="text-xs text-brand-textMuted mt-1">أُرسل في {formatDate(selectedInquiry.createdAt)}</p></div>
             <div className="flex items-center gap-2"><span className={`px-2.5 py-1 rounded-lg text-xs ${statusStyles[selectedInquiry.status]}`}>{statusLabels[selectedInquiry.status]}</span><button onClick={() => setSelectedId(null)} aria-label="إغلاق" className="text-brand-textMuted"><X size={18} /></button></div>
           </div>
-          <div className="flex flex-col gap-3 max-h-[52vh] overflow-y-auto mb-4">
+          <div className="flex flex-col gap-3 max-h-[52vh] overflow-y-auto mb-6">
             {messages.map((message) => (
-              <div key={message.id} className={`max-w-[88%] rounded-2xl p-3 ${message.senderId === user?.uid ? "self-start bg-brand-primary/10" : "self-end bg-surfaceBorder/50"}`}>
-                <p className="text-xs text-brand-primary font-bold mb-1">{message.senderName}</p>
-                <p className="text-sm text-brand-text whitespace-pre-wrap">{message.body}</p>
-                {message.attachmentUrl && <a href={message.attachmentUrl} target="_blank" rel="noreferrer" className="text-xs text-brand-primary underline mt-2 inline-block">📎 {message.attachmentName ?? "فتح المرفق"}</a>}
-                <p className="text-[10px] text-brand-textMuted mt-2">{formatDate(message.createdAt)}</p>
+              <div key={message.id} className={`max-w-[90%] rounded-2xl p-4 ${message.senderRole === "student" ? "self-start bg-brand-primary/5 border border-brand-primary/10" : "self-end bg-surfaceBorder/40 border border-surfaceBorder"}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold ${message.senderRole === "student" ? "bg-brand-primary text-white" : "bg-brand-secondary text-white"}`}>
+                    {message.senderRole === "student" ? "س" : "ج"}
+                  </div>
+                  <p className="text-xs text-brand-text font-bold">{message.senderName}</p>
+                </div>
+                <p className="text-sm text-brand-text leading-relaxed whitespace-pre-wrap">{message.body}</p>
+                {message.attachmentUrl && (
+                  <a href={message.attachmentUrl} target="_blank" rel="noreferrer" className="text-xs text-brand-primary font-bold hover:underline mt-3 inline-flex items-center gap-1">
+                    <Paperclip size={12} /> {message.attachmentName ?? "فتح المرفق"}
+                  </a>
+                )}
+                <p className="text-[10px] text-brand-textMuted mt-3 text-left">{formatDate(message.createdAt)}</p>
               </div>
             ))}
           </div>
-          {selectedInquiry.status !== "resolved" && <div className="flex flex-col gap-2"><textarea value={reply} onChange={(event) => setReply(event.target.value)} placeholder="أضف توضيحاً أو رسالة للمعلم..." rows={3} className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" /><div className="flex flex-wrap items-center justify-between gap-3 mt-2"><label className="text-xs text-brand-textMuted flex items-center gap-1 flex-1 min-w-[150px]"><Paperclip size={15} /><input dir="ltr" value={attachmentUrl} onChange={(event) => setAttachmentUrl(event.target.value)} placeholder="رابط مرفق اختياري" className="w-full bg-transparent border-b border-brand-primary/20 outline-none" /></label><Button onClick={sendMessage} disabled={sending || !reply.trim()} className="w-full md:w-auto">{sending ? "جارٍ الإرسال..." : "إرسال الرد للمعلم"} <Send size={15} /></Button></div></div>}
-          {selectedInquiry.status === "resolved" && <p className="text-sm text-brand-success flex items-center gap-2"><CheckCircle2 size={16} /> تم إغلاق هذا الاستفسار. يمكنك إنشاء سؤال جديد عند الحاجة.</p>}
+          
+          {selectedInquiry.status === "resolved" ? (
+            <div className="bg-brand-success/5 border border-brand-success/20 rounded-2xl p-4 text-center">
+              <p className="text-sm text-brand-success font-bold flex items-center justify-center gap-2 mb-3">
+                <CheckCircle2 size={18} /> تم حل هذا السؤال وإغلاقه
+              </p>
+              <Button onClick={() => { setSelectedId(null); setShowComposer(true); }} className="w-full">
+                <Plus size={16} className="ml-2" /> سؤال جديد
+              </Button>
+            </div>
+          ) : selectedInquiry.status === "answered" ? (
+            <div className="bg-brand-primary/5 border border-brand-primary/20 rounded-2xl p-4 text-center">
+              <p className="text-sm text-brand-primary font-medium mb-3">
+                قام المدرس بالرد على سؤالك. سيتم إغلاق السؤال قريباً.
+              </p>
+              <Button onClick={() => { setSelectedId(null); setShowComposer(true); }} variant="secondary" className="w-full">
+                <Plus size={16} className="ml-2" /> سؤال جديد آخر
+              </Button>
+            </div>
+          ) : (
+            <div className="bg-brand-warning/5 border border-brand-warning/20 rounded-2xl p-4">
+              <p className="text-xs text-brand-warning font-bold text-center mb-1">بانتظار رد المدرس...</p>
+              <p className="text-[11px] text-brand-textMuted text-center leading-relaxed">
+                يمكنك إرسال سؤال واحد للمدرس، وسيتم الرد عليه هنا. بعد تحديد السؤال كتم الحل، يمكنك إرسال سؤال جديد فقط.
+              </p>
+            </div>
+          )}
         </GlassCard>
-      )}
+      ) : null}
 
       <div className="flex items-center justify-between mb-3"><h2 className="font-bold text-brand-text">أسئلتي السابقة ({inquiries.length})</h2><Clock3 size={18} className="text-brand-textMuted" /></div>
       <div className="flex flex-col gap-3 pb-24">
-        {inquiries.map((inquiry) => <button key={inquiry.id} onClick={() => setSelectedId(inquiry.id)} className="text-right"><GlassCard className="hover:ring-2 hover:ring-brand-primary/30 transition-all"><div className="flex items-center justify-between gap-3"><div className="min-w-0"><p className="font-medium text-brand-text truncate">{inquiry.title}</p><p className="text-xs text-brand-textMuted mt-1">آخر تحديث: {formatDate(inquiry.lastMessageAt)}</p></div><span className={`px-2.5 py-1 rounded-lg text-xs shrink-0 ${statusStyles[inquiry.status]}`}>{statusLabels[inquiry.status]}</span></div></GlassCard></button>)}
-        {inquiries.length === 0 && <p className="text-sm text-brand-textMuted">لا توجد أسئلة بعد.</p>}
+        {inquiries.map((inquiry) => (
+          <button key={inquiry.id} onClick={() => setSelectedId(inquiry.id)} className="text-right group">
+            <GlassCard className={`hover:ring-2 hover:ring-brand-primary/30 transition-all ${selectedId === inquiry.id ? "ring-2 ring-brand-primary" : ""}`}>
+              <div className="flex items-center justify-between gap-4">
+                <div className="w-10 h-10 rounded-xl bg-surfaceBorder/30 flex items-center justify-center text-brand-textMuted group-hover:bg-brand-primary/10 group-hover:text-brand-primary transition-colors shrink-0">
+                  <HelpCircle size={20} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-brand-text truncate">{inquiry.title}</p>
+                  <p className="text-[11px] text-brand-textMuted mt-1">آخر تحديث: {formatDate(inquiry.lastMessageAt)}</p>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-[10px] font-bold shrink-0 ${statusStyles[inquiry.status]}`}>
+                  {statusLabels[inquiry.status]}
+                </span>
+              </div>
+            </GlassCard>
+          </button>
+        ))}
+        {inquiries.length === 0 && (
+          <div className="py-12 text-center">
+            <div className="w-16 h-16 rounded-full bg-surfaceBorder/20 flex items-center justify-center mx-auto mb-4 text-brand-textMuted opacity-20">
+              <MessageCircle size={32} />
+            </div>
+            <p className="text-sm text-brand-textMuted">لا توجد أسئلة مرسلة بعد.</p>
+          </div>
+        )}
       </div>
       {toast && <Toast message={toast.message} type={toast.type} />}
     </AppShell>

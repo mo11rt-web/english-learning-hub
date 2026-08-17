@@ -4,8 +4,11 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, onSnapshot, setDoc, getDoc } from "firebase/firestore";
+import { doc, onSnapshot, setDoc, getDoc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { HelpCircle, Send, MessageCircle } from "lucide-react";
+import { createDoc } from "@/lib/firestore-helpers";
+import { notifyUsers, getTeacherUids } from "@/lib/notifications";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
@@ -30,6 +33,11 @@ export default function StudentLessonViewPage() {
   const [stage, setStage] = useState<Stage>("content");
   const [pointsGiven, setPointsGiven] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // حالة "اسأل الأستاذ"
+  const [showAskForm, setShowAskForm] = useState(false);
+  const [askText, setAskFormText] = useState("");
+  const [isSendingAsk, setIsSendingAsk] = useState(false);
 
   // حالة الكويز
   const [qIndex, setQIndex] = useState(0);
@@ -167,6 +175,49 @@ export default function StudentLessonViewPage() {
     setStage("summary");
   };
 
+  const handleSendAsk = async () => {
+    if (!user || !lesson || !askText.trim() || isSendingAsk) return;
+    setIsSendingAsk(true);
+    try {
+      const now = Date.now();
+      const inquiryRef = await createDoc("inquiries", {
+        studentId: user.uid,
+        studentName: profile?.fullName || "طالب",
+        stageId: lesson.stageId,
+        groupIds: (profile as StudentProfile)?.groupIds ?? [],
+        title: `سؤال عن درس: ${lesson.title}`,
+        details: askText.trim(),
+        unitId: lesson.unitId,
+        lessonId: lesson.id,
+        status: "new",
+        createdAt: now,
+        updatedAt: now,
+        lastMessageAt: now,
+        lastMessageBy: "student",
+      });
+      await createDoc(`inquiries/${inquiryRef.id}/messages`, {
+        senderId: user.uid,
+        senderRole: "student",
+        senderName: profile?.fullName || "طالب",
+        body: askText.trim(),
+        createdAt: now,
+      });
+      await notifyUsers(await getTeacherUids(), {
+        type: "inquiry-new",
+        title: `سؤال جديد من الطالب ${profile?.fullName || "طالب"}`,
+        body: `بخصوص درس: ${lesson.title}`,
+        link: `/inquiries/${inquiryRef.id}`,
+      });
+      setAskFormText("");
+      setShowAskForm(false);
+      alert("تم إرسال سؤالك للأستاذ بنجاح ✅");
+    } catch (err) {
+      alert("تعذر إرسال السؤال، حاول مجدداً.");
+    } finally {
+      setIsSendingAsk(false);
+    }
+  };
+
   const goToNextLessonOrList = () => {
     if (nextLesson) router.push(`/student/lessons/${nextLesson.id}`);
     else router.push("/student/lessons");
@@ -256,18 +307,69 @@ export default function StudentLessonViewPage() {
       )}
 
       {stage === "summary" && (
-        <GlassCard className="text-center">
-          <h2 className="text-xl font-bold text-brand-text mb-4">انتهى الكويز 🎉</h2>
-          <p className="text-4xl font-bold text-brand-primary mb-2">
-            {correctCount} / {quizQuestions.length}
-          </p>
-          <p className="text-brand-textMuted mb-6">
-            النسبة: {Math.round((correctCount / quizQuestions.length) * 100)}%
-          </p>
-          <Button onClick={goToNextLessonOrList}>
-            {nextLesson ? "الدرس التالي ←" : "العودة لقائمة الدروس"}
-          </Button>
-        </GlassCard>
+        <div className="flex flex-col gap-6">
+          <GlassCard className="text-center">
+            <h2 className="text-xl font-bold text-brand-text mb-4">انتهى الكويز 🎉</h2>
+            <p className="text-4xl font-bold text-brand-primary mb-2">
+              {correctCount} / {quizQuestions.length}
+            </p>
+            <p className="text-brand-textMuted mb-6">
+              النسبة: {Math.round((correctCount / quizQuestions.length) * 100)}%
+            </p>
+            <Button onClick={goToNextLessonOrList} className="w-full">
+              {nextLesson ? "الدرس التالي ←" : "العودة لقائمة الدروس"}
+            </Button>
+          </GlassCard>
+
+          {!showAskForm ? (
+            <button 
+              onClick={() => setShowAskForm(true)}
+              className="group relative overflow-hidden rounded-3xl bg-white/40 border border-brand-primary/20 p-6 text-right transition-all hover:bg-white/60 hover:shadow-lg active:scale-[0.98]"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-brand-text mb-1">❓ اسأل الأستاذ إذا تحتاج</h3>
+                  <p className="text-sm text-brand-textMuted">هل واجهت صعوبة في الكويز؟ أرسل سؤالك للأستاذ مهند مباشرة.</p>
+                </div>
+                <div className="w-16 h-16 rounded-2xl bg-brand-primary/10 flex items-center justify-center text-brand-primary group-hover:scale-110 transition-transform">
+                  <HelpCircle size={40} strokeWidth={2.5} />
+                </div>
+              </div>
+            </button>
+          ) : (
+            <GlassCard className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary">
+                  <MessageCircle size={24} />
+                </div>
+                <h3 className="font-bold text-brand-text">سؤالك للأستاذ</h3>
+              </div>
+              <textarea 
+                value={askText}
+                onChange={(e) => setAskFormText(e.target.value)}
+                placeholder="اكتب سؤالك هنا بوضوح..."
+                rows={4}
+                className="w-full px-4 py-3 rounded-2xl border border-brand-primary/20 bg-surface/50 focus:bg-surface outline-none transition-all focus:ring-2 focus:ring-brand-primary/20 mb-4"
+              />
+              <div className="flex flex-col gap-3">
+                <div className="flex gap-2">
+                  <Button onClick={handleSendAsk} disabled={isSendingAsk || !askText.trim()} className="flex-1">
+                    {isSendingAsk ? "جاري الإرسال..." : "إرسال السؤال للأستاذ"} <Send size={16} className="mr-2" />
+                  </Button>
+                  <button 
+                    onClick={() => setShowAskForm(false)}
+                    className="px-6 py-2 rounded-xl bg-surfaceBorder/40 text-brand-textMuted font-bold hover:bg-surfaceBorder/60 transition-colors"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+                <p className="text-[11px] text-brand-textMuted leading-relaxed">
+                  يمكنك إرسال سؤال واحد للمدرس، وسيتم الرد عليه من خلال نافذة "أسئلتي". بعد تحديد السؤال كتم الحل، يمكنك إرسال سؤال جديد فقط.
+                </p>
+              </div>
+            </GlassCard>
+          )}
+        </div>
       )}
     </AppShell>
   );
