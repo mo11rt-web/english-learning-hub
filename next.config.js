@@ -1,8 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // We remove output: export to allow Vercel to work normally
-  // and use a custom script for Capacitor if needed.
+  output: process.env.NEXT_PUBLIC_CAPACITOR_BUILD === 'true' ? 'export' : undefined,
   trailingSlash: true,
   images: {
     unoptimized: true,

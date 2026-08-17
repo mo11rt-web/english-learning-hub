@@ -9,7 +9,7 @@ workflows:
       groups:
         - app
       vars:
-        CAPACITOR_BUILD: "true"
+        NEXT_PUBLIC_CAPACITOR_BUILD: "true"
     scripts:
       - name: Set up environment variables
         script: |
@@ -26,49 +26,32 @@ workflows:
           npm install
       - name: Build Next.js Web App
         script: |
-          # We use a trick: build for static export only here
-          export NEXT_PUBLIC_CAPACITOR_BUILD=true
-          npx next build
-          # If next build didn't produce 'out' (because we removed output:export),
-          # we can force it or use the .next/standalone if configured.
-          # But for Capacitor, we need a static export.
-          # Let's try to force export for this specific step:
-          npx next export || true
-          
-          # If 'out' still not found, let's try to find where the static files are
-          if [ ! -d "out" ]; then
-            echo "Attempting to create out directory manually..."
-            mkdir -p out
-            cp -r .next/static out/_next/static || true
-          fi
+          npm run build
       - name: Set up Android Firebase
         script: |
           npx cap add android || true
           mkdir -p android/app
-          # فك تشفير ملف إعدادات Firebase
           if [ -n "$GOOGLE_SERVICES_JSON" ]; then
             echo $GOOGLE_SERVICES_JSON | base64 --decode > android/app/google-services.json
           fi
           
-          # إضافة صلاحيات الإشعارات في AndroidManifest.xml
+          # Fix AndroidManifest.xml
           MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
           if [ -f "$MANIFEST_PATH" ]; then
-            sed -i '\''/<\/manifest>/i \    <uses-permission android:name="android.permission.INTERNET" />'\'' $MANIFEST_PATH
-            sed -i '\''/<\/manifest>/i \    <uses-permission android:name="android.permission.WAKE_LOCK" />'\'' $MANIFEST_PATH
-            sed -i '\''/<\/manifest>/i \    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />'\'' $MANIFEST_PATH
+            sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST_PATH
+            sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.WAKE_LOCK" />' $MANIFEST_PATH
+            sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' $MANIFEST_PATH
           fi
 
-          # ربط خدمات جوجل في ملفات Gradle (ضروري جداً لـ FCM)
-          # 1. ملف المشروع build.gradle
+          # Fix Gradle
           GRADLE_PROJECT="android/build.gradle"
           if [ -f "$GRADLE_PROJECT" ]; then
-            sed -i '\''/dependencies {/a \        classpath "com.google.gms:google-services:4.4.1"'\'' $GRADLE_PROJECT
+            sed -i '/dependencies {/a \        classpath "com.google.gms:google-services:4.4.1"' $GRADLE_PROJECT
           fi
 
-          # 2. ملف التطبيق build.gradle
           GRADLE_APP="android/app/build.gradle"
           if [ -f "$GRADLE_APP" ]; then
-            echo "apply plugin: '\''com.google.gms.google-services'\''" >> $GRADLE_APP
+            echo "apply plugin: 'com.google.gms.google-services'" >> $GRADLE_APP
           fi
       - name: Sync Capacitor
         script: |

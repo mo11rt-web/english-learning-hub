@@ -318,4 +318,3 @@ export default function StudentInquiriesPage() {
   );
 }
 
-export function generateStaticParams() { return []; }
