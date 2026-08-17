@@ -40,14 +40,14 @@ function formatDate(timestamp: number) {
 
 export default function StudentInquiriesPage() {
   const { user, profile } = useAuth();
-  const { stageId } = useWorkspace();
+  const student = profile as StudentProfile | null;
+  const stageId = student?.stageId;
   const [inquiryIdFromUrl, setInquiryIdFromUrl] = useState<string | null>(null);
 
   useEffect(() => {
     setInquiryIdFromUrl(new URLSearchParams(window.location.search).get("inquiryId"));
   }, []);
 
-  const student = profile as StudentProfile | null;
   const [inquiries, setInquiries] = useState<InquiryWithId[]>([]);
   const [units, setUnits] = useState<(Unit & { id: string })[]>([]);
   const [lessons, setLessons] = useState<(Lesson & { id: string })[]>([]);
@@ -57,7 +57,6 @@ export default function StudentInquiriesPage() {
   const [details, setDetails] = useState("");
   const [unitId, setUnitId] = useState("");
   const [lessonId, setLessonId] = useState("");
-  const [attachmentUrl, setAttachmentUrl] = useState("");
   const [sending, setSending] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [showComposer, setShowComposer] = useState(false);
@@ -101,7 +100,10 @@ export default function StudentInquiriesPage() {
   }, [inquiryIdFromUrl, inquiries]);
 
   const selectedInquiry = inquiries.find((item) => item.id === selectedId) ?? null;
-  const availableLessons = useMemo(() => lessons.filter((lesson) => !unitId || lesson.unitId === unitId), [lessons, unitId]);
+  const availableLessons = useMemo(() => {
+    if (!unitId) return [];
+    return lessons.filter((lesson) => lesson.unitId === unitId);
+  }, [lessons, unitId]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -127,7 +129,6 @@ export default function StudentInquiriesPage() {
     setDetails("");
     setUnitId("");
     setLessonId("");
-    setAttachmentUrl("");
   };
 
   const createInquiry = async () => {
@@ -146,7 +147,6 @@ export default function StudentInquiriesPage() {
         details: details.trim(),
         ...(unitId ? { unitId } : {}),
         ...(lessonId ? { lessonId } : {}),
-        ...(attachmentUrl.trim() ? { attachmentUrl: attachmentUrl.trim(), attachmentName: "رابط مرفق" } : {}),
         status: "new",
         createdAt: now,
         updatedAt: now,
@@ -158,7 +158,6 @@ export default function StudentInquiriesPage() {
         senderRole: "student",
         senderName: student.fullName,
         body: details.trim(),
-        ...(attachmentUrl.trim() ? { attachmentUrl: attachmentUrl.trim(), attachmentName: "رابط مرفق" } : {}),
         createdAt: now,
       });
       await notifyUsers(await getTeacherUids(), {
@@ -200,14 +199,15 @@ export default function StudentInquiriesPage() {
               <option value="">الوحدة المرتبطة (اختياري)</option>
               {units.map((unit) => <option key={unit.id} value={unit.id}>{unit.title}</option>)}
             </select>
-            <select value={lessonId} onChange={(event) => setLessonId(event.target.value)} className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70">
-              <option value="">الدرس المرتبط (اختياري)</option>
+            <select 
+              value={lessonId} 
+              onChange={(event) => setLessonId(event.target.value)} 
+              disabled={!unitId}
+              className={`px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 ${!unitId ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              <option value="">{unitId ? "الدرس المرتبط (اختياري)" : "اختر الوحدة أولاً"}</option>
               {availableLessons.map((lesson) => <option key={lesson.id} value={lesson.id}>{lesson.title}</option>)}
             </select>
-            <label className="flex items-center gap-2 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm text-brand-textMuted cursor-pointer">
-              <Paperclip size={16} />
-              <input dir="ltr" value={attachmentUrl} onChange={(event) => setAttachmentUrl(event.target.value)} placeholder="رابط صورة أو ملف خارجي (اختياري)" className="min-w-0 flex-1 bg-transparent outline-none text-xs" />
-            </label>
             <textarea value={details} onChange={(event) => setDetails(event.target.value)} placeholder="اكتب تفاصيل سؤالك هنا..." rows={5} className="md:col-span-2 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
           </div>
           <div className="mt-4 flex flex-col gap-3">
@@ -291,7 +291,11 @@ export default function StudentInquiriesPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="font-bold text-brand-text truncate">{inquiry.title}</p>
-                  <p className="text-[11px] text-brand-textMuted mt-1">آخر تحديث: {formatDate(inquiry.lastMessageAt)}</p>
+                  <p className="text-[11px] text-brand-textMuted mt-1">
+                    {inquiry.unitId && units.find(u => u.id === inquiry.unitId)?.title ? `الوحدة: ${units.find(u => u.id === inquiry.unitId)?.title} · ` : ""}
+                    {inquiry.lessonId && lessons.find(l => l.id === inquiry.lessonId)?.title ? `الدرس: ${lessons.find(l => l.id === inquiry.lessonId)?.title} · ` : ""}
+                    آخر تحديث: {formatDate(inquiry.lastMessageAt)}
+                  </p>
                 </div>
                 <span className={`px-3 py-1 rounded-full text-[10px] font-bold shrink-0 ${statusStyles[inquiry.status]}`}>
                   {statusLabels[inquiry.status]}

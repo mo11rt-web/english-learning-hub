@@ -138,7 +138,7 @@ export default function StudentLessonViewPage() {
     if (quizQuestions.length > 0) {
       setStage("quiz");
     } else {
-      goToNextLessonOrList();
+      setStage("summary");
     }
   };
 
@@ -309,13 +309,19 @@ export default function StudentLessonViewPage() {
       {stage === "summary" && (
         <div className="flex flex-col gap-6">
           <GlassCard className="text-center">
-            <h2 className="text-xl font-bold text-brand-text mb-4">انتهى الكويز 🎉</h2>
-            <p className="text-4xl font-bold text-brand-primary mb-2">
-              {correctCount} / {quizQuestions.length}
-            </p>
-            <p className="text-brand-textMuted mb-6">
-              النسبة: {Math.round((correctCount / quizQuestions.length) * 100)}%
-            </p>
+            <h2 className="text-xl font-bold text-brand-text mb-4">
+              {quizQuestions.length > 0 ? "انتهى الكويز 🎉" : "أهلاً بك! أنهيت قراءة الدرس بنجاح ✅"}
+            </h2>
+            {quizQuestions.length > 0 && (
+              <>
+                <p className="text-4xl font-bold text-brand-primary mb-2">
+                  {correctCount} / {quizQuestions.length}
+                </p>
+                <p className="text-brand-textMuted mb-6">
+                  النسبة: {Math.round((correctCount / quizQuestions.length) * 100)}%
+                </p>
+              </>
+            )}
             <Button onClick={goToNextLessonOrList} className="w-full">
               {nextLesson ? "الدرس التالي ←" : "العودة لقائمة الدروس"}
             </Button>
