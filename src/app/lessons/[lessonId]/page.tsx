@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { AppShell } from "@/components/layout/AppShell";
@@ -15,6 +15,7 @@ import { notifyUsers, getStudentUidsForStage } from "@/lib/notifications";
 
 export default function LessonEditorPage() {
   const { lessonId } = useParams<{ lessonId: string }>();
+  const router = useRouter();
   const [lesson, setLesson] = useState<(Lesson & { id: string }) | null>(null);
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(false);
@@ -50,6 +51,31 @@ export default function LessonEditorPage() {
         type: "new-lesson",
         link: `/student/lessons/${lesson.id}`,
       });
+    }
+  };
+
+  const saveAndPublishAndExit = async () => {
+    if (!lesson) return;
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, "lessons", lessonId), {
+        blocks: lesson.blocks ?? [],
+        quizQuestions: lesson.quizQuestions ?? [],
+        status: "published",
+        publishedAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      const studentUids = await getStudentUidsForStage(lesson.stageId, lesson.targetGroupIds);
+      await notifyUsers(studentUids, {
+        title: "درس جديد",
+        body: lesson.title,
+        type: "new-lesson",
+        link: `/student/lessons/${lesson.id}`,
+      }).catch(() => {});
+      router.push(`/units/${lesson.unitId}`);
+    } catch (err) {
+      console.error(err);
+      setSaving(false);
     }
   };
 
@@ -120,15 +146,15 @@ export default function LessonEditorPage() {
     <AppShell requireRole="teacher">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold text-brand-text">{lesson.title}</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
           <Button variant="secondary" onClick={() => setPreview((p) => !p)}>
             {preview ? "إنهاء المعاينة" : "معاينة كطالب"}
           </Button>
-          <Button
-            variant={lesson.status === "published" ? "danger" : "primary"}
-            onClick={publish}
-          >
-            {lesson.status === "published" ? "إلغاء النشر" : "نشر الدرس"}
+          <Button onClick={saveAndPublishAndExit} disabled={saving}>
+            {saving ? "جارٍ الحفظ..." : "حفظ التعديلات ونشر"}
+          </Button>
+          <Button variant="secondary" onClick={() => router.push(`/units/${lesson.unitId}`)}>
+            إغلاق
           </Button>
         </div>
       </div>

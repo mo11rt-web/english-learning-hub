@@ -8,6 +8,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
+import { Modal, Toast } from "@/components/ui/Modal";
 import {
   listenCollection, createDoc, updateDocById, deleteDocById, orderBy,
 } from "@/lib/firestore-helpers";
@@ -20,6 +21,13 @@ import { matchesStudentGroups } from "@/lib/groupTargeting";
 const qTypeLabels: Record<QuestionType, string> = {
   mcq: "اختيار من متعدد", "true-false": "صح أو خطأ", "fill-blank": "إكمال الفراغ",
   matching: "مطابقة", reorder: "ترتيب", "short-answer": "إجابة قصيرة", essay: "مقالي",
+};
+
+const assignmentTypeLabels: Record<string, string> = {
+  practice: "تمرين غير محسوب",
+  homework: "واجب منزلي",
+  quiz: "اختبار قصير",
+  exam: "امتحان",
 };
 
 export default function AssignmentsPage() {
@@ -35,6 +43,7 @@ export default function AssignmentsPage() {
   });
   const [creatingAssignment, setCreatingAssignment] = useState(false);
   const [assignmentMessage, setAssignmentMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<(Assignment & { id: string }) | null>(null);
   const [editForm, setEditForm] = useState({ title: "", type: "homework" as Assignment["type"], targetGroupId: "", selectedQ: new Set<string>() });
   const [savingEdit, setSavingEdit] = useState(false);
@@ -117,6 +126,17 @@ export default function AssignmentsPage() {
     }
   };
 
+  const openPreviewModal = () => {
+    const title = aForm.title.trim();
+    const selectedQuestionIds = Array.from(aForm.selectedQ);
+    if (!title || selectedQuestionIds.length === 0 || !user || !workspaceStageId) {
+      setAssignmentMessage({ text: "أدخل عنوان الواجب واختر سؤالًا واحدًا على الأقل.", type: "error" });
+      return;
+    }
+    setAssignmentMessage(null);
+    setShowPreviewModal(true);
+  };
+
   const createAssignment = async () => {
     const title = aForm.title.trim();
     const selectedQuestionIds = Array.from(aForm.selectedQ);
@@ -147,9 +167,7 @@ export default function AssignmentsPage() {
         createdAt: Date.now(),
       });
 
-      // نفرغ النموذج فور نجاح إنشاء المستند، قبل إرسال الإشعارات؛ لأن فشل
-      // الإشعار سابقًا كان يترك البيانات القديمة في النموذج ويؤدي إلى إنشاء
-      // نفس الواجب مرة ثانية عند الضغط مجددًا.
+      setShowPreviewModal(false);
       setAForm({ title: "", type: "homework", targetGroupId: "", durationMinutes: 30, selectedQ: new Set() });
       setAssignmentMessage({ text: "تم نشر الواجب بنجاح ويمكنك إضافة واجب آخر الآن.", type: "success" });
 
@@ -229,9 +247,55 @@ export default function AssignmentsPage() {
               {assignmentMessage.text}
             </p>
           )}
-          <Button onClick={createAssignment} disabled={creatingAssignment}>
-            {creatingAssignment ? "جارٍ النشر..." : "نشر الواجب"}
+          <Button onClick={openPreviewModal} disabled={creatingAssignment}>
+            معاينة ونشر الواجب
           </Button>
+
+          <Modal open={showPreviewModal} onClose={() => setShowPreviewModal(false)} title="معاينة الاختبار / الواجب (منظور الطالب)">
+            <div className="flex flex-col gap-4 text-brand-text">
+              <div className="bg-brand-primary/10 rounded-xl p-4">
+                <h3 className="font-bold text-lg mb-1">{aForm.title}</h3>
+                <p className="text-xs text-brand-textMuted">النوع: {assignmentTypeLabels[aForm.type] ?? aForm.type} · المدة: {aForm.durationMinutes} دقيقة · عدد الأسئلة: {aForm.selectedQ.size}</p>
+              </div>
+
+              <div className="bg-surface/60 rounded-xl p-3 border border-brand-primary/25">
+                <h4 className="font-bold text-sm text-brand-primary mb-1">📋 سلم التصحيح والعلامات:</h4>
+                <p className="text-xs text-brand-textMuted">توزع الدرجات تلقائياً على الأسئلة المختارة بالتساوي. لا تظهر الإجابات الصحيحة للطالب أثناء الحل.</p>
+              </div>
+
+              <div className="max-h-60 overflow-y-auto flex flex-col gap-3">
+                {Array.from(aForm.selectedQ).map((qId, index) => {
+                  const q = questions.find((item) => item.id === qId);
+                  if (!q) return null;
+                  return (
+                    <div key={qId} className="bg-surface/80 border border-brand-primary/15 rounded-xl p-3">
+                      <p className="text-sm font-medium mb-2">{index + 1}. {q.text} <span className="text-xs text-brand-textMuted">({q.points ?? 1} درجة)</span></p>
+                      {q.type === "mcq" && (
+                        <div className="grid gap-1.5 pl-4">
+                          {(q.options ?? []).map((opt, i) => (
+                            <div key={i} className="text-xs px-3 py-2 rounded-lg bg-surface border border-brand-primary/10">○ {opt}</div>
+                          ))}
+                        </div>
+                      )}
+                      {q.type === "true-false" && (
+                        <div className="flex gap-3 text-xs">
+                          <span className="px-3 py-1.5 rounded-lg bg-surface border">○ صح</span>
+                          <span className="px-3 py-1.5 rounded-lg bg-surface border">○ خطأ</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-brand-primary/15">
+                <button onClick={() => setShowPreviewModal(false)} className="px-4 py-2 rounded-xl text-sm border border-brand-primary/25">إلغاء وتعديل</button>
+                <Button onClick={createAssignment} disabled={creatingAssignment}>
+                  {creatingAssignment ? "جارٍ النشر..." : "تأكيد النشر والإرسال للطلاب"}
+                </Button>
+              </div>
+            </div>
+          </Modal>
         </GlassCard>
       </div>
 
