@@ -908,9 +908,9 @@ export default function StudentsPage() {
                 className="w-full px-3 py-3 rounded-xl border border-brand-primary/25 bg-surface/70 text-brand-text"
               />
             </div>
-            <div className="flex justify-end gap-3">
-              <button type="button" onClick={() => setPdfNotesTarget(null)} disabled={!!exportingPdfId} className="px-4 py-2 rounded-xl text-sm border border-brand-primary/25 text-brand-text">إلغاء</button>
-              <button type="button" onClick={generatePdfReport} disabled={!!exportingPdfId} className="px-4 py-2 rounded-xl text-sm text-white bg-brand-primary disabled:opacity-50">{exportingPdfId ? "جارٍ تجهيز التقرير..." : "إنشاء تقرير PDF"}</button>
+            <div className="flex flex-wrap justify-end gap-3">
+              <Button size="sm" variant="secondary" type="button" onClick={() => setPdfNotesTarget(null)} disabled={!!exportingPdfId}>إلغاء</Button>
+              <Button size="sm" type="button" onClick={generatePdfReport} disabled={!!exportingPdfId}>{exportingPdfId ? "جارٍ تجهيز التقرير..." : "إنشاء تقرير PDF"}</Button>
             </div>
           </div>
         )}
@@ -926,9 +926,9 @@ export default function StudentsPage() {
           <div className="flex flex-col gap-4">
             <p className="text-sm text-brand-text">تم إنشاء تقرير <strong>{pdfReady.student.fullName}</strong>. يمكنك مشاركته مباشرة من الهاتف أو فتح واتساب ثم إرفاق الملف.</p>
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={shareGeneratedPdf} className="px-4 py-2.5 rounded-xl text-sm text-white bg-brand-primary">مشاركة ملف PDF</button>
-              <button type="button" onClick={openWhatsappForPdf} className="px-4 py-2.5 rounded-xl text-sm text-white bg-brand-success">فتح واتساب</button>
-              <button type="button" onClick={() => setPdfReady(null)} className="px-4 py-2.5 rounded-xl text-sm border border-brand-primary/25 text-brand-text">إغلاق</button>
+              <Button size="sm" type="button" onClick={shareGeneratedPdf}>مشاركة ملف PDF</Button>
+              <Button size="sm" variant="success" type="button" onClick={openWhatsappForPdf}>فتح واتساب</Button>
+              <Button size="sm" variant="secondary" type="button" onClick={() => setPdfReady(null)}>إغلاق</Button>
             </div>
             <p className="text-xs text-brand-textMuted">في الهاتف اختر واتساب من نافذة المشاركة لإرفاق الملف مباشرة. في الكمبيوتر سيُنزل الملف، ثم استخدم زر فتح واتساب لإرفاقه يدوياً.</p>
           </div>
@@ -1094,11 +1094,11 @@ export default function StudentsPage() {
           <p className="text-sm text-brand-textMuted">
             سيتم تحديث الحسابات الموجودة بنفس رقم الهاتف، وإنشاء الحسابات المفقودة. الحسابات الجديدة ستظهر كلمات مرور مؤقتة بعد انتهاء الاستعادة.
           </p>
-          <div className="flex justify-end gap-3">
-            <button onClick={() => setRestorePreview(null)} disabled={restoring} className="px-4 py-2 rounded-xl text-sm border border-brand-primary/25 text-brand-text">إلغاء</button>
-            <button onClick={handleRestoreStudents} disabled={restoring} className="px-4 py-2 rounded-xl text-sm text-white bg-brand-primary disabled:opacity-50">
+          <div className="flex flex-wrap justify-end gap-3">
+            <Button size="sm" variant="secondary" onClick={() => setRestorePreview(null)} disabled={restoring}>إلغاء</Button>
+            <Button size="sm" onClick={handleRestoreStudents} disabled={restoring}>
               {restoring ? "جارٍ الاستعادة..." : "تأكيد الاستعادة"}
-            </button>
+            </Button>
           </div>
         </div>
       </Modal>
@@ -1126,16 +1126,16 @@ export default function StudentsPage() {
                   </div>
                 ))}
               </div>
-              <button
+              <Button
+                size="sm"
                 onClick={() => downloadJson(`english-hub-restored-credentials-${new Date().toISOString().slice(0, 10)}.json`, { createdAt: new Date().toISOString(), credentials: restoreResult?.credentials ?? [] })}
-                className="px-4 py-2 rounded-xl text-sm text-white bg-brand-primary"
               >
                 تنزيل كلمات المرور كملف JSON
-              </button>
+              </Button>
             </>
           )}
           {(restoreResult?.errors.length ?? 0) > 0 && <p className="text-sm text-brand-error">عدد السجلات التي لم تستعد: {restoreResult?.errors.length}</p>}
-          <button onClick={() => setRestoreResult(null)} className="self-end px-4 py-2 rounded-xl text-sm border border-brand-primary/25 text-brand-text">إغلاق</button>
+          <Button size="sm" variant="secondary" onClick={() => setRestoreResult(null)} className="self-end">إغلاق</Button>
         </div>
       </Modal>
 

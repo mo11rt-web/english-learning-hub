@@ -57,12 +57,12 @@ export default function FilesPage() {
       <PageHeader icon="📎" title="الملفات" />
       <GlassCard className="mb-6">
         <h2 className="font-bold text-brand-text mb-2">إضافة ملف أو رابط تعليمي</h2>
-        <p className="text-xs text-brand-textMuted mb-4">هذه الصفحة لا تستخدم Firebase Storage. الصور ترفع عبر Cloudinary المجاني، وPDF والصوت والفيديو تضاف كرابط خارجي.</p>
+        <p className="text-xs text-brand-textMuted mb-4">الصور ترفع مباشرة بشكل آمن، وPDF والصوت والفيديو تضاف كرابط خارجي.</p>
         <div className="grid md:grid-cols-2 gap-3">
           <input value={resourceName} onChange={(event) => setResourceName(event.target.value)} placeholder="اسم الملف" className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
           <select value={resourceType} onChange={(event) => setResourceType(event.target.value as ResourceType)} className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"><option value="pdf">PDF</option><option value="audio">تسجيل صوتي</option><option value="video">فيديو</option><option value="image">صورة عبر رابط</option><option value="other">أخرى</option></select>
           <label className="md:col-span-2 flex items-center gap-2 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"><Link2 size={16} className="text-brand-textMuted" /><input dir="ltr" value={resourceUrl} onChange={(event) => { setResourceUrl(event.target.value); setImageFile(null); }} placeholder="رابط Google Drive أو الرابط الخارجي" className="min-w-0 flex-1 bg-transparent outline-none text-sm" /></label>
-          <label className="flex items-center gap-2 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm text-brand-textMuted cursor-pointer"><ImagePlus size={16} />{imageFile?.name ?? "رفع صورة عبر Cloudinary"}<input type="file" accept="image/*" className="hidden" onChange={(event) => { setImageFile(event.target.files?.[0] ?? null); setResourceUrl(""); setResourceType("image"); }} /></label>
+          <label className="flex items-center gap-2 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm text-brand-textMuted cursor-pointer"><ImagePlus size={16} />{imageFile?.name ?? "رفع صورة"}<input type="file" accept="image/*" className="hidden" onChange={(event) => { setImageFile(event.target.files?.[0] ?? null); setResourceUrl(""); setResourceType("image"); }} /></label>
           <label className="flex items-center gap-2 text-sm text-brand-text"><input type="checkbox" checked={allowDownload} onChange={(event) => setAllowDownload(event.target.checked)} /> السماح بالتنزيل للطلاب</label>
         </div>
         <Button onClick={saveFile} disabled={saving} className="mt-4">{saving ? "جارٍ الحفظ..." : "إضافة الملف"}</Button>

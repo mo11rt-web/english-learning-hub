@@ -301,14 +301,14 @@ export default function IrregularVerbsPage() {
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex flex-wrap justify-center gap-2 min-w-[170px]">
-                        <button onClick={() => startEdit(v)} className="px-2.5 py-1.5 rounded-lg bg-brand-primary/10 text-brand-primary text-xs hover:bg-brand-primary/20">تعديل</button>
+                        <button onClick={() => startEdit(v)} className="px-3 py-1.5 rounded-lg bg-brand-primary/10 text-brand-primary text-xs font-bold hover:bg-brand-primary/20">تعديل</button>
                         <button
                           onClick={() => updateDocById("irregular_verbs", v.id, { active: !v.active })}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs ${v.active ? "bg-surfaceBorder/60 text-brand-textMuted hover:bg-surfaceBorder" : "bg-brand-success/10 text-brand-success hover:bg-brand-success/20"}`}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold ${v.active ? "bg-surfaceBorder/60 text-brand-textMuted hover:bg-surfaceBorder" : "bg-brand-success/10 text-brand-success hover:bg-brand-success/20"}`}
                         >
                           {v.active ? "تعطيل" : "✓ تفعيل"}
                         </button>
-                        <button onClick={() => deleteDocById("irregular_verbs", v.id)} className="px-2.5 py-1.5 rounded-lg bg-brand-error/10 text-brand-error text-xs hover:bg-brand-error/20">حذف</button>
+                        <button onClick={() => deleteDocById("irregular_verbs", v.id)} className="px-3 py-1.5 rounded-lg bg-brand-error/10 text-brand-error text-xs font-bold hover:bg-brand-error/20">حذف</button>
                       </div>
                     </td>
                   </tr>

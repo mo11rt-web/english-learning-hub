@@ -224,7 +224,7 @@ export default function DashboardPage() {
               {activeDetail === "pending" && <ClipboardCheck size={19} className="text-brand-primary" />}
               <h2 className="font-bold text-brand-text">تفاصيل {selectedTitle}</h2>
             </div>
-            <button type="button" onClick={() => setActiveDetail(null)} aria-label="إغلاق التفاصيل" className="p-1.5 rounded-lg text-brand-textMuted hover:bg-surfaceBorder/50 hover:text-brand-text">
+            <button type="button" onClick={() => setActiveDetail(null)} aria-label="إغلاق التفاصيل" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-brand-textMuted hover:bg-surfaceBorder/50 hover:text-brand-text transition-colors">
               <X size={18} />
             </button>
           </div>

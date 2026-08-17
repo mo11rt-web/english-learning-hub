@@ -221,8 +221,8 @@ export default function TakeAssignmentPage() {
                       <div key={`${item}-${itemIndex}`} className="flex items-center gap-2 rounded-xl border border-brand-primary/20 bg-surface/60 px-3 py-2 text-brand-text">
                         <span className="text-xs text-brand-textMuted w-5">{itemIndex + 1}</span>
                         <span className="flex-1">{item}</span>
-                        <button type="button" disabled={itemIndex === 0} onClick={() => moveReorderItem(q.id, itemIndex, -1)} className="px-2 py-1 rounded-lg bg-surface disabled:opacity-30">↑</button>
-                        <button type="button" disabled={itemIndex === items.length - 1} onClick={() => moveReorderItem(q.id, itemIndex, 1)} className="px-2 py-1 rounded-lg bg-surface disabled:opacity-30">↓</button>
+                        <button type="button" disabled={itemIndex === 0} onClick={() => moveReorderItem(q.id, itemIndex, -1)} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-surface hover:bg-surfaceBorder/40 disabled:opacity-30 transition-colors">↑</button>
+                        <button type="button" disabled={itemIndex === items.length - 1} onClick={() => moveReorderItem(q.id, itemIndex, 1)} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-surface hover:bg-surfaceBorder/40 disabled:opacity-30 transition-colors">↓</button>
                       </div>
                     ))}
                   </div>

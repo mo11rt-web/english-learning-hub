@@ -180,7 +180,7 @@ export function NotificationBell() {
         </div>
       )}
 
-      <button onClick={() => setOpen((value) => !value)} className="relative w-10 h-10 rounded-full bg-surface/70 hover:bg-surface flex items-center justify-center shadow-sm border border-surfaceBorder transition-all active:scale-95" aria-label="الإشعارات">
+      <button onClick={() => setOpen((value) => !value)} className="relative w-10 h-10 rounded-xl bg-surface/70 hover:bg-surface flex items-center justify-center shadow-sm border border-surfaceBorder transition-all active:scale-95" aria-label="الإشعارات">
         <Bell size={20} className={items.filter((i) => !i.read).length > 0 ? "text-brand-primary animate-pulse" : "text-brand-textMuted"} />
         {items.filter((i) => !i.read).length > 0 && (
           <span className="absolute -top-1 -left-1 min-w-[18px] h-[18px] px-1 rounded-full bg-brand-primary text-white text-[10px] font-bold flex items-center justify-center shadow-sm border border-white">

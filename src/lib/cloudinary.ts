@@ -22,7 +22,7 @@ export async function uploadImageToCloudinary(file: File | Blob, folder = "engli
   const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.secure_url) {
-    throw new Error(data?.error?.message || `فشل رفع الصورة إلى Cloudinary (HTTP ${response.status}).`);
+    throw new Error(data?.error?.message || `تعذّر رفع الصورة، حاول مرة أخرى (HTTP ${response.status}).`);
   }
   return { secureUrl: data.secure_url as string, publicId: data.public_id as string | undefined };
 }

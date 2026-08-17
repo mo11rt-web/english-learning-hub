@@ -289,7 +289,7 @@ export default function AssignmentsPage() {
               </div>
 
               <div className="flex justify-end gap-3 pt-3 border-t border-brand-primary/15">
-                <button onClick={() => setShowPreviewModal(false)} className="px-4 py-2 rounded-xl text-sm border border-brand-primary/25">إلغاء وتعديل</button>
+                <Button variant="secondary" onClick={() => setShowPreviewModal(false)}>إلغاء وتعديل</Button>
                 <Button onClick={createAssignment} disabled={creatingAssignment}>
                   {creatingAssignment ? "جارٍ النشر..." : "تأكيد النشر والإرسال للطلاب"}
                 </Button>

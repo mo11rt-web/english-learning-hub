@@ -51,7 +51,7 @@ export function BlockFileUpload({
       {type === "image" && (
         <label className="inline-flex items-center gap-2 w-fit px-3 py-1.5 rounded-lg bg-brand-primary/10 text-brand-primary text-xs cursor-pointer">
           <Upload size={14} />
-          {uploading ? "جارٍ رفع الصورة..." : "رفع صورة عبر Cloudinary المجاني"}
+          {uploading ? "جارٍ رفع الصورة..." : "رفع صورة"}
           <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadImage(file); event.target.value = ""; }} />
         </label>
       )}
@@ -65,10 +65,10 @@ export function BlockFileUpload({
           placeholder={PLACEHOLDER[type]}
           className="min-w-0 flex-1 px-2.5 py-1.5 rounded-lg border border-brand-primary/20 bg-surface/70 text-xs"
         />
-        <button type="button" onClick={saveUrl} className="px-2.5 py-1.5 rounded-lg bg-brand-primary text-white text-xs shrink-0">إضافة الرابط</button>
+        <button type="button" onClick={saveUrl} className="px-3 py-1.5 rounded-lg bg-brand-primary text-white text-xs font-bold shrink-0">إضافة الرابط</button>
       </div>
       {error && <p className="text-[11px] text-brand-error">{error}</p>}
-      <p className="text-[10px] text-brand-textMuted">الصور يمكن رفعها مباشرة عبر Cloudinary، أما PDF والصوت فاستخدم لهما رابط Google Drive أو رابطاً خارجياً.</p>
+      <p className="text-[10px] text-brand-textMuted">الصور يمكن رفعها مباشرة، أما PDF والصوت فاستخدم لهما رابط Google Drive أو رابطاً خارجياً.</p>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { ButtonHTMLAttributes } from "react";
 import clsx from "clsx";
 
 interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "ghost" | "danger";
+  variant?: "primary" | "secondary" | "ghost" | "danger" | "success";
   /** حجم الزر — الافتراضي (md) هو نفس الشكل القديم تمامًا، ما في أي تغيير
    * بصري على الأزرار الموجودة يلي ما بتحدد size. */
   size?: "sm" | "md" | "lg";
@@ -29,6 +29,8 @@ export function Button({ variant = "primary", size = "md", className, ...props }
         variant === "ghost" && "text-brand-text hover:bg-surfaceBorder/40",
         variant === "danger" &&
           "bg-brand-error text-white hover:opacity-90",
+        variant === "success" &&
+          "bg-brand-success text-white hover:opacity-90",
         className
       )}
     />
