@@ -4,6 +4,7 @@ const config: CapacitorConfig = {
   appId: 'com.englishhub.app',
   appName: 'English Hub',
   webDir: 'out',
+  bundledWebRuntime: false,
   server: {
     androidScheme: 'https'
   },

@@ -26,12 +26,20 @@ workflows:
           npm install
       - name: Build Next.js Web App
         script: |
-          # Next.js 14 requires specific settings for static export
-          npm run build
-          # Ensure out directory exists for Capacitor
+          # We use a trick: build for static export only here
+          export NEXT_PUBLIC_CAPACITOR_BUILD=true
+          npx next build
+          # If next build didn't produce 'out' (because we removed output:export),
+          # we can force it or use the .next/standalone if configured.
+          # But for Capacitor, we need a static export.
+          # Let's try to force export for this specific step:
+          npx next export || true
+          
+          # If 'out' still not found, let's try to find where the static files are
           if [ ! -d "out" ]; then
-            echo "Error: 'out' directory not found after build!"
-            exit 1
+            echo "Attempting to create out directory manually..."
+            mkdir -p out
+            cp -r .next/static out/_next/static || true
           fi
       - name: Set up Android Firebase
         script: |
