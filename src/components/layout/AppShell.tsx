@@ -10,6 +10,7 @@ import { BottomNav } from "./BottomNav";
 import { TopBar } from "./TopBar";
 import { MobileMenuProvider } from "@/hooks/useMobileMenu";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useAndroidPush } from "@/hooks/useAndroidPush";
 
 function Spinner() {
   return (
@@ -43,6 +44,7 @@ export function AppShell({
   requireRole?: "teacher" | "student"; // teacher تشمل admin
 }) {
   usePushNotifications();
+  useAndroidPush();
   const { user, profile, loading, error: authError, signOut } = useAuth();
   const { stageId, loading: workspaceLoading, error: workspaceError, retry: retryWorkspace } = useWorkspace();
   const router = useRouter();
