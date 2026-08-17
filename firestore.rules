@@ -1,0 +1,159 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function myProfile() {
+      return get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data;
+    }
+    function isTeacherOrAdmin() {
+      return isSignedIn() && myProfile().role in ['admin', 'teacher'];
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    // يتحقق أن حساب الطالب "نشط" (غير معطّل وغير محذوف) — يُستخدم لمنع أي
+    // طالب معطّل/محذوف من قراءة أو كتابة أي محتوى تعليمي، حتى لو بقي جلسة
+    // الدخول شغّالة تقنيًا في متصفحه
+    function isActive() {
+      return isSignedIn() && myProfile().status == 'active';
+    }
+
+    // الملفات الشخصية: كل مستخدم يقرأ ملفه، المعلم/المدير يقرأ ويكتب الجميع.
+    // الطالب نفسه يقدر يحدّث فقط حقوله غير الحساسة (النقاط عبر increment من
+    // نظام النقاط، وحالة "يجب تغيير كلمة المرور")، ولا يقدر يغيّر دوره أو
+    // حالة حسابه أو أي حقل إداري آخر.
+    match /profiles/{uid} {
+      allow read: if isOwner(uid) || isTeacherOrAdmin() ||
+        (isActive() && resource.data.role in ['admin', 'teacher']);
+      allow create: if isTeacherOrAdmin();
+      allow update: if isTeacherOrAdmin() ||
+        (isOwner(uid) &&
+         request.resource.data.role == resource.data.role &&
+         request.resource.data.status == resource.data.status &&
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['points', 'mustChangePassword', 'photoUrl', 'fcmTokens']));
+      allow delete: if isTeacherOrAdmin();
+    }
+
+    // بيانات إدارية عامة: المعلم/المدير يكتب، أي مستخدم "نشط" يقرأ (الحسابات
+    // المعطّلة/المحذوفة تفقد الوصول لكل شيء تعليمي فورًا)
+    match /stages/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
+    match /groups/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
+    match /units/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
+
+    match /lessons/{id} {
+      // الاستعلام العام في واجهة الطالب يقيّد المرحلة والحالة فقط، ثم تُطبّق
+      // تصفية المجموعات في الواجهة. هذا ضروري لدعم الدروس القديمة التي كانت
+      // تُحفظ بمصفوفة targetGroupIds فارغة قبل اعتماد القيمة __all__، ولمنع
+      // Firestore من رفض الاستعلام برسالة صلاحيات قبل وصول النتائج.
+      allow read: if isTeacherOrAdmin() ||
+        (isActive() && resource.data.status == 'published');
+      allow write: if isTeacherOrAdmin();
+    }
+
+    match /vocabulary_items/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
+    match /files/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
+    // إعدادات عامة (قيم النقاط...): يقرأها أي مستخدم نشط (الطالب يحتاجها
+    // لحساب نقاطه)، ويكتبها المعلم/المدير فقط
+    match /app_settings/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
+    match /past_exam_questions/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
+    match /irregular_verbs/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
+
+    // روابط مشاركة نتائج الطالب مع ولي الأمر: لقطة عامة للقراءة فقط، بدون
+    // تسجيل دخول، ولا تحتوي كلمة مرور أو أي بيانات حساسة أخرى — فقط الحقول
+    // المحسوبة مسبقًا (نقاط، نسبة إنجاز، نتائج اختبارات). القراءة العامة
+    // مسموحة فقط إذا كان enabled == true، والمعلم هو الوحيد القادر على
+    // الكتابة أو التعطيل.
+    match /shares/{token} {
+      allow read: if resource.data.enabled == true;
+      allow write: if isTeacherOrAdmin();
+    }
+    // بنك الأسئلة يُقرأ من الخادم فقط عند حل الواجب؛ لا نسمح للطالب
+    // بقراءة الوثائق الخام لأنها تحتوي على مفاتيح التصحيح.
+    // بنك الأسئلة يحتوي correctAnswer، لذلك لا يُقرأ مباشرة من جهاز الطالب.
+    // صفحة الطالب تستخدم مساري API اللذين يعيدان الأسئلة العامة ويصححان
+    // الإجابات على الخادم.
+    match /question_bank/{id} { allow read: if isTeacherOrAdmin(); allow write: if isTeacherOrAdmin(); }
+    match /announcements/{id} {
+      // الإعلان المنشور المعلن للعامة فقط يمكن عرضه قبل تسجيل الدخول.
+      allow read: if isTeacherOrAdmin() || isActive() ||
+        (resource.data.status == 'published' && resource.data.public == true);
+      allow write: if isTeacherOrAdmin();
+    }
+
+    // نسخة عامة مختصرة من لوحة المتفوقين، لا تحتوي إلا الاسم المختصر
+    // والمجموعة والنقاط والترتيب، ويقرأها أي زائر فقط عندما تكون مفعّلة.
+    match /public_leaderboards/{stageId} {
+      allow read: if resource.data.enabled == true;
+      allow write: if isTeacherOrAdmin();
+    }
+
+    match /assignments/{id} {
+      allow read: if isTeacherOrAdmin() ||
+        (isActive() && resource.data.status == 'published');
+      allow write: if isTeacherOrAdmin();
+    }
+
+    // محاولات الطالب: يقرأ/يكتب محاولاته فقط وهو نشط، المعلم يقرأ ويصحح الجميع
+    match /attempts/{id} {
+      allow read: if isTeacherOrAdmin() ||
+        (isSignedIn() && resource.data.studentId == request.auth.uid);
+      allow create: if isActive() && request.resource.data.studentId == request.auth.uid;
+      allow update: if isTeacherOrAdmin() ||
+        (isActive() && resource.data.studentId == request.auth.uid && resource.data.status == 'in-progress');
+    }
+
+    // تقدم الطالب في الدروس: خاص بالطالب النشط + قراءة المعلم. الشرط هون
+    // مبني على الحقل studentId (مش نمط الـ id نفسه) لأنه صفحة "نتائجي"
+    // وروابط مشاركة النتائج بتستعلم بـ where("studentId","==",...) على
+    // الكوليكشن كامل — وقاعدة أمان مبنية على نمط الـ id فقط ما بتقدر
+    // تتحقق مسبقًا من هيك استعلام، فكانت تُرفض بالكامل بخطأ صلاحية.
+    match /lesson_progress/{id} {
+      allow read: if isTeacherOrAdmin() ||
+        (isSignedIn() && resource.data.studentId == request.auth.uid);
+      allow create: if isActive() && request.resource.data.studentId == request.auth.uid;
+      allow update: if isTeacherOrAdmin() ||
+        (isActive() && resource.data.studentId == request.auth.uid);
+    }
+
+    match /activity_logs/{id} {
+      allow read: if isTeacherOrAdmin();
+      allow create: if isSignedIn();
+    }
+
+    // الاستفسارات: الطالب يرى ويحدّث حالته وأسئلته فقط، والمعلم/المدير
+    // يرى استفسارات طلاب الأقسام التي يديرها. الرسائل تُنشأ فقط ولا تُعدّل
+    // أو تُحذف، حتى يبقى سجل المحادثة كاملاً.
+    match /inquiries/{inquiryId} {
+      allow read: if isTeacherOrAdmin() ||
+        (isActive() && resource.data.studentId == request.auth.uid);
+      allow create: if isActive() && request.resource.data.studentId == request.auth.uid;
+      allow update: if isTeacherOrAdmin() ||
+        (isActive() && resource.data.studentId == request.auth.uid);
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if isTeacherOrAdmin() ||
+          (isActive() && get(/databases/$(database)/documents/inquiries/$(inquiryId)).data.studentId == request.auth.uid);
+        allow create: if isTeacherOrAdmin() ||
+          (isActive() && get(/databases/$(database)/documents/inquiries/$(inquiryId)).data.studentId == request.auth.uid);
+        allow update, delete: if false;
+      }
+    }
+
+    // الإشعارات: كل مستخدم يقرأ/يحدّث/يحذف إشعاراته فقط.
+    // يتم الاحتفاظ بآخر 10 إشعارات لكل مستخدم.
+    match /notifications/{id} {
+      allow read: if isTeacherOrAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow update: if isTeacherOrAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isTeacherOrAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isTeacherOrAdmin() ||
+        (isActive() &&
+         request.resource.data.type in ['submission', 'inquiry-new'] &&
+         get(/databases/$(database)/documents/profiles/$(request.resource.data.userId)).data.role in ['admin', 'teacher']);
+    }
+  }
+}

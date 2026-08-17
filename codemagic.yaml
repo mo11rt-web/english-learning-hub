@@ -1,0 +1,49 @@
+workflows:
+  android-workflow:
+    name: Android Workflow
+    max_build_duration: 30
+    instance_type: mac_mini_m1
+    environment:
+      node: v20.11.0
+      java: 17
+      groups:
+        - firebase_config
+    scripts:
+      - name: Set up environment variables
+        script: |
+          echo "NEXT_PUBLIC_FIREBASE_API_KEY=$NEXT_PUBLIC_FIREBASE_API_KEY" >> .env
+          echo "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN" >> .env
+          echo "NEXT_PUBLIC_FIREBASE_PROJECT_ID=$NEXT_PUBLIC_FIREBASE_PROJECT_ID" >> .env
+          echo "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=$NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET" >> .env
+          echo "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=$NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID" >> .env
+          echo "NEXT_PUBLIC_FIREBASE_APP_ID=$NEXT_PUBLIC_FIREBASE_APP_ID" >> .env
+          echo "NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=$NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME" >> .env
+          echo "NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=$NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET" >> .env
+      - name: Install dependencies
+        script: |
+          npm install
+      - name: Build Next.js Web App
+        script: |
+          npm run build
+      - name: Set up Android Firebase
+        script: |
+          npx cap add android || true
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            echo $GOOGLE_SERVICES_JSON | base64 --decode > android/app/google-services.json
+          fi
+      - name: Sync Capacitor
+        script: |
+          npx cap sync android
+      - name: Build Android APK
+        script: |
+          cd android
+          ./gradlew assembleDebug
+    artifacts:
+      - android/app/build/outputs/apk/debug/app-debug.apk
+    publishing:
+      email:
+        recipients:
+          - user@example.com
+        notify:
+          success: true
+          failure: true
