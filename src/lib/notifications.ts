@@ -1,7 +1,8 @@
-import { collection, getDocs, query, where, writeBatch, doc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { createDoc } from "@/lib/firestore-helpers";
+import { collection, doc, getDocs, limit, orderBy, query, where, writeBatch, deleteDoc } from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
 import { Notification } from "@/lib/types";
+
+const MAX_NOTIFICATIONS = 10;
 
 // يرسل نفس الإشعار لعدة مستخدمين دفعة واحدة (Batch) لتقليل عدد عمليات الكتابة
 export async function notifyUsers(
@@ -14,9 +15,39 @@ export async function notifyUsers(
   const createdAt = Date.now();
   for (const uid of uniqueIds) {
     const ref = doc(collection(db, "notifications"));
-    batch.set(ref, { ...data, userId: uid, createdAt });
+    batch.set(ref, { ...data, userId: uid, createdAt, read: false });
   }
   await batch.commit();
+
+  // تنظيف الإشعارات القديمة (إبقاء آخر 10 فقط) لكل مستخدم بشكل غير متزامن
+  uniqueIds.forEach(async (uid) => {
+    try {
+      const q = query(
+        collection(db, "notifications"),
+        where("userId", "==", uid),
+        orderBy("createdAt", "desc")
+      );
+      const snap = await getDocs(q);
+      if (snap.size > MAX_NOTIFICATIONS) {
+        const toDelete = snap.docs.slice(MAX_NOTIFICATIONS);
+        const deleteBatch = writeBatch(db);
+        toDelete.forEach((d) => deleteBatch.delete(d.ref));
+        await deleteBatch.commit();
+      }
+    } catch (err) {
+      console.error("Failed to prune notifications for user:", uid, err);
+    }
+  });
+
+  // محاولة إرسال Push Notification (اختياري)
+  try {
+    if (auth.currentUser) {
+      // هنا يمكن إضافة استدعاء لـ API خارجي لإرسال Push Notification حقيقية
+      // سنكتفي حالياً بتجهيز البيانات
+    }
+  } catch (err) {
+    // تجاهل
+  }
 }
 
 // يجيب كل معرّفات الطلاب النشطين ضمن مرحلة معينة (وضمن مجموعات محددة إن وُجدت)

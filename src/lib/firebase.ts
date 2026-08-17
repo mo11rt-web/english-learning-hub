@@ -6,6 +6,7 @@ import {
   persistentMultipleTabManager,
   type Firestore,
 } from "firebase/firestore";
+import { getMessaging, getToken, onMessage, type Messaging } from "firebase/messaging";
 
 export const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -47,3 +48,6 @@ export const db = (
       })
     : null
 ) as Firestore;
+
+export const messaging = (app && typeof window !== "undefined" ? getMessaging(app) : null) as Messaging | null;
+export const VAPID_KEY = "BLlJzCvISjtWrATEluP25lAD0wIdfdq9WspKc4jkNPqIi741LkTQflcAlo2kNMAZvwIAnwVLo4wff9l5c0CXb4I";

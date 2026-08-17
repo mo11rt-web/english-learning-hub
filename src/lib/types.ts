@@ -320,6 +320,7 @@ export interface Notification {
   userId: string; // uid المستلم
   title: string;
   body?: string;
+  read?: boolean;
   type:
     | "new-lesson"
     | "new-pdf"

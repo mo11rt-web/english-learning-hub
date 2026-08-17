@@ -144,13 +144,12 @@ service cloud.firestore {
       }
     }
 
-    // الإشعارات: كل مستخدم يقرأ/يحذف إشعاراته فقط (نموذج "احذف عند القراءة"
-    // — لا حاجة لحقل isRead لأن الإشعار المقروء يُحذف مباشرة). المعلم/المدير
-    // يقدر ينشئ أي إشعار (عند نشر درس/واجب/إعلان)؛ الطالب يقدر بس ينشئ
-    // إشعار نوعه "submission" وموجّه لحساب معلم/مدير فعلي (تنبيه تسليم واجب).
+    // الإشعارات: كل مستخدم يقرأ/يحدّث/يحذف إشعاراته فقط.
+    // يتم الاحتفاظ بآخر 10 إشعارات لكل مستخدم.
     match /notifications/{id} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow read: if isTeacherOrAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow update: if isTeacherOrAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isTeacherOrAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create: if isTeacherOrAdmin() ||
         (isActive() &&
          request.resource.data.type in ['submission', 'inquiry-new'] &&

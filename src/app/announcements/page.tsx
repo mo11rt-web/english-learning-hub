@@ -3,12 +3,13 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useMemo, useState } from "react";
-import { Eye, ImagePlus, Link2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Eye, ImagePlus, Link2, Pencil, Plus, Trash2, X, Users, Layout } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Modal, Toast } from "@/components/ui/Modal";
+import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { listenCollection, createDoc, deleteDocById, updateDocById, orderBy } from "@/lib/firestore-helpers";
 import { Announcement, AnnouncementStatus, Group } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
@@ -46,7 +47,7 @@ export default function AnnouncementsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [targetGroupId, setTargetGroupId] = useState("");
+  const [targetGroupIds, setTargetGroupIds] = useState<string[]>([]);
   const [linkUrl, setLinkUrl] = useState("");
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
@@ -74,7 +75,18 @@ export default function AnnouncementsPage() {
   const itemsInWorkspace = useMemo(() => items.filter((item) => !workspaceStageId || item.stageId === workspaceStageId || !item.stageId), [items, workspaceStageId]);
 
   const resetForm = () => {
-    setEditingId(null); setTitle(""); setBody(""); setTargetGroupId(""); setLinkUrl(""); setStartAt(""); setEndAt(""); setStatus("draft"); setFeatured(false); setPublicAnnouncement(false); setImageUrl(""); setImageFile(null);
+    setEditingId(null);
+    setTitle("");
+    setBody("");
+    setTargetGroupIds([]);
+    setLinkUrl("");
+    setStartAt("");
+    setEndAt("");
+    setStatus("draft");
+    setFeatured(false);
+    setPublicAnnouncement(false);
+    setImageUrl("");
+    setImageFile(null);
   };
 
   const notifyPublished = async (announcementTitle: string, targetIds: string[]) => {
@@ -86,21 +98,21 @@ export default function AnnouncementsPage() {
   const save = async () => {
     if (!user || !workspaceStageId) return showToast("اختر القسم الحالي أولاً.", "error");
     if (!title.trim() || !body.trim()) return showToast("يجب إدخال عنوان ونص الإعلان.", "error");
-    if (publicAnnouncement && targetGroupId) return showToast("الإعلان الظاهر قبل تسجيل الدخول يجب أن يكون موجهاً لجميع الطلاب.", "error");
+    if (publicAnnouncement && targetGroupIds.length > 0) return showToast("الإعلان الظاهر قبل تسجيل الدخول يجب أن يكون موجهاً لجميع الطلاب.", "error");
     setSaving(true);
     try {
-      const targetGroupIds = toStoredTargetGroupIds(targetGroupId ? [targetGroupId] : []);
+      const storedGroupIds = toStoredTargetGroupIds(targetGroupIds);
       const uploadedImageUrl = imageFile ? (await uploadImageToCloudinary(imageFile)).secureUrl : imageUrl.trim();
       const now = Date.now();
       const payload = {
-        title: title.trim(), body: body.trim(), targetGroupIds, stageId: workspaceStageId,
+        title: title.trim(), body: body.trim(), targetGroupIds: storedGroupIds, stageId: workspaceStageId,
         ...(uploadedImageUrl ? { imageUrl: uploadedImageUrl } : {}), ...(linkUrl.trim() ? { linkUrl: linkUrl.trim() } : {}),
         ...(startAt ? { startAt: new Date(startAt).getTime() } : {}), ...(endAt ? { endAt: new Date(endAt).getTime() } : {}),
         featured, public: publicAnnouncement, status, updatedAt: now,
       };
       if (editingId) await updateDocById("announcements", editingId, payload);
       else await createDoc("announcements", { ...payload, createdBy: user.uid, createdAt: now });
-      if (status === "published") await notifyPublished(title.trim(), targetGroupId ? [targetGroupId] : []);
+      if (status === "published") await notifyPublished(title.trim(), targetGroupIds);
       showToast(editingId ? "تم تحديث الإعلان ✅" : "تم حفظ الإعلان ✅");
       resetForm();
     } catch (error) {
@@ -109,7 +121,19 @@ export default function AnnouncementsPage() {
   };
 
   const startEdit = (item: Announcement & { id: string }) => {
-    setEditingId(item.id); setTitle(item.title); setBody(item.body); setTargetGroupId(item.targetGroupIds?.find((id) => id !== "__all__") ?? ""); setLinkUrl(item.linkUrl ?? ""); setStartAt(asDateTimeLocal(item.startAt)); setEndAt(asDateTimeLocal(item.endAt)); setStatus(item.status ?? "published"); setFeatured(Boolean(item.featured)); setPublicAnnouncement(Boolean(item.public)); setImageUrl(item.imageUrl ?? ""); setImageFile(null); window.scrollTo({ top: 0, behavior: "smooth" });
+    setEditingId(item.id);
+    setTitle(item.title);
+    setBody(item.body);
+    setTargetGroupIds(item.targetGroupIds?.filter((id) => id !== "__all__") ?? []);
+    setLinkUrl(item.linkUrl ?? "");
+    setStartAt(asDateTimeLocal(item.startAt));
+    setEndAt(asDateTimeLocal(item.endAt));
+    setStatus(item.status ?? "published");
+    setFeatured(Boolean(item.featured));
+    setPublicAnnouncement(Boolean(item.public));
+    setImageUrl(item.imageUrl ?? "");
+    setImageFile(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -117,16 +141,88 @@ export default function AnnouncementsPage() {
       <PageHeader icon="📣" title="الإعلانات" meta={<span className="text-xs text-brand-textMuted">القسم الحالي: {workspaceStageName ?? "—"}</span>} />
       <GlassCard className="mb-6">
         <div className="flex items-center justify-between gap-3 mb-4"><h2 className="font-bold text-brand-text">{editingId ? "تعديل الإعلان" : "إعلان جديد"}</h2>{editingId && <button onClick={resetForm} className="text-xs text-brand-textMuted">إلغاء التعديل</button>}</div>
-        <div className="grid md:grid-cols-2 gap-3">
-          <input placeholder="عنوان الإعلان" value={title} onChange={(event) => setTitle(event.target.value)} className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
-          <select value={targetGroupId} onChange={(event) => setTargetGroupId(event.target.value)} className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"><option value="">جميع الطلاب في القسم</option>{groupsInWorkspace.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select>
-          <textarea placeholder="نص الإعلان" value={body} onChange={(event) => setBody(event.target.value)} rows={4} className="md:col-span-2 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
-          <input placeholder="رابط اختياري" dir="ltr" value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
-          <div className="flex flex-col gap-1.5 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"><label className="flex items-center gap-2 text-sm text-brand-textMuted cursor-pointer"><ImagePlus size={17} /><span className="truncate">{imageFile?.name ?? "رفع صورة عبر Cloudinary المجاني"}</span><input type="file" accept="image/*" className="hidden" onChange={(event) => { setImageFile(event.target.files?.[0] ?? null); setImageUrl(""); }} /></label><input dir="ltr" placeholder="أو ضع رابط صورة خارجي" value={imageUrl} onChange={(event) => { setImageUrl(event.target.value); setImageFile(null); }} className="w-full bg-transparent outline-none text-xs" /></div>
-          <label className="text-sm text-brand-textMuted">يبدأ العرض<input type="datetime-local" value={startAt} onChange={(event) => setStartAt(event.target.value)} className="w-full mt-1 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" /></label>
-          <label className="text-sm text-brand-textMuted">ينتهي العرض<input type="datetime-local" value={endAt} onChange={(event) => setEndAt(event.target.value)} className="w-full mt-1 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" /></label>
-          <select value={status} onChange={(event) => setStatus(event.target.value as AnnouncementStatus)} className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"><option value="draft">مسودة</option><option value="published">منشور</option><option value="expired">منتهي</option></select>
-          <div className="flex flex-wrap items-center gap-4 text-sm text-brand-text"><label className="flex items-center gap-2"><input type="checkbox" checked={featured} onChange={(event) => setFeatured(event.target.checked)} /> إعلان بارز</label><label className="flex items-center gap-2"><input type="checkbox" checked={publicAnnouncement} onChange={(event) => setPublicAnnouncement(event.target.checked)} /> يظهر قبل تسجيل الدخول</label></div>
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="md:col-span-2 flex flex-col gap-1">
+            <label className="text-xs font-bold text-brand-primary px-1">عنوان الإعلان</label>
+            <input placeholder="مثلاً: تنبيه هام لطلاب البكالوريا" value={title} onChange={(event) => setTitle(event.target.value)} className="px-4 py-3 rounded-2xl border border-brand-primary/20 bg-surface/50 focus:bg-surface transition-all outline-none focus:ring-2 focus:ring-brand-primary/20" />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-brand-primary px-1">المنصة المستهدفة</label>
+            <div className="px-4 py-3 rounded-2xl border border-brand-primary/10 bg-brand-primary/5 text-brand-primary font-bold flex items-center gap-2 cursor-not-allowed">
+              <Layout size={16} /> {workspaceStageName || "القسم الحالي"}
+            </div>
+            <p className="text-[10px] text-brand-textMuted px-1">يتم ربط الإعلان تلقائياً بالقسم الذي تعمل عليه حالياً.</p>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-brand-primary px-1">المجموعات المستهدفة</label>
+            <div className="relative">
+              <Users size={16} className="absolute left-3 top-3.5 text-brand-textMuted" />
+              <select 
+                multiple
+                value={targetGroupIds} 
+                onChange={(event) => setTargetGroupIds(Array.from(event.target.selectedOptions, option => option.value))}
+                className="w-full pl-3 pr-9 py-3 rounded-2xl border border-brand-primary/20 bg-surface/50 focus:bg-surface transition-all outline-none focus:ring-2 focus:ring-brand-primary/20 min-h-[50px]"
+              >
+                <option value="">جميع المجموعات</option>
+                {groupsInWorkspace.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+              </select>
+            </div>
+            <p className="text-[10px] text-brand-textMuted px-1">اضغط مع Ctrl لاختيار أكثر من مجموعة.</p>
+          </div>
+
+          <div className="md:col-span-2 flex flex-col gap-1">
+            <label className="text-xs font-bold text-brand-primary px-1">نص الإعلان</label>
+            <textarea placeholder="اكتب تفاصيل الإعلان هنا..." value={body} onChange={(event) => setBody(event.target.value)} rows={4} className="px-4 py-3 rounded-2xl border border-brand-primary/20 bg-surface/50 focus:bg-surface transition-all outline-none focus:ring-2 focus:ring-brand-primary/20" />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-brand-primary px-1">رابط خارجي (اختياري)</label>
+            <input placeholder="https://..." dir="ltr" value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} className="px-4 py-3 rounded-2xl border border-brand-primary/20 bg-surface/50 focus:bg-surface transition-all outline-none focus:ring-2 focus:ring-brand-primary/20" />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-brand-primary px-1">صورة الإعلان</label>
+            <div className="flex flex-col gap-2 px-4 py-2.5 rounded-2xl border border-brand-primary/20 bg-surface/50">
+              <label className="flex items-center gap-2 text-sm text-brand-text font-medium cursor-pointer hover:text-brand-primary transition-colors">
+                <ImagePlus size={18} />
+                <span className="truncate">{imageFile?.name ?? "اختر صورة..."}</span>
+                <input type="file" accept="image/*" className="hidden" onChange={(event) => { setImageFile(event.target.files?.[0] ?? null); setImageUrl(""); }} />
+              </label>
+              <input dir="ltr" placeholder="أو رابط صورة مباشر" value={imageUrl} onChange={(event) => { setImageUrl(event.target.value); setImageFile(null); }} className="w-full bg-transparent border-t border-brand-primary/10 pt-1 outline-none text-xs" />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-brand-primary px-1 text-right">يبدأ العرض</label>
+            <input type="datetime-local" value={startAt} onChange={(event) => setStartAt(event.target.value)} className="px-4 py-3 rounded-2xl border border-brand-primary/20 bg-surface/50 focus:bg-surface transition-all outline-none focus:ring-2 focus:ring-brand-primary/20" />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-brand-primary px-1 text-right">ينتهي العرض</label>
+            <input type="datetime-local" value={endAt} onChange={(event) => setEndAt(event.target.value)} className="px-4 py-3 rounded-2xl border border-brand-primary/20 bg-surface/50 focus:bg-surface transition-all outline-none focus:ring-2 focus:ring-brand-primary/20" />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-brand-primary px-1">حالة النشر</label>
+            <select value={status} onChange={(event) => setStatus(event.target.value as AnnouncementStatus)} className="px-4 py-3 rounded-2xl border border-brand-primary/20 bg-surface/50 focus:bg-surface transition-all outline-none focus:ring-2 focus:ring-brand-primary/20">
+              <option value="draft">مسودة (حفظ فقط)</option>
+              <option value="published">منشور (يظهر للطلاب)</option>
+              <option value="expired">منتهي (مخفي)</option>
+            </select>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-6 px-2 py-2">
+            <div className="flex items-center gap-3">
+              <ToggleSwitch checked={featured} onChange={setFeatured} />
+              <span className="text-sm font-bold text-brand-text">إعلان بارز (تنبيه)</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <ToggleSwitch checked={publicAnnouncement} onChange={setPublicAnnouncement} />
+              <span className="text-sm font-bold text-brand-text text-right">يظهر قبل تسجيل الدخول</span>
+            </div>
+          </div>
         </div>
         <div className="flex gap-2 mt-4"><Button onClick={save} disabled={saving}>{saving ? "جارٍ الحفظ..." : editingId ? "حفظ التعديل" : "نشر الإعلان"} <Plus size={16} /></Button>{(title || body) && <button onClick={() => setPreviewItem({ title, body, targetGroupIds: [], createdBy: user?.uid ?? "", createdAt: Date.now(), imageUrl: imageFile ? "" : imageUrl, linkUrl, status, featured, public: publicAnnouncement })} className="px-4 py-2 rounded-xl bg-surfaceBorder/50 text-brand-text text-sm flex items-center gap-2"><Eye size={16} /> معاينة</button>}</div>
       </GlassCard>

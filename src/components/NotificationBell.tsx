@@ -2,24 +2,25 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { collection, onSnapshot, query, where, orderBy, limit, deleteDoc, doc } from "firebase/firestore";
+import { Bell, CheckCheck, MessageCircle, Info, Clock, CheckCircle2, X } from "lucide-react";
+import { collection, onSnapshot, query, where, orderBy, limit, deleteDoc, updateDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
 import { Notification } from "@/lib/types";
 
-const TYPE_ICON: Record<Notification["type"], string> = {
-  "new-lesson": "📘",
-  "new-pdf": "📄",
-  "new-video": "🎬",
-  "new-exercise": "✏️",
-  "new-exam": "📝",
-  announcement: "📣",
-  submission: "📥",
-  graded: "✅",
-  "inquiry-new": "💬",
-  "inquiry-reply": "💬",
-  "inquiry-resolved": "✅",
-  system: "🔔",
+const TYPE_ICON: Record<Notification["type"], any> = {
+  "new-lesson": Info,
+  "new-pdf": Info,
+  "new-video": Info,
+  "new-exercise": Info,
+  "new-exam": Info,
+  announcement: Bell,
+  submission: MessageCircle,
+  graded: CheckCircle2,
+  "inquiry-new": MessageCircle,
+  "inquiry-reply": MessageCircle,
+  "inquiry-resolved": CheckCircle2,
+  system: Bell,
 };
 
 function timeAgo(ts: number) {
@@ -117,8 +118,24 @@ export function NotificationBell() {
   const handleClick = async (notification: AppNotification) => {
     setOpen(false);
     setToastItem(null);
+    try {
+      if (!notification.read) {
+        await updateDoc(doc(db, "notifications", notification.id), { read: true });
+      }
+    } catch {
+      // تجاهل
+    }
     if (notification.link) router.push(notification.link);
-    await deleteDoc(doc(db, "notifications", notification.id));
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      await Promise.all(
+        items.filter((item) => !item.read).map((item) => updateDoc(doc(db, "notifications", item.id), { read: true }))
+      );
+    } catch {
+      // تجاهل
+    }
   };
 
   const dismissAll = async () => {
@@ -151,28 +168,71 @@ export function NotificationBell() {
         </div>
       )}
 
-      <button onClick={() => setOpen((value) => !value)} className="relative w-10 h-10 rounded-full bg-surface/70 hover:bg-surface flex items-center justify-center shadow-sm" aria-label="الإشعارات">
-        <span className="text-lg">🔔</span>
-        {items.length > 0 && <span className="absolute -top-1 -left-1 min-w-[18px] h-[18px] px-1 rounded-full bg-brand-error text-white text-[10px] font-bold flex items-center justify-center">{items.length > 9 ? "9+" : items.length}</span>}
+      <button onClick={() => setOpen((value) => !value)} className="relative w-10 h-10 rounded-full bg-surface/70 hover:bg-surface flex items-center justify-center shadow-sm border border-surfaceBorder transition-all active:scale-95" aria-label="الإشعارات">
+        <Bell size={20} className={items.filter((i) => !i.read).length > 0 ? "text-brand-primary animate-pulse" : "text-brand-textMuted"} />
+        {items.filter((i) => !i.read).length > 0 && (
+          <span className="absolute -top-1 -left-1 min-w-[18px] h-[18px] px-1 rounded-full bg-brand-primary text-white text-[10px] font-bold flex items-center justify-center shadow-sm border border-white">
+            {items.filter((i) => !i.read).length > 9 ? "9+" : items.filter((i) => !i.read).length}
+          </span>
+        )}
       </button>
 
       {open && (
-        <div className="absolute left-0 mt-2 w-80 max-h-96 overflow-y-auto bg-surface/95 backdrop-blur-xl rounded-2xl shadow-glass border border-surfaceBorder z-50">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-surfaceBorder">
+        <div className="absolute left-0 mt-2 w-80 max-h-[80vh] overflow-y-auto bg-surface/95 backdrop-blur-xl rounded-2xl shadow-glass border border-surfaceBorder z-50 animate-in fade-in zoom-in-95 duration-200">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-surfaceBorder sticky top-0 bg-surface/80 backdrop-blur-md z-10">
             <h3 className="font-bold text-brand-text text-sm">الإشعارات</h3>
             <div className="flex items-center gap-3">
-              <button onClick={toggleSound} className="text-xs text-brand-textMuted" title="تشغيل أو إيقاف صوت الإشعارات">{soundEnabled ? "🔊" : "🔇"}</button>
-              {items.length > 0 && <button onClick={dismissAll} className="text-xs text-brand-textMuted">مسح الكل</button>}
+              <button onClick={toggleSound} className="text-xs text-brand-textMuted hover:text-brand-primary transition-colors" title="تشغيل أو إيقاف صوت الإشعارات">{soundEnabled ? "🔊" : "🔇"}</button>
+              {items.some((i) => !i.read) && (
+                <button onClick={markAllAsRead} className="text-[11px] text-brand-primary font-bold flex items-center gap-1 hover:underline">
+                  <CheckCheck size={13} /> تحديد الكل
+                </button>
+              )}
+              {items.length > 0 && <button onClick={dismissAll} className="text-[11px] text-brand-error hover:underline">مسح</button>}
             </div>
           </div>
-          {items.length === 0 ? <p className="text-brand-textMuted text-sm text-center py-8">لا توجد إشعارات جديدة</p> : (
+          {items.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+              <div className="w-12 h-12 rounded-full bg-surfaceBorder/30 flex items-center justify-center mb-3 text-brand-textMuted opacity-20"><Bell size={24} /></div>
+              <p className="text-brand-textMuted text-sm font-medium">لا توجد إشعارات حالياً</p>
+            </div>
+          ) : (
             <div className="flex flex-col">
-              {items.map((notification) => (
-                <button key={notification.id} onClick={() => handleClick(notification)} className="flex items-start gap-3 px-4 py-3 hover:bg-surfaceBorder/40 text-right border-b border-surfaceBorder last:border-0">
-                  <span className="text-lg shrink-0">{TYPE_ICON[notification.type] ?? "🔔"}</span>
-                  <span className="flex-1 min-w-0"><span className="block text-sm text-brand-text font-medium truncate">{notification.title}</span>{notification.body && <span className="block text-xs text-brand-textMuted truncate">{notification.body}</span>}<span className="block text-[10px] text-brand-textMuted mt-0.5">{timeAgo(notification.createdAt)}</span></span>
-                </button>
-              ))}
+              {items.map((notification) => {
+                const Icon = TYPE_ICON[notification.type] || Bell;
+                return (
+                  <button
+                    key={notification.id}
+                    onClick={() => handleClick(notification)}
+                    className={`flex items-start gap-3 px-4 py-4 text-right border-b border-surfaceBorder last:border-0 transition-all ${
+                      notification.read
+                        ? "hover:bg-surfaceBorder/30 opacity-70"
+                        : "bg-brand-primary/[0.03] hover:bg-brand-primary/[0.08] border-r-4 border-r-brand-primary"
+                    }`}
+                  >
+                    <div className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center ${notification.read ? "bg-surfaceBorder/50 text-brand-textMuted" : "bg-brand-primary/15 text-brand-primary"}`}>
+                      <Icon size={18} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`text-sm truncate ${notification.read ? "text-brand-textMuted" : "text-brand-text font-bold"}`}>
+                          {notification.title}
+                        </span>
+                        {!notification.read && <span className="w-2 h-2 rounded-full bg-brand-primary shrink-0 animate-pulse" />}
+                      </div>
+                      {notification.body && (
+                        <p className={`text-xs truncate mt-0.5 ${notification.read ? "text-brand-textMuted/60" : "text-brand-textMuted font-medium"}`}>
+                          {notification.body}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-1.5 mt-2 text-[10px] text-brand-textMuted/60">
+                        <Clock size={10} />
+                        {timeAgo(notification.createdAt)}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>

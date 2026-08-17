@@ -9,6 +9,7 @@ import { MobileSidebar } from "./MobileSidebar";
 import { BottomNav } from "./BottomNav";
 import { TopBar } from "./TopBar";
 import { MobileMenuProvider } from "@/hooks/useMobileMenu";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 function Spinner() {
   return (
@@ -41,6 +42,7 @@ export function AppShell({
   children: ReactNode;
   requireRole?: "teacher" | "student"; // teacher تشمل admin
 }) {
+  usePushNotifications();
   const { user, profile, loading, error: authError, signOut } = useAuth();
   const { stageId, loading: workspaceLoading, error: workspaceError, retry: retryWorkspace } = useWorkspace();
   const router = useRouter();

@@ -3,6 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useMemo, useState } from "react";
+
 import { collection, getDocs, onSnapshot, query, where } from "firebase/firestore";
 import { Paperclip, Send, CheckCircle2, Clock3, MessageCircle, X } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
@@ -42,6 +43,10 @@ export default function StudentInquiriesPage() {
   const { user, profile } = useAuth();
   const { stageId } = useWorkspace();
   const [inquiryIdFromUrl, setInquiryIdFromUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    setInquiryIdFromUrl(new URLSearchParams(window.location.search).get("inquiryId"));
+  }, []);
   const student = profile as StudentProfile | null;
   const [inquiries, setInquiries] = useState<InquiryWithId[]>([]);
   const [units, setUnits] = useState<(Unit & { id: string })[]>([]);
@@ -61,10 +66,6 @@ export default function StudentInquiriesPage() {
     setToast({ message, type });
     window.setTimeout(() => setToast(null), 4500);
   };
-
-  useEffect(() => {
-    setInquiryIdFromUrl(new URLSearchParams(window.location.search).get("inquiryId"));
-  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -258,7 +259,7 @@ export default function StudentInquiriesPage() {
               </div>
             ))}
           </div>
-          {selectedInquiry.status !== "resolved" && <div className="flex flex-col gap-2"><textarea value={reply} onChange={(event) => setReply(event.target.value)} placeholder="أضف توضيحاً أو رسالة للمعلم..." rows={3} className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" /><div className="flex items-center justify-between gap-2"><label className="text-xs text-brand-textMuted flex items-center gap-1"><Paperclip size={15} /><input dir="ltr" value={attachmentUrl} onChange={(event) => setAttachmentUrl(event.target.value)} placeholder="رابط مرفق اختياري" className="w-48 bg-transparent border-b border-brand-primary/20 outline-none" /></label><Button onClick={sendMessage} disabled={sending || !reply.trim()}>{sending ? "جارٍ الإرسال..." : "إرسال"} <Send size={15} /></Button></div></div>}
+          {selectedInquiry.status !== "resolved" && <div className="flex flex-col gap-2"><textarea value={reply} onChange={(event) => setReply(event.target.value)} placeholder="أضف توضيحاً أو رسالة للمعلم..." rows={3} className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" /><div className="flex flex-wrap items-center justify-between gap-3 mt-2"><label className="text-xs text-brand-textMuted flex items-center gap-1 flex-1 min-w-[150px]"><Paperclip size={15} /><input dir="ltr" value={attachmentUrl} onChange={(event) => setAttachmentUrl(event.target.value)} placeholder="رابط مرفق اختياري" className="w-full bg-transparent border-b border-brand-primary/20 outline-none" /></label><Button onClick={sendMessage} disabled={sending || !reply.trim()} className="w-full md:w-auto">{sending ? "جارٍ الإرسال..." : "إرسال الرد للمعلم"} <Send size={15} /></Button></div></div>}
           {selectedInquiry.status === "resolved" && <p className="text-sm text-brand-success flex items-center gap-2"><CheckCircle2 size={16} /> تم إغلاق هذا الاستفسار. يمكنك إنشاء سؤال جديد عند الحاجة.</p>}
         </GlassCard>
       )}
