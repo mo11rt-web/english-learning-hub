@@ -114,34 +114,75 @@ export default function StudentLessonsPage() {
                 <div className="flex justify-between text-[11px] text-brand-textMuted mt-2"><span>التقدم في الوحدة</span><span>{completedCount} من {unitLessons.length} دروس</span></div>
               </GlassCard>
 
-              <div className="relative mr-3 md:mr-8 pr-5 md:pr-7 border-r-2 border-brand-primary/20 pb-2">
-                <div className="absolute right-[-3px] top-0 bottom-4 w-1 rounded-full bg-gradient-to-b from-brand-primary/40 via-brand-secondary/20 to-transparent" />
+              <div className="relative mr-3 md:mr-8 pr-5 md:pr-7 border-r-2 border-surfaceBorder/60 pb-2">
+                {/* الخط العمودي: الجزء المكتمل يتلوّن بنجاح فوق خط رمادي محايد —
+                    النسبة محسوبة من completedCount/unitLessons.length الموجودة
+                    أصلاً فوق (سطر 88)، بلا أي state أو بيانات جديدة. */}
+                <div
+                  className="absolute right-[-3px] top-0 w-1 rounded-full bg-gradient-to-b from-brand-success to-brand-secondary transition-all duration-500"
+                  style={{ height: `${percentage}%`, maxHeight: "calc(100% - 1rem)" }}
+                />
                 <div className="grid gap-3">
-                  {unitLessons.map((lesson, lessonIndex) => {
-                    const done = completedIds.has(lesson.id);
-                    return (
-                      <Link key={lesson.id} href={`/student/lessons/${lesson.id}`} className="relative block before:absolute before:right-[-29px] md:before:right-[-36px] before:top-1/2 before:w-6 md:before:w-7 before:h-0.5 before:bg-brand-primary/25">
-                        <div className={`relative rounded-2xl border bg-surface/70 px-4 py-4 md:px-5 transition-all hover:-translate-x-1 hover:shadow-md ${done ? "border-brand-success/35" : "border-surfaceBorder/70"}`}>
-                          <div className="absolute right-[-9px] top-1/2 -translate-y-1/2 h-4 w-4 rounded-full border-4 border-app-bg bg-brand-primary shadow-sm" />
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex min-w-0 items-center gap-3">
-                              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${done ? "bg-brand-success/15 text-brand-success" : "bg-brand-primary/10 text-brand-primary"}`}>{lessonIndex + 1}</span>
-                              <div className="min-w-0">
-                                <p className="text-[10px] font-bold text-brand-primary mb-0.5">درس {lessonIndex + 1} من الوحدة</p>
-                                <h3 className="font-bold text-brand-text truncate">{lesson.title}</h3>
+                  {(() => {
+                    // "الدرس الحالي" = أول درس غير مكتمل بترتيب الوحدة — حساب
+                    // بصري بحت من completedIds الموجودة أصلاً، بلا أي استعلام
+                    // أو حالة إضافية.
+                    const currentLessonId = unitLessons.find((l) => !completedIds.has(l.id))?.id;
+                    return unitLessons.map((lesson, lessonIndex) => {
+                      const done = completedIds.has(lesson.id);
+                      const isCurrent = !done && lesson.id === currentLessonId;
+                      return (
+                        <Link key={lesson.id} href={`/student/lessons/${lesson.id}`} className="relative block before:absolute before:right-[-29px] md:before:right-[-36px] before:top-1/2 before:w-6 md:before:w-7 before:h-0.5 before:bg-surfaceBorder/60">
+                          <div
+                            className={`relative rounded-2xl border bg-surface/70 px-4 py-4 md:px-5 transition-all hover:-translate-x-1 hover:shadow-md ${
+                              done
+                                ? "border-brand-success/35"
+                                : isCurrent
+                                ? "border-brand-primary/60 ring-1 ring-brand-primary/20 shadow-sm"
+                                : "border-surfaceBorder/70 opacity-70"
+                            }`}
+                          >
+                            <div
+                              className={`absolute right-[-9px] top-1/2 -translate-y-1/2 h-4 w-4 rounded-full border-4 border-app-bg shadow-sm ${
+                                done ? "bg-brand-success" : isCurrent ? "bg-brand-primary animate-pulse" : "bg-brand-textMuted/40"
+                              }`}
+                            />
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex min-w-0 items-center gap-3">
+                                <span
+                                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${
+                                    done
+                                      ? "bg-brand-success/15 text-brand-success"
+                                      : isCurrent
+                                      ? "bg-brand-primary/15 text-brand-primary"
+                                      : "bg-surfaceBorder/50 text-brand-textMuted"
+                                  }`}
+                                >
+                                  {lessonIndex + 1}
+                                </span>
+                                <div className="min-w-0">
+                                  <p className={`text-[10px] font-bold mb-0.5 ${isCurrent ? "text-brand-primary" : "text-brand-textMuted"}`}>درس {lessonIndex + 1} من الوحدة</p>
+                                  <h3 className="font-bold text-brand-text truncate">{lesson.title}</h3>
+                                </div>
                               </div>
+                              {done ? (
+                                <StatusBadge label="مكتمل" tone="success" />
+                              ) : isCurrent ? (
+                                <StatusBadge label="التالي" tone="primary" />
+                              ) : (
+                                <StatusBadge label="متبقي" tone="muted" />
+                              )}
                             </div>
-                            {done ? <StatusBadge label="مكتمل" tone="success" /> : <StatusBadge label="متبقي" tone="muted" />}
+                            <p className="text-brand-textMuted text-xs mt-2 mr-11 truncate">{lesson.description ?? "درس تعليمي"}</p>
+                            <p className={`text-xs font-bold flex items-center gap-1.5 mt-3 mr-11 ${isCurrent ? "text-brand-primary" : "text-brand-textMuted"}`}>
+                              {done ? <CheckCircle2 size={15} /> : <PlayCircle size={15} />}
+                              {done ? "راجع الدرس مرة تانية" : "ابدأ الدرس"}
+                            </p>
                           </div>
-                          <p className="text-brand-textMuted text-xs mt-2 mr-11 truncate">{lesson.description ?? "درس تعليمي"}</p>
-                          <p className="text-xs font-bold flex items-center gap-1.5 text-brand-primary mt-3 mr-11">
-                            {done ? <CheckCircle2 size={15} /> : <PlayCircle size={15} />}
-                            {done ? "راجع الدرس مرة تانية" : "ابدأ الدرس"}
-                          </p>
-                        </div>
-                      </Link>
-                    );
-                  })}
+                        </Link>
+                      );
+                    });
+                  })()}
                 </div>
               </div>
             </section>

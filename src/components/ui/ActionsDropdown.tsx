@@ -34,7 +34,7 @@ export default function ActionsDropdown({ actions }: { actions: DropdownAction[]
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="grid h-10 w-10 place-items-center rounded-lg border border-brand-primary/20 hover:bg-surfaceBorder/40 active:bg-surfaceBorder/60 text-brand-text transition-colors"
+        className="grid h-10 w-10 place-items-center rounded-xl border border-brand-primary/20 hover:bg-surfaceBorder/40 active:bg-surfaceBorder/60 text-brand-text transition-colors"
         aria-label="خيارات"
         type="button"
       >

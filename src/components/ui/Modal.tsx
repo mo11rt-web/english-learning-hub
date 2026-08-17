@@ -2,6 +2,7 @@
 
 import { ReactNode, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { Button } from "./Button";
 
 export function Modal({
   open,
@@ -117,23 +118,18 @@ export function ConfirmDialog({
       </div>
       <p className="text-brand-text mb-6">{message}</p>
       <div className="flex gap-3 justify-end">
-        <button
-          onClick={onClose}
-          className="px-4 py-2 rounded-xl text-sm text-brand-text border border-brand-primary/25 hover:bg-surfaceBorder/40"
-        >
+        <Button variant="secondary" onClick={onClose}>
           إلغاء
-        </button>
-        <button
+        </Button>
+        <Button
+          variant={danger ? "danger" : "primary"}
           onClick={() => {
             onConfirm();
             onClose();
           }}
-          className={`px-4 py-2 rounded-xl text-sm text-white ${
-            danger ? "bg-brand-error hover:opacity-90" : "bg-brand-primary hover:bg-brand-secondary"
-          }`}
         >
           {confirmLabel}
-        </button>
+        </Button>
       </div>
     </Modal>
   );

@@ -60,10 +60,10 @@ export function TopBar() {
           </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <button onClick={() => window.history.back()} className="hidden sm:flex w-9 h-9 rounded-xl border border-brand-gold/40 text-brand-textMuted hover:bg-brand-goldLight/35 items-center justify-center transition-colors" aria-label="رجوع" title="رجوع"><ArrowRight size={16} /></button>
-          <button onClick={() => window.history.forward()} className="hidden sm:flex w-9 h-9 rounded-xl border border-brand-gold/40 text-brand-textMuted hover:bg-brand-goldLight/35 items-center justify-center transition-colors" aria-label="تقدم" title="تقدم"><ArrowLeft size={16} /></button>
+          <button onClick={() => window.history.back()} className="hidden sm:flex w-10 h-10 rounded-xl border border-brand-gold/40 text-brand-textMuted hover:bg-brand-goldLight/35 items-center justify-center transition-colors" aria-label="رجوع" title="رجوع"><ArrowRight size={16} /></button>
+          <button onClick={() => window.history.forward()} className="hidden sm:flex w-10 h-10 rounded-xl border border-brand-gold/40 text-brand-textMuted hover:bg-brand-goldLight/35 items-center justify-center transition-colors" aria-label="تقدم" title="تقدم"><ArrowLeft size={16} /></button>
           <NotificationBell />
-          <button onClick={toggleTheme} className="w-10 h-10 rounded-full bg-surface/70 hover:bg-surfaceBorder/40 flex items-center justify-center shadow-sm transition-colors" aria-label="تبديل الوضع الليلي">{theme === "dark" ? "☀️" : "🌙"}</button>
+          <button onClick={toggleTheme} className="w-10 h-10 rounded-xl bg-surface/70 hover:bg-surfaceBorder/40 flex items-center justify-center shadow-sm transition-colors" aria-label="تبديل الوضع الليلي">{theme === "dark" ? "☀️" : "🌙"}</button>
         </div>
       </div>
     </header>

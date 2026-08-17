@@ -46,23 +46,24 @@ function UnitCard({
           />
           <div className="flex gap-2">
             <Button
+              size="sm"
               onClick={() => {
                 if (draftTitle.trim()) onRename(draftTitle.trim());
                 setEditing(false);
               }}
-              className="!py-1 !px-3 text-xs"
             >
               حفظ
             </Button>
-            <button
+            <Button
+              size="sm"
+              variant="ghost"
               onClick={() => {
                 setDraftTitle(unit.title);
                 setEditing(false);
               }}
-              className="text-xs text-brand-textMuted px-2"
             >
               إلغاء
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
@@ -77,27 +78,29 @@ function UnitCard({
         </Link>
       )}
 
-      <div className="flex items-center gap-3 mt-2">
-        <Link href={`/units/${unit.id}`} className="text-xs text-brand-primary font-medium">
+      <div className="flex flex-wrap items-center gap-2 mt-3">
+        <Link
+          href={`/units/${unit.id}`}
+          className="px-3 py-1.5 rounded-lg text-xs font-arabic font-bold bg-surface text-brand-text border border-brand-gold/65 hover:bg-brand-goldLight/45 transition-all inline-flex items-center"
+        >
           فتح الدروس ←
         </Link>
         {!editing && (
-          <button
-            onClick={() => setEditing(true)}
-            className="text-xs text-brand-textMuted font-medium"
-          >
+          <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
             ✏️ تعديل الاسم
-          </button>
+          </Button>
         )}
-        <button
+        <Button
+          size="sm"
+          variant="ghost"
           onClick={onTogglePublish}
-          className={`text-xs font-medium ${
-            unit.status === "published" ? "text-brand-textMuted" : "text-brand-success"
-          }`}
+          className={unit.status === "published" ? undefined : "!text-brand-success"}
         >
           {unit.status === "published" ? "⏸ إلغاء النشر" : "🚀 نشر الوحدة"}
-        </button>
-        <button onClick={onDelete} className="text-xs font-medium text-brand-error inline-flex items-center gap-1" title="حذف الوحدة"><Trash2 size={13} /> حذف</button>
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onDelete} title="حذف الوحدة" className="!text-brand-error">
+          <Trash2 size={13} /> حذف
+        </Button>
       </div>
     </GlassCard>
   );
