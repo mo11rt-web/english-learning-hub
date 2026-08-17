@@ -1,3 +1,7 @@
+
+export function generateStaticParams() {
+  return [];
+}
 "use client";
 
 export const dynamic = "force-dynamic";
