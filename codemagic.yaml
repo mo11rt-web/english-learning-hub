@@ -7,7 +7,7 @@ workflows:
       node: v20.11.0
       java: 17
       groups:
-        - firebase_config
+        - app
     scripts:
       - name: Set up environment variables
         script: |
