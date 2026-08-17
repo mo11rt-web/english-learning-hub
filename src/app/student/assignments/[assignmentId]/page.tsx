@@ -1,11 +1,4 @@
-
-export function generateStaticParams() {
-  return [];
-}
 "use client";
-
-export const dynamic = "force-dynamic";
-
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { doc, onSnapshot } from "firebase/firestore";
@@ -266,3 +259,5 @@ export default function TakeAssignmentPage() {
     </AppShell>
   );
 }
+
+export function generateStaticParams() { return []; }

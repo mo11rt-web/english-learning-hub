@@ -24,7 +24,13 @@ workflows:
           npm install
       - name: Build Next.js Web App
         script: |
+          # Next.js 14 requires specific settings for static export
           npm run build
+          # Ensure out directory exists for Capacitor
+          if [ ! -d "out" ]; then
+            echo "Error: 'out' directory not found after build!"
+            exit 1
+          fi
       - name: Set up Android Firebase
         script: |
           npx cap add android || true

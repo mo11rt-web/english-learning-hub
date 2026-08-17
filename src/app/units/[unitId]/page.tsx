@@ -1,11 +1,4 @@
-
-export function generateStaticParams() {
-  return [];
-}
 "use client";
-
-export const dynamic = "force-dynamic";
-
 import { useEffect, useMemo, useState } from "react";
 import { Eye, Pencil, Rocket, Pause, Target, Trash2, Search, SlidersHorizontal } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
@@ -910,3 +903,5 @@ export default function UnitLessonsPage() {
     </AppShell>
   );
 }
+
+export function generateStaticParams() { return []; }

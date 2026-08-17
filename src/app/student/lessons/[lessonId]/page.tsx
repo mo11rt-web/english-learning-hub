@@ -1,11 +1,4 @@
-
-export function generateStaticParams() {
-  return [];
-}
 "use client";
-
-export const dynamic = "force-dynamic";
-
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { doc, onSnapshot, setDoc, getDoc, collection } from "firebase/firestore";
@@ -384,3 +377,5 @@ export default function StudentLessonViewPage() {
     </AppShell>
   );
 }
+
+export function generateStaticParams() { return []; }

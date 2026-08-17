@@ -1,6 +1,6 @@
 "use client";
 
-export const dynamic = "force-dynamic";
+
 
 import { useEffect, useMemo, useState } from "react";
 import { collection, getDocs, onSnapshot, query, where } from "firebase/firestore";
@@ -317,3 +317,5 @@ export default function StudentInquiriesPage() {
     </AppShell>
   );
 }
+
+export function generateStaticParams() { return []; }
