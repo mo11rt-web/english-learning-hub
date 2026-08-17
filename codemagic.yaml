@@ -4,7 +4,7 @@ workflows:
     max_build_duration: 30
     instance_type: mac_mini_m1
     environment:
-      node: v20.11.0
+      node: v22.13.0
       java: 17
       groups:
         - app
@@ -28,6 +28,7 @@ workflows:
       - name: Set up Android Firebase
         script: |
           npx cap add android || true
+          mkdir -p android/app
           if [ -n "$GOOGLE_SERVICES_JSON" ]; then
             echo $GOOGLE_SERVICES_JSON | base64 --decode > android/app/google-services.json
           fi
