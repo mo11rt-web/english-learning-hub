@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  output: 'export',
+  // Only use static export for Capacitor/Mobile builds
+  output: process.env.CAPACITOR_BUILD === 'true' ? 'export' : undefined,
   images: {
     unoptimized: true,
   },

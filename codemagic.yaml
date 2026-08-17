@@ -8,6 +8,8 @@ workflows:
       java: 17
       groups:
         - app
+      vars:
+        CAPACITOR_BUILD: "true"
     scripts:
       - name: Set up environment variables
         script: |

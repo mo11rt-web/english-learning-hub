@@ -182,5 +182,10 @@ export default function GradeAssignmentPage() {
     </AppShell>
   );
 }
-
-export function generateStaticParams() { return []; }
+export function generateStaticParams() {
+  // Only return static params for Capacitor export to avoid Vercel build conflicts
+  if (process.env.CAPACITOR_BUILD === "true") {
+    return [];
+  }
+  return [];
+}
