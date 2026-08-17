@@ -114,9 +114,7 @@ export default function StudentsPage() {
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState("");
   const [showDeleted, setShowDeleted] = useState(false);
-  const [sharingId, setSharingId] = useState<string | null>(null);
-  const [shareLink, setShareLink] = useState<string | null>(null);
-  const [shareToken, setShareToken] = useState<string | null>(null);
+  // تم إزالة مشاركة الروابط نهائياً بناءً على طلب المستخدم
   const [pdfNotesTarget, setPdfNotesTarget] = useState<(StudentProfile & { id: string }) | null>(null);
   const [pdfTeacherNotes, setPdfTeacherNotes] = useState("");
   const [pdfTeacherPhone, setPdfTeacherPhone] = useState("");
@@ -434,22 +432,7 @@ export default function StudentsPage() {
     showToast("تم استرجاع الطالب ✅");
   };
 
-  const handleShare = async (student: StudentProfile & { id: string }) => {
-    if (!user) return;
-    setSharingId(student.id);
-    try {
-      const token = await publishResultsShare(student.id, user.uid);
-      const link = `${window.location.origin}/share/${token}`;
-      setShareLink(link);
-      setShareToken(token);
-      await navigator.clipboard?.writeText(link).catch(() => {});
-      showToast("تم نسخ رابط المشاركة ✅");
-    } catch (e: any) {
-      showToast("تعذر إنشاء رابط المشاركة: " + (e.message ?? "خطأ غير معروف"), "error");
-    } finally {
-      setSharingId(null);
-    }
-  };
+  // تمت إزالة دالة مشاركة الروابط نهائياً
 
   // تصدير كشف نتائج PDF لمشاركته مع الأهل — نفس طريقة علاوي نت بالضبط:
   // بنعبّي قالب مخفي خارج الشاشة ببيانات الطالب، وبعدين نحوّله لصورة عالية
@@ -475,7 +458,8 @@ export default function StudentsPage() {
   const handleExportPdf = (student: StudentProfile & { id: string }) => {
     setPdfNotesTarget(student);
     setPdfTeacherNotes("");
-    setPdfTeacherPhone("");
+    const savedPhone = typeof window !== "undefined" ? localStorage.getItem("english_hub_teacher_phone") ?? "" : "";
+    setPdfTeacherPhone(savedPhone);
   };
 
   const generatePdfReport = async () => {
@@ -485,6 +469,9 @@ export default function StudentsPage() {
     if (!teacherPhone) {
       showToast("أدخل رقم التواصل الخاص بالأستاذ مهند علاوي", "error");
       return;
+    }
+    if (typeof window !== "undefined") {
+      localStorage.setItem("english_hub_teacher_phone", teacherPhone);
     }
     setExportingPdfId(student.id);
     try {
@@ -541,17 +528,34 @@ export default function StudentsPage() {
 
   const shareGeneratedPdf = async () => {
     if (!pdfReady) return;
+    // محاولة استخدام ميزة المشاركة الأصلية (Web Share API) لإرفاق الملف مباشرة عبر واتساب إن توفرت
+    if (typeof navigator !== "undefined" && navigator.canShare && navigator.canShare({ files: [pdfReady.file] })) {
+      try {
+        await navigator.share({
+          files: [pdfReady.file],
+          title: `تقرير الطالب ${pdfReady.student.fullName}`,
+          text: `مرحباً، مرفق لكم تقرير نتائج الطالب ${pdfReady.student.fullName} من منصة English Hub.`,
+        });
+        showToast("تمت مشاركة الملف بنجاح ✅");
+        return;
+      } catch (err: any) {
+        if (err?.name !== "AbortError") {
+          console.error("Share error:", err);
+        }
+      }
+    }
+    // في حال عدم دعم المشاركة المباشرة للملف، يتم تحميل الملف وفتح واتساب
     await downloadOrShareFile(pdfReady.file);
-    showToast("اختر واتساب من نافذة المشاركة لإرسال الملف مباشرة ✅");
-  };
-
-  const openWhatsappForPdf = () => {
-    if (!pdfReady) return;
     const phone = normalizePhone(pdfReady.student.guardianPhone ?? "");
     const message = `مرحباً، أرفقت لكم تقرير نتائج الطالب ${pdfReady.student.fullName}. يرجى مراجعة التقرير المرفق.`;
     const url = phone ? `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(message)}` : `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(url, "_blank", "noopener,noreferrer");
-    showToast("تم فتح واتساب. أرفق ملف PDF الذي تم تنزيله.");
+    showToast("تم تنزيل التقرير وفتح واتساب. قم بإرفاق ملف PDF المحمّل.");
+  };
+
+  const openWhatsappForPdf = async () => {
+    if (!pdfReady) return;
+    await shareGeneratedPdf();
   };
 
   const buildWhatsappMessage = (fullName: string, phone: string, password: string) => {
@@ -605,36 +609,7 @@ export default function StudentsPage() {
         </div>
       </div>
 
-      {shareLink && (
-        <GlassCard className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm text-brand-text font-medium mb-1">
-              ✅ رابط مشاركة النتائج جاهز (تم نسخه تلقائيًا)
-            </p>
-            <a href={shareLink} target="_blank" rel="noreferrer" dir="ltr"
-              className="text-brand-primary text-sm break-all">
-              {shareLink}
-            </a>
-            <p className="text-xs text-brand-textMuted mt-1">
-              أرسل هذا الرابط لولي الأمر — يفتحه بدون تسجيل دخول ويشوف بس النتائج (بدون كلمة مرور أو بيانات حساسة).
-            </p>
-          </div>
-          <div className="flex gap-3 items-start">
-            <button
-              onClick={async () => {
-                if (!shareToken) return;
-                await setShareEnabled(shareToken, false);
-                setShareLink(null);
-                setShareToken(null);
-              }}
-              className="text-brand-error text-xs whitespace-nowrap"
-            >
-              إيقاف المشاركة
-            </button>
-            <button onClick={() => setShareLink(null)} className="text-brand-textMuted text-xs">✕ إغلاق</button>
-          </div>
-        </GlassCard>
-      )}
+      {/* تم إزالة شريط مشاركة الرابط نهائياً */}
 
       <div className="grid lg:grid-cols-3 gap-6">
         <GlassCard className="lg:col-span-1 h-fit">
@@ -846,11 +821,7 @@ export default function StudentsPage() {
                             icon: <span>🔑</span>,
                             onClick: () => setPasswordInfoTarget(s),
                           },
-                          {
-                            label: sharingId === s.id ? "جارٍ إنشاء الرابط..." : "مشاركة النتائج (رابط)",
-                            icon: <span>🔗</span>,
-                            onClick: () => handleShare(s),
-                          },
+                          // تم حذف خيار مشاركة الروابط بناءً على رغبة المستخدم
                           {
                             label: exportingPdfId === s.id ? "جارٍ التصدير..." : "تصدير تقرير PDF",
                             icon: <span>🖨</span>,
