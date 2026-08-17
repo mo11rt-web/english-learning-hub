@@ -292,21 +292,55 @@ export default function DashboardPage() {
         </GlassCard>
       )}
 
-      <GlassCard>
-        <h2 className="font-bold text-brand-text mb-4">اختصارات سريعة</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {shortcuts.map((shortcut) => (
-            <Link
-              key={shortcut.href}
-              href={shortcut.href}
-              className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-surface/60 hover:bg-surface active:scale-95 transition-all text-center"
-            >
-              <span className="text-2xl">{shortcut.icon}</span>
-              <span className="text-sm text-brand-text font-medium">{shortcut.label}</span>
-            </Link>
-          ))}
-        </div>
-      </GlassCard>
+      <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <GlassCard className="md:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-bold text-brand-text flex items-center gap-2">
+              📊 التقرير الأسبوعي للحضور والأداء (آخر 7 أيام)
+            </h2>
+            <span className="text-xs bg-brand-primary/10 text-brand-primary px-2.5 py-1 rounded-lg font-medium">محدث تلقائياً</span>
+          </div>
+          <p className="text-xs text-brand-textMuted mb-4">
+            ملخص تفصيلي لنشاط الطلاب في القسم الحالي، يوضح معدل تسجيل الدخول والنشاط، متوسط النقاط المكتسبة، والتسليمات الأسبوعية.
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-surface/70 rounded-2xl p-3 border border-surfaceBorder/60 text-center">
+              <p className="text-[11px] text-brand-textMuted mb-1">الطلاب النشطون هذا الأسبوع</p>
+              <p className="text-xl font-bold text-brand-primary">
+                {students.filter(s => s.lastActivityAt && (Date.now() - s.lastActivityAt) <= 7 * 24 * 60 * 60 * 1000).length} <span className="text-xs text-brand-textMuted">/ {students.length}</span>
+              </p>
+            </div>
+            <div className="bg-surface/70 rounded-2xl p-3 border border-surfaceBorder/60 text-center">
+              <p className="text-[11px] text-brand-textMuted mb-1">تسليمات الواجبات (الأسبوع)</p>
+              <p className="text-xl font-bold text-brand-success">
+                {attempts.filter(a => a.submittedAt && (Date.now() - a.submittedAt) <= 7 * 24 * 60 * 60 * 1000).length}
+              </p>
+            </div>
+            <div className="bg-surface/70 rounded-2xl p-3 border border-surfaceBorder/60 text-center">
+              <p className="text-[11px] text-brand-textMuted mb-1">إجمالي نقاط الطلاب</p>
+              <p className="text-xl font-bold text-brand-gold">
+                {students.reduce((acc, s: any) => acc + (s.points ?? 0), 0)}
+              </p>
+            </div>
+          </div>
+        </GlassCard>
+
+        <GlassCard>
+          <h2 className="font-bold text-brand-text mb-4">اختصارات سريعة</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {shortcuts.map((shortcut) => (
+              <Link
+                key={shortcut.href}
+                href={shortcut.href}
+                className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-surface/60 hover:bg-surface active:scale-95 transition-all text-center"
+              >
+                <span className="text-xl">{shortcut.icon}</span>
+                <span className="text-xs text-brand-text font-medium">{shortcut.label}</span>
+              </Link>
+            ))}
+          </div>
+        </GlassCard>
+      </div>
     </AppShell>
   );
 }

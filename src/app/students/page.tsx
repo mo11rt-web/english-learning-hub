@@ -789,40 +789,42 @@ export default function StudentsPage() {
               return (
                 <div
                   key={s.id}
-                  className={`flex flex-col gap-3 rounded-2xl border border-surfaceBorder/60 ${accent} bg-surface/60 p-4 sm:flex-row sm:items-center sm:justify-between hover:shadow-md active:scale-[0.99] transition-all`}
+                  className={`flex items-center justify-between gap-3 rounded-2xl border border-surfaceBorder/60 ${accent} bg-surface/60 px-3.5 py-2.5 hover:shadow-md active:scale-[0.99] transition-all`}
                 >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand-primary to-brand-secondary font-extrabold text-white text-lg ring-2 ring-surface shadow-md">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand-primary to-brand-secondary font-extrabold text-white text-sm ring-2 ring-surface shadow-sm">
                       {s.fullName?.[0] ?? "?"}
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate font-bold text-brand-text">{s.fullName}</p>
-                      <p className="truncate text-xs text-brand-textMuted" dir="ltr">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="truncate font-bold text-brand-text text-sm">{s.fullName}</p>
+                        <StatusBadge
+                          label={s.status === "active" ? "نشط" : s.status === "deleted" ? "محذوف" : "معطّل"}
+                          tone={s.status === "active" ? "success" : s.status === "deleted" ? "muted" : "error"}
+                        />
+                      </div>
+                      <p className="truncate text-[11px] text-brand-textMuted" dir="ltr">
                         {s.phone ?? s.username}
                       </p>
-                      <p className="truncate text-xs text-brand-textMuted">
+                      <p className="truncate text-[11px] text-brand-textMuted">
                         {stageName} · {s.points ?? 0} نقطة · {computeLevel(s.points ?? 0).name}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 sm:shrink-0">
-                    <StatusBadge
-                      label={s.status === "active" ? "نشط" : s.status === "deleted" ? "محذوف" : "معطّل"}
-                      tone={s.status === "active" ? "success" : s.status === "deleted" ? "muted" : "error"}
-                    />
+                  <div className="flex items-center gap-2 shrink-0">
                     {s.status === "deleted" ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => handleRestore(s)}
-                          className="text-brand-success text-xs font-semibold px-2"
+                          className="text-brand-success text-xs font-semibold px-1.5 py-1"
                         >
                           ↩ استرجاع
                         </button>
                         <button
                           onClick={() => setPermanentDeleteTarget(s)}
                           disabled={permanentlyDeleting}
-                          className="text-brand-error text-xs font-semibold px-2 disabled:opacity-50"
+                          className="text-brand-error text-xs font-semibold px-1.5 py-1 disabled:opacity-50"
                         >
                           🗑 حذف نهائي
                         </button>
