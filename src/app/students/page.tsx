@@ -25,6 +25,7 @@ import { publishResultsShare, setShareEnabled, computeStudentReportSnapshot, Stu
 import { exportHtmlToPdf, downloadOrShareFile } from "@/lib/pdfExport";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { formatSyrianDate } from "@/lib/dateUtils";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -49,19 +50,6 @@ function toReportBullets(value: string, fallback: string) {
     .map((item) => item.replace(/^[\s•\-–—]+|[\s•\-–—]+$/g, "").replace(/\s+/g, " ").trim())
     .filter(Boolean);
   return items.length > 0 ? items : [fallback];
-}
-
-const SYRIAN_MONTHS = [
-  "كانون الثاني", "شباط", "آذار", "نيسان", "أيار", "حزيران",
-  "تموز", "آب", "أيلول", "تشرين الأول", "تشرين الثاني", "كانون الأول"
-];
-
-function formatSyrianDate(timestamp: number) {
-  const date = new Date(timestamp);
-  const day = date.getDate();
-  const month = SYRIAN_MONTHS[date.getMonth()];
-  const year = date.getFullYear();
-  return `${day} ${month} ${year}`;
 }
 
 type StudentBackupRecord = {

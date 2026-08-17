@@ -11,6 +11,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { StatCard } from "@/components/ui/StatCard";
 import Link from "next/link";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { formatSyrianDate } from "@/lib/dateUtils";
 
 type DetailKey = "students" | "groups" | "lessons" | "pending";
 
@@ -42,12 +43,7 @@ type PendingSummary = {
 };
 
 function formatDate(timestamp?: number) {
-  if (!timestamp) return "غير متوفر";
-  return new Date(timestamp).toLocaleDateString("ar-SY", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return timestamp ? formatSyrianDate(timestamp) : "غير متوفر";
 }
 
 export default function DashboardPage() {

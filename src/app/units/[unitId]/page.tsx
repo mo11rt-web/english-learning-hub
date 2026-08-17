@@ -2,8 +2,8 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
-import { Eye, Pencil, Rocket, Pause, Target, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Eye, Pencil, Rocket, Pause, Target, Trash2, Search, SlidersHorizontal } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { deleteDoc, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -373,6 +373,9 @@ export default function UnitLessonsPage() {
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [previewLesson, setPreviewLesson] = useState<(Lesson & { id: string }) | null>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
+  const [lessonSearch, setLessonSearch] = useState("");
+  const [lessonStatus, setLessonStatus] = useState<"all" | "published" | "draft">("all");
+  const [lessonSort, setLessonSort] = useState<"order" | "name" | "newest" | "oldest">("order");
 
   // مسودة أسئلة الكويز السريع (Quick Quiz) أثناء إنشاء الدرس نفسه
   const [quizDrafts, setQuizDrafts] = useState<DraftQuestion[]>([]);
@@ -423,6 +426,37 @@ export default function UnitLessonsPage() {
   }, [unitId]);
 
   const groupsInUnit = groups.filter((g) => g.stageId === unit?.stageId);
+
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(`english-hub:unit-lessons:${unitId}`);
+      if (!saved) return;
+      const state = JSON.parse(saved) as { search?: string; status?: "all" | "published" | "draft"; sort?: "order" | "name" | "newest" | "oldest" };
+      setLessonSearch(state.search ?? "");
+      setLessonStatus(state.status ?? "all");
+      setLessonSort(state.sort ?? "order");
+    } catch { /* تجاهل حالة قديمة أو غير صالحة */ }
+  }, [unitId]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(`english-hub:unit-lessons:${unitId}`, JSON.stringify({ search: lessonSearch, status: lessonStatus, sort: lessonSort }));
+    } catch { /* sessionStorage قد يكون محجوباً في بعض البيئات */ }
+  }, [unitId, lessonSearch, lessonStatus, lessonSort]);
+
+  const visibleLessons = useMemo(() => {
+    const query = lessonSearch.trim().toLocaleLowerCase("ar");
+    return lessons
+      .filter((lesson) => !query || lesson.title.toLocaleLowerCase("ar").includes(query))
+      .filter((lesson) => lessonStatus === "all" || lesson.status === lessonStatus)
+      .slice()
+      .sort((a, b) => {
+        if (lessonSort === "name") return a.title.localeCompare(b.title, "ar");
+        if (lessonSort === "newest") return (b.createdAt ?? 0) - (a.createdAt ?? 0);
+        if (lessonSort === "oldest") return (a.createdAt ?? 0) - (b.createdAt ?? 0);
+        return a.order - b.order;
+      });
+  }, [lessons, lessonSearch, lessonStatus, lessonSort]);
 
   const resetForm = () => {
     setForm({ title: "", description: "" });
@@ -565,15 +599,24 @@ export default function UnitLessonsPage() {
 
   return (
     <AppShell requireRole="teacher">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-brand-text">
-          دروس الوحدة {unit ? `— ${unit.title}` : ""}
-        </h1>
+      <div className="flex items-center justify-between mb-5 gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-brand-text">دروس الوحدة {unit ? `— ${unit.title}` : ""}</h1>
+          <p className="text-xs text-brand-textMuted mt-1">{visibleLessons.length} من {lessons.length} درس</p>
+        </div>
         <Button onClick={() => { resetForm(); setJustCreatedLesson(null); setModalOpen(true); }}>+ إضافة درس</Button>
       </div>
 
+      <GlassCard className="mb-5 !p-4">
+        <div className="flex flex-col lg:flex-row gap-3">
+          <label className="flex items-center gap-2 flex-1 px-3 py-2 rounded-xl border border-brand-primary/20 bg-surface/70"><Search size={17} className="text-brand-primary" /><input value={lessonSearch} onChange={(event) => setLessonSearch(event.target.value)} placeholder="ابحث باسم الدرس..." className="min-w-0 flex-1 bg-transparent outline-none text-sm" /></label>
+          <label className="flex items-center gap-2 px-3 py-2 rounded-xl border border-brand-primary/20 bg-surface/70 text-sm"><SlidersHorizontal size={16} className="text-brand-primary" /><select value={lessonStatus} onChange={(event) => setLessonStatus(event.target.value as typeof lessonStatus)} className="bg-transparent outline-none"><option value="all">جميع الدروس</option><option value="published">منشور</option><option value="draft">مسودة</option></select></label>
+          <select value={lessonSort} onChange={(event) => setLessonSort(event.target.value as typeof lessonSort)} className="px-3 py-2 rounded-xl border border-brand-primary/20 bg-surface/70 text-sm"><option value="order">الترتيب الأصلي</option><option value="name">حسب الاسم</option><option value="newest">الأحدث</option><option value="oldest">الأقدم</option></select>
+        </div>
+      </GlassCard>
+
       <div className="grid md:grid-cols-2 gap-4">
-        {lessons.map((l) => (
+        {visibleLessons.map((l) => (
           <LessonCard
             key={l.id}
             lesson={l}
@@ -615,9 +658,7 @@ export default function UnitLessonsPage() {
             }}
           />
         ))}
-        {lessons.length === 0 && (
-          <p className="text-brand-textMuted">لا توجد دروس بعد.</p>
-        )}
+        {visibleLessons.length === 0 && <p className="text-brand-textMuted">{lessons.length === 0 ? "لا توجد دروس بعد." : "لا توجد دروس تطابق البحث أو الفلتر الحالي."}</p>}
       </div>
 
       <Modal

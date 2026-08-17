@@ -13,48 +13,42 @@
 :root {
   color-scheme: light;
 
-  --brand-primary: 85 107 47;       /* #556B2F — أخضر زيتوني (olive-600) */
-  --brand-secondary: 56 142 60;     /* #388E3C — أخضر ورقي (leaf-600) */
-  --brand-sidebar: 36 44 17;        /* #242C11 — زيتوني داكن جدًا (olive-900) */
-  --brand-success: 56 142 60;       /* #388E3C */
-  --brand-warning: 212 175 55;      /* #D4AF37 */
-  --brand-error: 199 74 65;         /* #C74A41 */
-  --brand-text: 28 32 22;           /* #1C2016 */
-  --brand-textMuted: 107 101 81;    /* #6B6551 */
-
-  /* الذهبي: لون تمييز للنقاط والمستويات والإنجازات، مطابق لعلاوي نت */
-  --brand-gold: 212 175 55;         /* #D4AF37 */
-  --brand-goldLight: 236 213 138;   /* #ECD58A */
-
+  /* الهوية المرجعية: Forest Green + Golden Wheat + Deep Umber + Charcoal */
+  --brand-primary: 66 129 119;      /* #428177 — Forest */
+  --brand-secondary: 5 66 57;       /* #054239 — Deep Forest */
+  --brand-sidebar: 0 38 35;         /* #002623 — Deep Forest */
+  --brand-success: 66 129 119;      /* #428177 */
+  --brand-warning: 185 167 121;     /* #B9A779 — Golden Wheat */
+  --brand-error: 107 31 42;         /* #6B1F2A — Deep Umber */
+  --brand-text: 22 22 22;            /* #161616 — Charcoal */
+  --brand-textMuted: 93 93 81;       /* warm charcoal */
+  --brand-gold: 185 167 121;         /* #B9A779 */
+  --brand-goldLight: 237 235 222;    /* #EDEBDE */
   --surface: 255 255 255;
-  --surface-border: 224 205 159;    /* beige-300 */
-
-  --app-gradient: linear-gradient(135deg, #FAF6EC, #F5EBD7, #ECDFC0);
-  --geo-stroke: #556B2F;
-  --geo-opacity: 0.06;
+  --surface-border: 229 225 211;
+  --app-gradient: linear-gradient(135deg, #FBF9F2 0%, #F5F1E8 55%, #EDF3EF 100%);
+  --geo-stroke: #428177;
+  --geo-opacity: 0.045;
 }
 
 .dark {
   color-scheme: dark;
 
-  --brand-primary: 77 163 84;       /* #4DA354 — leaf-400 */
-  --brand-secondary: 121 193 126;   /* #79C17E — leaf-300 */
-  --brand-sidebar: 22 27 16;        /* #161B10 */
-  --brand-success: 77 163 84;
-  --brand-warning: 226 194 104;     /* #E2C268 */
-  --brand-error: 224 118 108;
-  --brand-text: 245 235 215;        /* #F5EBD7 */
-  --brand-textMuted: 183 177 145;   /* #B7B191 */
-
-  --brand-gold: 226 194 104;        /* #E2C268 */
-  --brand-goldLight: 240 224 178;
-
-  --surface: 32 38 26;              /* #20261A */
-  --surface-border: 51 57 37;       /* #333925 */
-
-  --app-gradient: linear-gradient(135deg, #161B10, #1B2114, #181E12);
-  --geo-stroke: #D4AF37;
-  --geo-opacity: 0.07;
+  --brand-primary: 87 169 155;       /* #57A99B */
+  --brand-secondary: 139 198 187;    /* #8BC6BB */
+  --brand-sidebar: 0 25 22;          /* #001916 */
+  --brand-success: 87 169 155;
+  --brand-warning: 215 190 125;      /* Golden Wheat */
+  --brand-error: 185 87 98;          /* Umber red */
+  --brand-text: 245 243 235;         /* warm white */
+  --brand-textMuted: 182 179 166;
+  --brand-gold: 215 190 125;
+  --brand-goldLight: 238 228 193;
+  --surface: 16 39 34;               /* deep green charcoal */
+  --surface-border: 45 81 72;
+  --app-gradient: linear-gradient(135deg, #071914 0%, #0C2924 55%, #101B19 100%);
+  --geo-stroke: #B9A779;
+  --geo-opacity: 0.06;
 }
 
 html {
@@ -65,6 +59,7 @@ body {
   color: rgb(var(--brand-text));
   background-image: var(--app-gradient);
   background-attachment: fixed;
+  font-family: var(--font-arabic), sans-serif;
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 

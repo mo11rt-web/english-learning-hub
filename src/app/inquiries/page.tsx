@@ -10,11 +10,12 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { Toast } from "@/components/ui/Modal";
 import { createDoc, updateDocById } from "@/lib/firestore-helpers";
-import { db, storage } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { notifyUsers } from "@/lib/notifications";
 import { Group, Inquiry, InquiryMessage, InquiryStatus, Lesson, Profile, StudentProfile, Unit } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { formatSyrianDate } from "@/lib/dateUtils";
 
 const statusLabels: Record<InquiryStatus, string> = {
   new: "جديد",
@@ -34,7 +35,7 @@ type InquiryWithId = Inquiry & { id: string };
 type MessageWithId = InquiryMessage & { id: string };
 
 function formatDate(timestamp: number) {
-  return new Date(timestamp).toLocaleString("ar-SY", { dateStyle: "medium", timeStyle: "short" });
+  return formatSyrianDate(timestamp, { includeTime: true });
 }
 
 export default function TeacherInquiriesPage() {

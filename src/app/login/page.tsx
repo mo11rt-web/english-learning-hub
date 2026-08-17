@@ -33,6 +33,10 @@ export default function LoginPage() {
   const { canInstall, promptInstall, showManualIosInstructions, installed } = usePwaInstall();
 
   useEffect(() => {
+    if (!db) {
+      setError("إعدادات Firebase غير مكتملة. أضف متغيرات NEXT_PUBLIC_FIREBASE_* ثم أعد تشغيل التطبيق.");
+      return;
+    }
     const now = Date.now();
     const announcementsUnsubscribe = onSnapshot(
       query(collection(db, "announcements"), where("public", "==", true), where("status", "==", "published"), limit(5)),
@@ -59,6 +63,10 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (!auth || !db) {
+      setError("إعدادات Firebase غير مكتملة. لا يمكن تسجيل الدخول قبل إضافتها.");
+      return;
+    }
     setLoading(true);
 
     const phone = normalizePhone(identifier);

@@ -53,10 +53,10 @@ export function Sidebar() {
   return (
     <aside className="w-64 shrink-0 h-full bg-brand-sidebar text-white flex flex-col p-4 gap-2 overflow-y-auto">
       <div className="px-2 py-4 mb-2">
-        <h1 className="font-bold text-lg leading-tight" dir="ltr">
-          Learn <span className="text-brand-secondary">English</span>
+        <h1 className="font-extrabold text-lg leading-tight tracking-tight" dir="ltr">
+          ENGLISH <span className="text-brand-gold">HUB</span>
         </h1>
-        <p className="text-[10px] text-white/50" dir="ltr">with Mohanad Allawi</p>
+        <p className="text-[10px] text-white/60" dir="rtl">تعلم ملهم، مستقبل واعد</p>
         <p className="text-xs text-white/60 mt-1">
           {profile?.fullName ?? "..."}
         </p>
@@ -83,9 +83,9 @@ export function Sidebar() {
               href={l.href}
               onClick={() => setOpen(false)}
               className={clsx(
-                "flex items-center gap-3 px-3.5 py-2.5 min-h-[46px] rounded-xl text-sm transition-colors",
+                "flex items-center gap-3 px-3.5 py-2.5 min-h-[46px] rounded-2xl text-sm transition-all duration-150",
                 pathname === l.href
-                  ? "bg-gradient-to-l from-brand-primary to-brand-secondary text-white font-bold shadow-md"
+                  ? "bg-gradient-to-l from-brand-primary to-brand-secondary text-white font-bold shadow-md shadow-black/10 ring-1 ring-brand-gold/25"
                   : "hover:bg-white/10 active:bg-white/15 text-white/85"
               )}
             >

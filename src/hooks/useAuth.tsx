@@ -35,6 +35,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!auth) {
+      setLoading(false);
+      setError("إعدادات Firebase غير مكتملة. أضف متغيرات NEXT_PUBLIC_FIREBASE_* ثم أعد تشغيل التطبيق.");
+      return;
+    }
     const unsubAuth = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setError(null);
@@ -47,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !db) return;
     const unsubProfile = onSnapshot(
       doc(db, "profiles", user.uid),
       (snap) => {
@@ -69,7 +74,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, loading, error, signOut: () => fbSignOut(auth) }}
+      value={{
+        user,
+        profile,
+        loading,
+        error,
+        signOut: async () => {
+          if (auth) await fbSignOut(auth);
+        },
+      }}
     >
       {children}
     </AuthContext.Provider>

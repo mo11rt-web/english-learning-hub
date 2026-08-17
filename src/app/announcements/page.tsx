@@ -16,6 +16,7 @@ import { useWorkspace } from "@/hooks/useWorkspace";
 import { notifyUsers, getStudentUidsForStage } from "@/lib/notifications";
 import { toStoredTargetGroupIds } from "@/lib/groupTargeting";
 import { uploadImageToCloudinary } from "@/lib/cloudinary";
+import { formatSyrianDate } from "@/lib/dateUtils";
 
 const statusLabels: Record<AnnouncementStatus, string> = { draft: "مسودة", published: "منشور", expired: "منتهي" };
 const statusStyles: Record<AnnouncementStatus, string> = {
@@ -27,7 +28,7 @@ const statusStyles: Record<AnnouncementStatus, string> = {
 type PreviewAnnouncement = Omit<Announcement, "id"> & { id?: string };
 
 function formatDate(timestamp?: number) {
-  return timestamp ? new Date(timestamp).toLocaleDateString("ar-SY", { dateStyle: "medium" }) : "بدون تاريخ انتهاء";
+  return timestamp ? formatSyrianDate(timestamp) : "بدون تاريخ انتهاء";
 }
 
 function asDateTimeLocal(timestamp?: number) {

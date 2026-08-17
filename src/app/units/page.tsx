@@ -4,10 +4,13 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Trash2 } from "lucide-react";
+import { collection, deleteDoc, doc, getDocs, query, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
-import { Toast } from "@/components/ui/Modal";
+import { ConfirmDialog, Toast } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { listenCollection, createDoc, updateDocById, orderBy } from "@/lib/firestore-helpers";
 import { Unit } from "@/lib/types";
@@ -21,10 +24,12 @@ function UnitCard({
   unit,
   onTogglePublish,
   onRename,
+  onDelete,
 }: {
   unit: Unit & { id: string };
   onTogglePublish: () => void;
   onRename: (newTitle: string) => void;
+  onDelete: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(unit.title);
@@ -92,6 +97,7 @@ function UnitCard({
         >
           {unit.status === "published" ? "⏸ إلغاء النشر" : "🚀 نشر الوحدة"}
         </button>
+        <button onClick={onDelete} className="text-xs font-medium text-brand-error inline-flex items-center gap-1" title="حذف الوحدة"><Trash2 size={13} /> حذف</button>
       </div>
     </GlassCard>
   );
@@ -101,6 +107,7 @@ export default function UnitsPage() {
   const [units, setUnits] = useState<(Unit & { id: string })[]>([]);
   const [title, setTitle] = useState("");
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ unit: Unit & { id: string }; lessonsCount: number } | null>(null);
   const { stageId, stageName } = useWorkspace();
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
@@ -152,6 +159,30 @@ export default function UnitsPage() {
     }
   };
 
+  const requestDeleteUnit = async (u: Unit & { id: string }) => {
+    try {
+      const lessonsSnapshot = await getDocs(query(collection(db, "lessons"), where("unitId", "==", u.id)));
+      setDeleteTarget({ unit: u, lessonsCount: lessonsSnapshot.size });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      showToast(`تعذّر فحص محتوى الوحدة: ${msg}`, "error");
+    }
+  };
+
+  const confirmDeleteUnit = async () => {
+    if (!deleteTarget) return;
+    const { unit } = deleteTarget;
+    try {
+      const lessonsSnapshot = await getDocs(query(collection(db, "lessons"), where("unitId", "==", unit.id)));
+      await Promise.all(lessonsSnapshot.docs.map((lesson) => deleteDoc(doc(db, "lessons", lesson.id))));
+      await deleteDoc(doc(db, "units", unit.id));
+      showToast("تم حذف الوحدة والدروس المرتبطة بها ✅");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      showToast(`تعذّر حذف الوحدة: ${msg}`, "error");
+    }
+  };
+
   const renameUnit = async (u: Unit & { id: string }, newTitle: string) => {
     try {
       await updateDocById("units", u.id, { title: newTitle });
@@ -190,6 +221,7 @@ export default function UnitsPage() {
             unit={u}
             onTogglePublish={() => togglePublish(u)}
             onRename={(newTitle) => renameUnit(u, newTitle)}
+            onDelete={() => requestDeleteUnit(u)}
           />
         ))}
         {unitsInWorkspace.length === 0 && (
@@ -197,6 +229,7 @@ export default function UnitsPage() {
         )}
       </div>
 
+      <ConfirmDialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} onConfirm={confirmDeleteUnit} title="تأكيد حذف الوحدة" message={deleteTarget ? `هل أنت متأكد من حذف الوحدة «${deleteTarget.unit.title}»؟${deleteTarget.lessonsCount ? ` هذه الوحدة تحتوي على ${deleteTarget.lessonsCount} درس، وسيتم حذف الدروس المرتبطة بها أيضاً.` : " لا تحتوي هذه الوحدة على دروس حالياً."}` : ""} confirmLabel="تأكيد الحذف" />
       {toast && <Toast message={toast.message} type={toast.type} />}
     </AppShell>
   );
