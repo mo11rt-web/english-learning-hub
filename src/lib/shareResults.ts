@@ -1,0 +1,215 @@
+import {
+  doc,
+  getDoc,
+  getDocs,
+  collection,
+  query,
+  where,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { StudentProfile, Stage, Group, Lesson, Assignment, Attempt } from "@/lib/types";
+import { computeLevel } from "@/lib/gamification";
+
+function randomToken() {
+  return crypto.randomUUID().replace(/-/g, "").slice(0, 20);
+}
+
+export interface StudentReportSnapshot {
+  studentId: string;
+  studentName: string;
+  stageName: string;
+  groupName: string;
+  points: number;
+  levelName: string;
+  lessonsCompleted: number;
+  lessonsTotal: number;
+  completionPercentage: number;
+  quizAveragePercentage: number;
+  quizTotalScore: number;
+  quizMaxScore: number;
+  quizPercentage: number;
+  quizPerformanceLabel: string;
+  rank: number | null;
+  totalInGroup: number | null;
+  quizResults: { title: string; score: number; maxScore: number; date: number; status: Attempt["status"] }[];
+  lastActivityAt?: number;
+}
+
+// الحساب الفعلي لكل بيانات تقرير الطالب — دالة "قراءة فقط" بدون أي كتابة
+// بقاعدة البيانات، حتى تقدر تُستخدم من أكثر من مكان (رابط المشاركة العام
+// وتصدير PDF) بدون تكرار نفس المنطق مرتين.
+export async function computeStudentReportSnapshot(
+  studentId: string
+): Promise<StudentReportSnapshot> {
+  const studentSnap = await getDoc(doc(db, "profiles", studentId));
+  if (!studentSnap.exists()) throw new Error("الطالب غير موجود");
+  const student = studentSnap.data() as StudentProfile;
+
+  const [stageSnap, groupsSnap, lessonsSnap, progressSnap, attemptsSnap, groupPeersSnap] = await Promise.all([
+    student.stageId ? getDoc(doc(db, "stages", student.stageId)) : Promise.resolve(null),
+    getDocs(collection(db, "groups")),
+    student.stageId
+      ? getDocs(
+          query(
+            collection(db, "lessons"),
+            where("stageId", "==", student.stageId),
+            where("status", "==", "published")
+          )
+        )
+      : Promise.resolve(null),
+    getDocs(query(collection(db, "lesson_progress"), where("studentId", "==", studentId))),
+    getDocs(query(collection(db, "attempts"), where("studentId", "==", studentId))),
+    // المعلم/المدير مسموح له يقرأ بروفايلات كل الطلاب (خلافًا للطالب نفسه)،
+    // فهون منقدر نحسب الترتيب مباشرة من المتصفح بدون الحاجة لـ API خاص.
+    student.groupIds?.length
+      ? getDocs(
+          query(
+            collection(db, "profiles"),
+            where("role", "==", "student"),
+            where("groupIds", "array-contains", student.groupIds[0])
+          )
+        )
+      : Promise.resolve(null),
+  ]);
+
+  const stageName = (stageSnap?.data() as Stage | undefined)?.name ?? "—";
+  const groupName =
+    (groupsSnap.docs
+      .map((d) => ({ ...(d.data() as Group), id: d.id }))
+      .find((g) => student.groupIds?.includes(g.id))?.name) ?? "—";
+
+  const lessonsTotal = lessonsSnap?.size ?? 0;
+  const lessonsCompleted = progressSnap.docs.filter((d) => d.data().completed).length;
+  const completionPercentage =
+    lessonsTotal > 0 ? Math.round((lessonsCompleted / lessonsTotal) * 100) : 0;
+
+  // آخر 10 نتائج اختبارات مصححة (تلقائيًا أو يدويًا)
+  const assignmentIds = Array.from(
+    new Set(attemptsSnap.docs.map((d) => (d.data() as Attempt).assignmentId))
+  );
+  const assignmentTitles: Record<string, string> = {};
+  await Promise.all(
+    assignmentIds.map(async (id) => {
+      const s = await getDoc(doc(db, "assignments", id));
+      if (s.exists()) assignmentTitles[id] = (s.data() as Assignment).title;
+    })
+  );
+  const quizResults = attemptsSnap.docs
+    .map((d) => d.data() as Attempt)
+    .filter((a) => a.status === "submitted" || a.status === "graded" || a.status === "pending-review")
+    .sort((a, b) => (b.submittedAt ?? 0) - (a.submittedAt ?? 0))
+    .slice(0, 10)
+    .map((a) => ({
+      title: assignmentTitles[a.assignmentId] ?? "واجب",
+      score: a.status === "pending-review" ? 0 : a.finalScore ?? a.autoScore ?? 0,
+      maxScore: a.maxScore ?? 0,
+      date: a.submittedAt ?? 0,
+      status: a.status,
+    }));
+
+  const gradedForAverage = attemptsSnap.docs
+    .map((d) => d.data() as Attempt)
+    .filter((a) => (a.status === "submitted" || a.status === "graded") && (a.maxScore ?? 0) > 0);
+  const quizAveragePercentage =
+    gradedForAverage.length > 0
+      ? Math.round(
+          (gradedForAverage.reduce(
+            (sum, a) => sum + (a.finalScore ?? a.autoScore ?? 0) / (a.maxScore ?? 1),
+            0
+          ) /
+            gradedForAverage.length) *
+            100
+        )
+      : 0;
+  const quizTotalScore = gradedForAverage.reduce(
+    (sum, attempt) => sum + (attempt.finalScore ?? attempt.autoScore ?? 0),
+    0
+  );
+  const quizMaxScore = gradedForAverage.reduce(
+    (sum, attempt) => sum + (attempt.maxScore ?? 0),
+    0
+  );
+  const quizPercentage = quizMaxScore > 0 ? Math.round((quizTotalScore / quizMaxScore) * 100) : 0;
+  const quizPerformanceLabel =
+    gradedForAverage.length === 0
+      ? "لا توجد نتائج"
+      : quizPercentage >= 90
+        ? "ممتاز"
+        : quizPercentage >= 80
+          ? "جيد جداً"
+          : quizPercentage >= 70
+            ? "جيد"
+            : quizPercentage >= 60
+              ? "مقبول"
+              : "يحتاج إلى متابعة";
+
+  let rank: number | null = null;
+  let totalInGroup: number | null = null;
+  if (groupPeersSnap) {
+    const peers = groupPeersSnap.docs.map((d) => ({
+      id: d.id,
+      points: (d.data() as StudentProfile & { points?: number }).points ?? 0,
+    }));
+    const sorted = peers.sort((a, b) => b.points - a.points);
+    const idx = sorted.findIndex((p) => p.id === studentId);
+    rank = idx >= 0 ? idx + 1 : null;
+    totalInGroup = sorted.length;
+  }
+
+  const lastActivityAt = Math.max(0, ...progressSnap.docs.map((d) => d.data().lastOpenedAt ?? 0));
+  const level = computeLevel(student.points ?? 0);
+
+  return {
+    studentId,
+    studentName: student.fullName,
+    stageName,
+    groupName,
+    points: student.points ?? 0,
+    levelName: level.name,
+    lessonsCompleted,
+    lessonsTotal,
+    completionPercentage,
+    quizAveragePercentage,
+    quizTotalScore,
+    quizMaxScore,
+    quizPercentage,
+    quizPerformanceLabel,
+    rank,
+    totalInGroup,
+    quizResults,
+    lastActivityAt: lastActivityAt || undefined,
+  };
+}
+
+// يبني لقطة (Snapshot) عامة للنتائج ويحفظها بمستند shares/{token} — لا يتطلب
+// من ولي الأمر تسجيل الدخول لاحقًا لقراءتها
+export async function publishResultsShare(
+  studentId: string,
+  teacherUid: string
+): Promise<string> {
+  const snapshot = await computeStudentReportSnapshot(studentId);
+  const studentSnap = await getDoc(doc(db, "profiles", studentId));
+  const student = studentSnap.data() as StudentProfile;
+
+  const token = student.shareToken || randomToken();
+
+  await setDoc(doc(db, "shares", token), {
+    ...snapshot,
+    enabled: true,
+    createdBy: teacherUid,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  });
+
+  if (!student.shareToken) {
+    await updateDoc(doc(db, "profiles", studentId), { shareToken: token });
+  }
+
+  return token;
+}
+
+export async function setShareEnabled(token: string, enabled: boolean) {
+  await updateDoc(doc(db, "shares", token), { enabled, updatedAt: Date.now() });
+}
