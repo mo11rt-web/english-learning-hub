@@ -31,7 +31,7 @@ export default function AssignmentsPage() {
 
   const [aForm, setAForm] = useState({
     title: "", type: "homework" as Assignment["type"],
-    targetGroupId: "", selectedQ: new Set<string>(),
+    targetGroupId: "", durationMinutes: 30, selectedQ: new Set<string>(),
   });
   const [creatingAssignment, setCreatingAssignment] = useState(false);
   const [assignmentMessage, setAssignmentMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
@@ -136,9 +136,10 @@ export default function AssignmentsPage() {
         targetGroupIds: targetGroups,
         lessonIds: [],
         questionIds: selectedQuestionIds,
+        durationMinutes: aForm.durationMinutes,
         maxAttempts: 1,
         passingScore: 60,
-        showScoreImmediately: true,
+        showScoreImmediately: false,
         showCorrectAnswers: false,
         shuffleQuestions: true,
         status: "published",
@@ -149,7 +150,7 @@ export default function AssignmentsPage() {
       // نفرغ النموذج فور نجاح إنشاء المستند، قبل إرسال الإشعارات؛ لأن فشل
       // الإشعار سابقًا كان يترك البيانات القديمة في النموذج ويؤدي إلى إنشاء
       // نفس الواجب مرة ثانية عند الضغط مجددًا.
-      setAForm({ title: "", type: "homework", targetGroupId: "", selectedQ: new Set() });
+      setAForm({ title: "", type: "homework", targetGroupId: "", durationMinutes: 30, selectedQ: new Set() });
       setAssignmentMessage({ text: "تم نشر الواجب بنجاح ويمكنك إضافة واجب آخر الآن.", type: "success" });
 
       try {
@@ -197,6 +198,15 @@ export default function AssignmentsPage() {
               <option value="quiz">اختبار قصير</option>
               <option value="exam">امتحان</option>
             </select>
+            <div>
+              <label className="text-xs text-brand-textMuted block mb-1">مدة الاختبار (بالدقائق)</label>
+              <input type="number" min={5} max={180} value={aForm.durationMinutes}
+                onChange={(e) => setAForm({ ...aForm, durationMinutes: Number(e.target.value) || 30 })}
+                className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
+            </div>
+            <div className="bg-brand-primary/5 border border-brand-primary/20 rounded-2xl p-3 text-xs text-brand-textMuted leading-relaxed">
+              💡 <strong>آلية الاختبار:</strong> سيتم توزيع العلامات بالتساوي على الأسئلة المختارة (أو يدوياً). يُسمح للطالب بالدخول لمرة واحدة فقط وحفظ إجاباته عند الخروج. لا يرى الطالب الإجابات الصحيحة أثناء الحل، وتتم مراجعة الأسئلة الكتابية قبل اعتماد النتيجة وإرسالها.
+            </div>
             <select value={aForm.targetGroupId}
               onChange={(e) => setAForm({ ...aForm, targetGroupId: e.target.value })}
               className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70">

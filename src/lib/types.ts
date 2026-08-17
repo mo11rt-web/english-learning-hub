@@ -201,6 +201,7 @@ export interface Assignment {
   showScoreImmediately: boolean;
   showCorrectAnswers: boolean;
   shuffleQuestions: boolean;
+  questionMarks?: Record<string, number>; // علامة مخصصة لكل سؤال
   status: "draft" | "published";
   createdBy: string;
   createdAt: number;
@@ -228,6 +229,7 @@ export interface Attempt {
   pointsAwarded?: boolean;
   needsManualGrading?: boolean;
   status: "in-progress" | "submitted" | "pending-review" | "graded";
+  isResultSent?: boolean; // هل أرسل المعلم النتيجة النهائية للطالب
   teacherFeedback?: string;
   startedAt: number;
   submittedAt?: number;

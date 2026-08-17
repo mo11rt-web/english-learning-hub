@@ -106,6 +106,25 @@ export default function GradeAssignmentPage() {
 
   const setFeedback = (attemptId: string, feedback: string) => updateDocById("attempts", attemptId, { teacherFeedback: feedback });
 
+  const sendResultToStudent = async (attempt: Attempt & { id: string }) => {
+    try {
+      await updateDocById("attempts", attempt.id, {
+        isResultSent: true,
+        status: "graded",
+        gradedAt: Date.now(),
+      });
+      await notifyUsers([attempt.studentId], {
+        title: "تم اعتماد وإرسال نتيجة الاختبار",
+        body: `تم اعتماد نتيجتك في اختبار: ${assignment?.title ?? "الاختبار"}. يمكنك الاطلاع على إجاباتك الآن.`,
+        type: "graded",
+        link: "/student/results",
+      });
+      alert("تم إرسال النتيجة للطالب بنجاح ✅");
+    } catch (err) {
+      alert("تعذر إرسال النتيجة.");
+    }
+  };
+
   return (
     <AppShell requireRole="teacher">
       <h1 className="text-2xl font-bold text-brand-text mb-6">تصحيح: {assignment?.title ?? "..."}</h1>
@@ -147,9 +166,16 @@ export default function GradeAssignmentPage() {
                 })}
               </div>
 
-              <div className="mt-4 grid gap-2">
+              <div className="mt-4 grid gap-3">
                 <textarea placeholder="ملاحظة عامة للطالب" defaultValue={attempt.teacherFeedback ?? ""} onBlur={(event) => setFeedback(attempt.id, event.target.value)} className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm" rows={2} />
-                <p className="text-xs text-brand-textMuted">لا تُمنح نقاط الإنجاز إلا بعد مراجعة جميع الأسئلة اليدوية.</p>
+                <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-surfaceBorder/60">
+                  <span className={`text-xs px-3 py-1 rounded-full ${attempt.isResultSent ? "bg-brand-success/15 text-brand-success font-bold" : "bg-brand-gold/15 text-brand-goldDark"}`}>
+                    {attempt.isResultSent ? "✓ تم إرسال النتيجة للطالب ومعتمدة" : "النتيجة بانتظار الاعتماد والإرسال"}
+                  </span>
+                  <Button onClick={() => sendResultToStudent(attempt)} disabled={attempt.isResultSent}>
+                    {attempt.isResultSent ? "تم إرسال النتيجة" : "إرسال النتيجة واعتمادها للطالب"}
+                  </Button>
+                </div>
               </div>
             </GlassCard>
           );

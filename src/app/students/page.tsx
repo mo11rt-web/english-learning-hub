@@ -1236,18 +1236,42 @@ export default function StudentsPage() {
                 </div>
               </div>
 
-              {/* نتائج الاختبارات */}
+              {/* نتائج الاختبارات المفصلة بالتواريخ */}
               <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#556B4F", fontSize: "16px", fontWeight: 800, marginBottom: "12px" }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
-                <span style={{ borderBottom: "3px solid #B33A3A", paddingBottom: "5px", display: "inline-block" }}>نتائج الاختبارات</span>
+                <span style={{ borderBottom: "3px solid #B33A3A", paddingBottom: "5px", display: "inline-block" }}>سجل تفاصيل الاختبارات والواجبات</span>
               </div>
-              <div style={{ padding: "18px 22px", border: "1px solid #DDE4D8", borderRadius: "12px", background: "#ffffff", marginBottom: "30px" }}>
-                <ul style={{ margin: 0, paddingRight: "20px", color: "#111827", fontSize: "13px", lineHeight: 2 }}>
-                  <li>مجموع درجات الاختبارات: <strong>{pdfExportTarget.report.quizTotalScore}</strong></li>
-                  <li>الدرجة الكلية: <strong>{pdfExportTarget.report.quizMaxScore}</strong></li>
-                  <li>النسبة المئوية: <strong style={{ color: "#556B4F" }}>{pdfExportTarget.report.quizPercentage}%</strong></li>
-                  <li>مستوى الأداء: <strong style={{ color: pdfExportTarget.report.quizPercentage < 60 ? "#B33A3A" : "#556B4F" }}>{pdfExportTarget.report.quizPerformanceLabel}</strong></li>
-                </ul>
+              <div style={{ border: "1px solid #DDE4D8", borderRadius: "12px", overflow: "hidden", marginBottom: "30px", background: "#ffffff" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "right" }}>
+                  <thead>
+                    <tr style={{ background: "#556B4F", color: "#ffffff" }}>
+                      <th style={{ padding: "10px 14px", fontWeight: 700 }}>اسم الاختبار / الواجب</th>
+                      <th style={{ padding: "10px 14px", fontWeight: 700 }}>التاريخ</th>
+                      <th style={{ padding: "10px 14px", fontWeight: 700 }}>النتيجة</th>
+                      <th style={{ padding: "10px 14px", fontWeight: 700 }}>الحالة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pdfExportTarget.report.quizResults && pdfExportTarget.report.quizResults.length > 0 ? (
+                      pdfExportTarget.report.quizResults.map((item, index) => (
+                        <tr key={index} style={{ borderBottom: "1px solid #E9EEE5", background: index % 2 === 0 ? "#ffffff" : "#FAFAFA" }}>
+                          <td style={{ padding: "10px 14px", fontWeight: 700, color: "#111827" }}>{item.title}</td>
+                          <td style={{ padding: "10px 14px", color: "#6B7280" }}>{item.date ? formatSyrianDate(item.date) : "—"}</td>
+                          <td style={{ padding: "10px 14px", fontWeight: 800, color: "#556B4F" }}>{item.score} / {item.maxScore}</td>
+                          <td style={{ padding: "10px 14px" }}>
+                            <span style={{ padding: "3px 8px", borderRadius: "6px", fontSize: "10px", fontWeight: 700, background: item.status === "graded" || item.status === "submitted" ? "#E9EEE5" : "#FEF3C7", color: item.status === "graded" || item.status === "submitted" ? "#556B4F" : "#D97706" }}>
+                              {item.status === "graded" ? "مصحح" : item.status === "submitted" ? "مسلم" : "بانتظار المراجعة"}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={4} style={{ padding: "15px", textAlign: "center", color: "#6B7280" }}>لا توجد اختبارات مسجلة بعد.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
 
               {/* ملاحظات المعلم */}
