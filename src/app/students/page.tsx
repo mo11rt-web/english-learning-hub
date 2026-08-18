@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useRef, useState } from "react";
 import { initializeApp, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
@@ -26,6 +24,7 @@ import { exportHtmlToPdf, downloadOrShareFile } from "@/lib/pdfExport";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { formatSyrianDate } from "@/lib/dateUtils";
+import { apiFetch, getBaseUrl } from "@/lib/runtimeConfig";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -40,8 +39,11 @@ function randomPassword() {
   return Math.random().toString(36).slice(-8);
 }
 
-const PLATFORM_URL =
-  typeof window !== "undefined" ? window.location.origin : "";
+// رابط المنصّة المُرسَل للطلاب (بكلمة المرور مثلاً) لازم يكون رابط الويب
+// الحقيقي دائماً — window.location.origin جوّا تطبيق أندرويد بيرجع
+// "https://localhost" (سكيم Capacitor الداخلي) وهذا غير قابل للفتح خارج
+// التطبيق، لذلك نستخدم getBaseUrl() (نفس آلية جسر الـ API/الشفاء الذاتي).
+const PLATFORM_URL = getBaseUrl();
 const REPORT_TEACHER_NAME = "الأستاذ مهند علاوي";
 
 function toReportBullets(value: string, fallback: string) {
@@ -254,7 +256,7 @@ export default function StudentsPage() {
     setRestoring(true);
     try {
       const token = await user.getIdToken(true);
-      const response = await fetch("/api/admin/restore-students", {
+      const response = await apiFetch("/api/admin/restore-students", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ students: restorePreview.students }),
@@ -358,7 +360,7 @@ export default function StudentsPage() {
     setPermanentlyDeleting(true);
     try {
       const idToken = await user.getIdToken(true);
-      const res = await fetch("/api/admin/delete-student", {
+      const res = await apiFetch("/api/admin/delete-student", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -399,7 +401,7 @@ export default function StudentsPage() {
     setResettingPassword(true);
     try {
       const idToken = await user.getIdToken(true);
-      const res = await fetch("/api/admin/reset-password", {
+      const res = await apiFetch("/api/admin/reset-password", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

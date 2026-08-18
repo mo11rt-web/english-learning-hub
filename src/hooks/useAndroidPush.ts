@@ -17,16 +17,15 @@ export function useAndroidPush() {
   const { user } = useAuth();
 
   useEffect(() => {
-    // مهم: هذا الشرط يجعل كل ما يلي يعمل على أندرويد (Capacitor native) فقط.
-    // نسخة الويب (المتصفح/PWA) لا تتأثر إطلاقاً وتبقى كما كانت تماماً.
+    // هذا الشرط يخلي كل ما يلي يشتغل على أندرويد (Capacitor native) فقط.
     if (typeof window === "undefined" || !user || !Capacitor.isNativePlatform()) return;
 
     const initPush = async () => {
       try {
         // 1) قناة إشعارات أندرويد بصوت + اهتزاز + أولوية عالية (heads-up)
-        //    متل تطبيقات عالمية (واتساب، انستغرام...). نفس القناة تُستخدم من
-        //    Firebase تلقائياً للإشعارات اللي توصل والتطبيق مقفول/بالخلفية،
-        //    ومن LocalNotifications يدوياً وقت ما التطبيق مفتوح (foreground).
+        //    متل تطبيقات عالمية. نفس القناة تُستخدم تلقائياً من Firebase
+        //    للإشعارات اللي توصل والتطبيق بالخلفية/مقفول، ومن LocalNotifications
+        //    يدوياً وقت التطبيق مفتوح (foreground).
         await LocalNotifications.createChannel({
           id: CHANNEL_ID,
           name: "إشعارات English Hub",
@@ -38,7 +37,7 @@ export function useAndroidPush() {
           lights: true,
         });
 
-        // 2) صلاحية الإشعارات (نفس صلاحية POST_NOTIFICATIONS على أندرويد 13+)
+        // 2) صلاحية الإشعارات
         let permStatus = await PushNotifications.checkPermissions();
         if (permStatus.receive === "prompt") {
           permStatus = await PushNotifications.requestPermissions();
@@ -47,12 +46,11 @@ export function useAndroidPush() {
           console.warn("User denied push notifications permission!");
           return;
         }
-        // صلاحية الإشعارات المحلية (نفس الصلاحية عملياً، لكن الـ plugin يطلبها بشكل منفصل)
         await LocalNotifications.requestPermissions();
 
         await PushNotifications.register();
 
-        // 3) حفظ رمز الجهاز في ملف المستخدم لإرسال إشعارات مستهدفة له لاحقاً
+        // 3) حفظ رمز الجهاز بملف المستخدم لإرسال إشعارات مستهدفة له لاحقاً
         PushNotifications.addListener("registration", async (token) => {
           try {
             await updateDoc(doc(db, "profiles", user.uid), {
@@ -68,9 +66,8 @@ export function useAndroidPush() {
         });
 
         // 4) عندما يوصل إشعار والتطبيق مفتوح (foreground)، أندرويد لا يعرضه
-        //    تلقائياً كإشعار نظام (خلافاً لحالة الخلفية/الإغلاق) — لذلك نعرضه
-        //    يدوياً هون عبر LocalNotifications بنفس القناة (صوت + اهتزاز + أيقونة)
-        //    زي أي تطبيق عالمي، بالإضافة لتحديث رقم الشارة (badge) على الأيقونة.
+        //    تلقائياً كإشعار نظام — نعرضه يدوياً هون بنفس القناة (صوت +
+        //    اهتزاز + أيقونة)، بالإضافة لتحديث رقم الشارة على الأيقونة.
         PushNotifications.addListener("pushNotificationReceived", async (notification) => {
           try {
             badgeCount += 1;
@@ -95,7 +92,7 @@ export function useAndroidPush() {
           }
         });
 
-        // 5) عند الضغط على الإشعار (من الخلفية أو من نفس التطبيق): تصفير الشارة
+        // 5) عند الضغط على الإشعار: تصفير الشارة
         PushNotifications.addListener("pushNotificationActionPerformed", async () => {
           badgeCount = 0;
           try {
@@ -105,7 +102,7 @@ export function useAndroidPush() {
           }
         });
 
-        // تصفير الشارة أيضاً عند فتح التطبيق عادةً (المستخدم شاف إشعاراته)
+        // تصفير الشارة أيضاً عند فتح التطبيق عادةً
         badgeCount = 0;
         await Badge.clear();
       } catch (e) {

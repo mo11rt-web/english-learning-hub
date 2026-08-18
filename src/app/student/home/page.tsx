@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/AppShell";
@@ -11,6 +9,7 @@ import { listenCollection, where, orderBy } from "@/lib/firestore-helpers";
 import { Announcement, Assignment, LeaderboardEntry, LeaderboardSettings, Lesson, StudentProfile } from "@/lib/types";
 import { computeLevel } from "@/lib/gamification";
 import { matchesStudentGroups } from "@/lib/groupTargeting";
+import { studentLessonHref, studentAssignmentHref } from "@/lib/routes";
 
 export default function StudentHomePage() {
   const { profile } = useAuth();
@@ -108,7 +107,7 @@ export default function StudentHomePage() {
           <h2 className="font-bold text-brand-text mb-4">📚 دروسي الجديدة</h2>
           <div className="flex flex-col gap-2">
             {lessons.slice(0, 5).map((l) => (
-              <Link key={l.id} href={`/student/lessons/${l.id}`}
+              <Link key={l.id} href={studentLessonHref(l.id)}
                 className="px-3 py-2 rounded-xl bg-surface/60 hover:bg-surface text-sm text-brand-text">
                 {l.title}
               </Link>
@@ -121,7 +120,7 @@ export default function StudentHomePage() {
           <h2 className="font-bold text-brand-text mb-4">📝 الواجبات الحالية</h2>
           <div className="flex flex-col gap-2">
             {assignments.slice(0, 5).map((a) => (
-              <Link key={a.id} href={`/student/assignments/${a.id}`}
+              <Link key={a.id} href={studentAssignmentHref(a.id)}
                 className="px-3 py-2 rounded-xl bg-surface/60 hover:bg-surface text-sm text-brand-text">
                 {a.title}
               </Link>

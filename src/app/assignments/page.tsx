@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/AppShell";
@@ -17,6 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { notifyUsers, getStudentUidsForStage } from "@/lib/notifications";
 import { matchesStudentGroups } from "@/lib/groupTargeting";
+import { assignmentGradeHref } from "@/lib/routes";
 
 const qTypeLabels: Record<QuestionType, string> = {
   mcq: "اختيار من متعدد", "true-false": "صح أو خطأ", "fill-blank": "إكمال الفراغ",
@@ -338,7 +337,7 @@ export default function AssignmentsPage() {
             <h3 className="font-bold text-brand-text mb-1">{assignment.title}</h3>
             <p className="text-xs text-brand-textMuted mb-3">{assignment.questionIds?.length ?? 0} سؤال · {assignment.status === "published" ? "منشور" : "مسودة"}</p>
             <div className="flex flex-wrap items-center gap-3">
-              <Link href={`/assignments/${assignment.id}/grade`} className="text-brand-primary text-sm">مراجعة الإجابات ↗</Link>
+              <Link href={assignmentGradeHref(assignment.id)} className="text-brand-primary text-sm">مراجعة الإجابات ↗</Link>
               <button type="button" onClick={() => openEditAssignment(assignment)} className="text-brand-textMuted text-sm">تعديل</button>
               <button type="button" onClick={() => deleteAssignment(assignment)} className="text-brand-error text-sm">حذف</button>
             </div>

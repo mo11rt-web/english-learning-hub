@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useState } from "react";
 import { ImagePlus, Link2 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";

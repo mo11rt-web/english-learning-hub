@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useMemo, useState } from "react";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { X, ArrowUpLeft, Users, BookOpen, GraduationCap, ClipboardCheck } from "lucide-react";
@@ -12,6 +10,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import Link from "next/link";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { formatSyrianDate } from "@/lib/dateUtils";
+import { lessonHref, assignmentGradeHref } from "@/lib/routes";
 
 type DetailKey = "students" | "groups" | "lessons" | "pending";
 
@@ -262,7 +261,7 @@ export default function DashboardPage() {
             lessonDetails.length > 0 ? (
               <div className="divide-y divide-surfaceBorder/60 max-h-80 overflow-y-auto">
                 {lessonDetails.map((lesson) => (
-                  <Link key={lesson.id} href={`/lessons/${lesson.id}`} className="flex items-center justify-between gap-3 py-3 px-2 rounded-xl hover:bg-surface/60 transition-colors">
+                  <Link key={lesson.id} href={lessonHref(lesson.id)} className="flex items-center justify-between gap-3 py-3 px-2 rounded-xl hover:bg-surface/60 transition-colors">
                     <div className="min-w-0">
                       <p className="font-medium text-brand-text truncate">{lesson.title}</p>
                       <p className="text-xs text-brand-textMuted mt-1">الوحدة: {unitNames.get(lesson.unitId) ?? "غير محددة"}</p>
@@ -278,7 +277,7 @@ export default function DashboardPage() {
             pendingDetails.length > 0 ? (
               <div className="divide-y divide-surfaceBorder/60 max-h-80 overflow-y-auto">
                 {pendingDetails.map((item) => (
-                  <Link key={item.id} href={`/assignments/${item.assignmentId}/grade`} className="flex items-center justify-between gap-3 py-3 px-2 rounded-xl hover:bg-surface/60 transition-colors">
+                  <Link key={item.id} href={assignmentGradeHref(item.assignmentId)} className="flex items-center justify-between gap-3 py-3 px-2 rounded-xl hover:bg-surface/60 transition-colors">
                     <div className="min-w-0">
                       <p className="font-medium text-brand-text truncate">{item.assignmentTitle}</p>
                       <p className="text-xs text-brand-textMuted mt-1">الطالب: {item.studentName}</p>

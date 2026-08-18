@@ -11,6 +11,7 @@ import { TopBar } from "./TopBar";
 import { MobileMenuProvider } from "@/hooks/useMobileMenu";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useAndroidPush } from "@/hooks/useAndroidPush";
+import { refreshBaseUrlFromFirestore } from "@/lib/runtimeConfig";
 
 function Spinner() {
   return (
@@ -45,6 +46,13 @@ export function AppShell({
 }) {
   usePushNotifications();
   useAndroidPush();
+
+  // "الشفاء الذاتي" لرابط الـ API (Web Repo): يحدّث الرابط المحفوظ محلياً من
+  // Firestore مرة عند إقلاع التطبيق، بصمت وبدون ما يعطّل عرض أي شاشة.
+  useEffect(() => {
+    refreshBaseUrlFromFirestore();
+  }, []);
+
   const { user, profile, loading, error: authError, signOut } = useAuth();
   const { stageId, loading: workspaceLoading, error: workspaceError, retry: retryWorkspace } = useWorkspace();
   const router = useRouter();

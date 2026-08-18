@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Trash2 } from "lucide-react";
@@ -16,6 +14,7 @@ import { listenCollection, createDoc, updateDocById, orderBy } from "@/lib/fires
 import { Unit } from "@/lib/types";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { unitHref } from "@/lib/routes";
 
 // بطاقة وحدة منفصلة على مستوى الملف (مش متداخلة جوا مكوّن الصفحة) — نفس
 // السبب دايمًا: تفادي أي إعادة إنشاء لنوع المكوّن أثناء الكتابة بحقل
@@ -67,7 +66,7 @@ function UnitCard({
           </div>
         </div>
       ) : (
-        <Link href={`/units/${unit.id}`}>
+        <Link href={unitHref(unit.id)}>
           <div className="flex items-center justify-between mb-2 cursor-pointer">
             <h3 className="font-bold text-brand-text">{unit.title}</h3>
             <StatusBadge
@@ -80,7 +79,7 @@ function UnitCard({
 
       <div className="flex flex-wrap items-center gap-2 mt-3">
         <Link
-          href={`/units/${unit.id}`}
+          href={unitHref(unit.id)}
           className="px-3 py-1.5 rounded-lg text-xs font-arabic font-bold bg-surface text-brand-text border border-brand-gold/65 hover:bg-brand-goldLight/45 transition-all inline-flex items-center"
         >
           فتح الدروس ←
