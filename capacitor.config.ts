@@ -11,6 +11,13 @@ const config: CapacitorConfig = {
     PushNotifications: {
       presentationOptions: ["badge", "sound", "alert"],
     },
+    LocalNotifications: {
+      // نفس القناة المستخدمة في AndroidManifest.xml (default_notification_channel_id)
+      // ونفس الأيقونة/اللون المولّدين في android-assets/notification-icon
+      smallIcon: "ic_stat_notify",
+      iconColor: "#0A5968",
+      sound: "default",
+    },
   },
 };
 
