@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, PlayCircle, BookOpen, Layers3 } from "lucide-react";
@@ -11,7 +13,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { listenCollection, where } from "@/lib/firestore-helpers";
 import { Lesson, StudentProfile, Unit } from "@/lib/types";
 import { matchesStudentGroups, queryTargetGroupIds } from "@/lib/groupTargeting";
-import { studentLessonHref } from "@/lib/routes";
 
 export default function StudentLessonsPage() {
   const { profile, user } = useAuth();
@@ -131,7 +132,7 @@ export default function StudentLessonsPage() {
                       const done = completedIds.has(lesson.id);
                       const isCurrent = !done && lesson.id === currentLessonId;
                       return (
-                        <Link key={lesson.id} href={studentLessonHref(lesson.id)} className="relative block before:absolute before:right-[-29px] md:before:right-[-36px] before:top-1/2 before:w-6 md:before:w-7 before:h-0.5 before:bg-surfaceBorder/60">
+                        <Link key={lesson.id} href={`/student/lessons/${lesson.id}`} className="relative block before:absolute before:right-[-29px] md:before:right-[-36px] before:top-1/2 before:w-6 md:before:w-7 before:h-0.5 before:bg-surfaceBorder/60">
                           <div
                             className={`relative rounded-2xl border bg-surface/70 px-4 py-4 md:px-5 transition-all hover:-translate-x-1 hover:shadow-md ${
                               done

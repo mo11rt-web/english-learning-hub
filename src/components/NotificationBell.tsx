@@ -7,7 +7,6 @@ import { collection, onSnapshot, query, where, orderBy, limit, deleteDoc, update
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
 import { Notification } from "@/lib/types";
-import { resolveInternalLink } from "@/lib/routes";
 
 const TYPE_ICON: Record<Notification["type"], any> = {
   "new-lesson": Info,
@@ -127,9 +126,7 @@ export function NotificationBell() {
       // تجاهل
     }
     if (notification.link) {
-      // نحوّل أي رابط قديم/خام مخزّن (زي /lessons/abc123) لصيغة
-      // static?id= اللي يفهمها تطبيق أندرويد (شوف src/lib/routes.ts)
-      let target = resolveInternalLink(notification.link);
+      let target = notification.link;
       // إذا كان الإشعار موجهًا لطالب أو معلم، نتحقق من صحة المسار لمنع 404
       if (target.includes("/inquiries/") && !target.startsWith("/student/") && window.location.pathname.startsWith("/student")) {
         const id = target.split("/inquiries/")[1];

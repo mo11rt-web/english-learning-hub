@@ -20,10 +20,19 @@ export async function calculateLeaderboard(stageId: string, limit: number): Prom
     getDocs(query(collection(db, "profiles"), where("role", "==", "student"), where("stageId", "==", stageId))),
     getDocs(collection(db, "groups")),
   ]);
-  const groups = new Map(groupsSnapshot.docs.map((item) => [item.id, (item.data() as Group).name]));
+  const groups = new Map(groupsSnapshot.docs.map((item) => [item.id, item.data() as Group]));
   const activeStudents = studentsSnapshot.docs
     .map((item) => ({ ...(item.data() as StudentProfile), uid: item.id }))
-    .filter((student) => student.status === "active");
+    .filter((student) => student.status === "active")
+    // طالب "مخفي" عن لوحة الصدارة فقط إذا كان منتسبًا لمجموعة واحدة على
+    // الأقل، وكل مجموعاته بدون استثناء معطّلة الظهور صراحة من صفحة
+    // المجموعات (leaderboardEnabled === false). طالب بدون أي مجموعة، أو
+    // بمجموعة واحدة على الأقل ظاهرة، يضل يظهر عاديًا.
+    .filter((student) => {
+      const ids = student.groupIds ?? [];
+      if (ids.length === 0) return true;
+      return ids.some((id) => groups.get(id)?.leaderboardEnabled !== false);
+    });
 
   const entries: (LeaderboardEntry & { groupIds?: string[] })[] = [];
   
@@ -31,7 +40,7 @@ export async function calculateLeaderboard(stageId: string, limit: number): Prom
   activeStudents
     .sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
     .forEach((student, index) => {
-      const gNames = (student.groupIds ?? []).map((id) => groups.get(id)).filter(Boolean).join("، ") || "بدون مجموعة";
+      const gNames = (student.groupIds ?? []).map((id) => groups.get(id)?.name).filter(Boolean).join("، ") || "بدون مجموعة";
       entries.push({
         rank: index + 1,
         studentName: student.fullName,

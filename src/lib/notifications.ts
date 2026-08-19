@@ -39,14 +39,21 @@ export async function notifyUsers(
     }
   });
 
-  // محاولة إرسال Push Notification (اختياري)
+  // إرسال Push حقيقي عبر FCM (أندرويد + متصفح) — استدعاء /api/notifications/send
+  // (شوف src/app/api/notifications/send/route.ts). هذا الاستدعاء "fire and
+  // forget": إذا فشل (لا يوجد اتصال، توكن منتهي...) ما نعطّل بقية التطبيق،
+  // لأن الإشعار داخل التطبيق (Firestore، فوق) كتب بنجاح أصلاً بأي الحالتين.
   try {
-    if (auth.currentUser) {
-      // هنا يمكن إضافة استدعاء لـ API خارجي لإرسال Push Notification حقيقية
-      // سنكتفي حالياً بتجهيز البيانات
+    const idToken = await auth.currentUser?.getIdToken();
+    if (idToken) {
+      await fetch("/api/notifications/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ userIds: uniqueIds, title: data.title, body: data.body, link: data.link }),
+      });
     }
   } catch (err) {
-    // تجاهل
+    console.warn("Push notification request failed (in-app notification was still created):", err);
   }
 }
 

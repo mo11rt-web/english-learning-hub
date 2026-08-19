@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/AppShell";
@@ -10,7 +12,6 @@ import { listenCollection, where } from "@/lib/firestore-helpers";
 import { Assignment, Attempt, StudentProfile } from "@/lib/types";
 import { matchesStudentGroups } from "@/lib/groupTargeting";
 import { getAssignmentQuestionIds } from "@/lib/assignmentQuestions";
-import { studentAssignmentHref } from "@/lib/routes";
 
 export default function StudentAssignmentsPage() {
   const { user, profile } = useAuth();
@@ -36,7 +37,7 @@ export default function StudentAssignmentsPage() {
         {myAssignments.map((a) => {
           const done = attempts.find((att) => att.assignmentId === a.id);
           return (
-            <Link key={a.id} href={studentAssignmentHref(a.id)}>
+            <Link key={a.id} href={`/student/assignments/${a.id}`}>
               <GlassCard className="hover:shadow-lg transition-shadow cursor-pointer h-full">
                 <h3 className="font-bold text-brand-text mb-1">{a.title}</h3>
                 <p className="text-brand-textMuted text-sm mb-2">{getAssignmentQuestionIds(a as unknown as Record<string, unknown>).length} سؤال</p>

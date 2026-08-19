@@ -41,6 +41,9 @@ export interface Group {
   stageId: string;
   teacherIds: string[];
   createdAt: number;
+  // تحكم بظهور طلاب هذه المجموعة تحديدًا بلوحة الصدارة العامة للفرع.
+  // اختياري بالنوع فقط لتوافق المجموعات القديمة (تُعامل كـ true = ظاهرة).
+  leaderboardEnabled?: boolean;
 }
 
 export interface Unit {
@@ -190,6 +193,9 @@ export interface Assignment {
   title: string;
   description?: string;
   type: "practice" | "homework" | "quiz" | "exam";
+  // مطلوب لكل واجب جديد (لعزل الأقسام سيرفريًا بـ firestore.rules).
+  // اختياري بالنوع فقط عشان توافق الواجبات القديمة المُنشأة قبل هذا الحقل.
+  stageId?: string;
   targetGroupIds: string[];
   lessonIds: string[];
   questionIds: string[];

@@ -20,6 +20,19 @@ service cloud.firestore {
     function isActive() {
       return isSignedIn() && myProfile().status == 'active';
     }
+    // === عزل الأقسام (Multi-Stage Isolation) ===
+    // قبل هذا التعديل كانت الفلترة بحسب stageId تتم فقط داخل استعلامات
+    // الواجهة (client)، وما كانت مفروضة هون بقواعد الأمان — أي مستخدم نشط
+    // كان يقدر يقرأ درس/واجب/وحدة من قسم غير قسمه لو بنى استعلامه بنفسه
+    // مباشرة (خارج تطبيقنا). هالدالتين يفرضون العزل فعليًا على مستوى السيرفر.
+    function myStageId() {
+      return myProfile().stageId;
+    }
+    // المعلم/المدير يشوف كل الأقسام دائمًا (بيبدّل قسم العمل من صفحة
+    // /workspace)؛ الطالب يشوف بس قسمه.
+    function isMyStage(stageId) {
+      return isTeacherOrAdmin() || (isActive() && stageId == myStageId());
+    }
 
     // الملفات الشخصية: كل مستخدم يقرأ ملفه، المعلم/المدير يقرأ ويكتب الجميع.
     // الطالب نفسه يقدر يحدّث فقط حقوله غير الحساسة (النقاط عبر increment من
@@ -41,26 +54,26 @@ service cloud.firestore {
     // بيانات إدارية عامة: المعلم/المدير يكتب، أي مستخدم "نشط" يقرأ (الحسابات
     // المعطّلة/المحذوفة تفقد الوصول لكل شيء تعليمي فورًا)
     match /stages/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
-    match /groups/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
-    match /units/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
+    // المجموعات (Groups) مرتبطة بقسم محدد — الطالب ما لازم يشوف مجموعات
+    // أقسام تانية.
+    match /groups/{id} { allow read: if isMyStage(resource.data.stageId); allow write: if isTeacherOrAdmin(); }
+    match /units/{id} { allow read: if isMyStage(resource.data.stageId); allow write: if isTeacherOrAdmin(); }
 
     match /lessons/{id} {
-      // الاستعلام العام في واجهة الطالب يقيّد المرحلة والحالة فقط، ثم تُطبّق
-      // تصفية المجموعات في الواجهة. هذا ضروري لدعم الدروس القديمة التي كانت
-      // تُحفظ بمصفوفة targetGroupIds فارغة قبل اعتماد القيمة __all__، ولمنع
-      // Firestore من رفض الاستعلام برسالة صلاحيات قبل وصول النتائج.
-      allow read: if isTeacherOrAdmin() ||
-        (isActive() && resource.data.status == 'published');
+      // الاستعلام العام في واجهة الطالب يقيّد المرحلة والحالة، وهلق مفروض
+      // كمان سيرفريًا هون (isMyStage) — مش بس اعتماد على استعلام الواجهة.
+      allow read: if isMyStage(resource.data.stageId) &&
+        (isTeacherOrAdmin() || resource.data.status == 'published');
       allow write: if isTeacherOrAdmin();
     }
 
-    match /vocabulary_items/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
+    match /vocabulary_items/{id} { allow read: if isMyStage(resource.data.stageId); allow write: if isTeacherOrAdmin(); }
     match /files/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
     // إعدادات عامة (قيم النقاط...): يقرأها أي مستخدم نشط (الطالب يحتاجها
     // لحساب نقاطه)، ويكتبها المعلم/المدير فقط
     match /app_settings/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
-    match /past_exam_questions/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
-    match /irregular_verbs/{id} { allow read: if isTeacherOrAdmin() || isActive(); allow write: if isTeacherOrAdmin(); }
+    match /past_exam_questions/{id} { allow read: if isMyStage(resource.data.stageId); allow write: if isTeacherOrAdmin(); }
+    match /irregular_verbs/{id} { allow read: if isMyStage(resource.data.stageId); allow write: if isTeacherOrAdmin(); }
 
     // روابط مشاركة نتائج الطالب مع ولي الأمر: لقطة عامة للقراءة فقط، بدون
     // تسجيل دخول، ولا تحتوي كلمة مرور أو أي بيانات حساسة أخرى — فقط الحقول
@@ -92,8 +105,14 @@ service cloud.firestore {
     }
 
     match /assignments/{id} {
+      // ملاحظة توافق: الواجبات القديمة (قبل هذا التحديث) ما فيها حقل
+      // stageId أصلاً — نسمح بقراءتها لأي طالب نشط كما كان الوضع سابقًا
+      // (fallback) حتى ما تنكسر واجبات موجودة، لحين تشغيل سكربت ترحيل
+      // يضيف stageId لها. أي واجب جديد بينكتب من الآن فصاعدًا لازم فيه
+      // stageId (شوف src/app/assignments/page.tsx) وبينفرض عليه العزل فورًا.
       allow read: if isTeacherOrAdmin() ||
-        (isActive() && resource.data.status == 'published');
+        (isActive() && resource.data.status == 'published' &&
+         (!('stageId' in resource.data) || resource.data.stageId == myStageId()));
       allow write: if isTeacherOrAdmin();
     }
 

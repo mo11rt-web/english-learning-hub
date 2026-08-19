@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useMemo, useState } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { CheckCircle2, Clock3, MessageCircle, Paperclip, Search, Send, X } from "lucide-react";

@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useRef, useState } from "react";
 import { initializeApp, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
@@ -24,7 +26,6 @@ import { exportHtmlToPdf, downloadOrShareFile } from "@/lib/pdfExport";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { formatSyrianDate } from "@/lib/dateUtils";
-import { apiFetch, getBaseUrl } from "@/lib/runtimeConfig";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -39,11 +40,8 @@ function randomPassword() {
   return Math.random().toString(36).slice(-8);
 }
 
-// رابط المنصّة المُرسَل للطلاب (بكلمة المرور مثلاً) لازم يكون رابط الويب
-// الحقيقي دائماً — window.location.origin جوّا تطبيق أندرويد بيرجع
-// "https://localhost" (سكيم Capacitor الداخلي) وهذا غير قابل للفتح خارج
-// التطبيق، لذلك نستخدم getBaseUrl() (نفس آلية جسر الـ API/الشفاء الذاتي).
-const PLATFORM_URL = getBaseUrl();
+const PLATFORM_URL =
+  typeof window !== "undefined" ? window.location.origin : "";
 const REPORT_TEACHER_NAME = "الأستاذ مهند علاوي";
 
 function toReportBullets(value: string, fallback: string) {
@@ -256,7 +254,7 @@ export default function StudentsPage() {
     setRestoring(true);
     try {
       const token = await user.getIdToken(true);
-      const response = await apiFetch("/api/admin/restore-students", {
+      const response = await fetch("/api/admin/restore-students", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ students: restorePreview.students }),
@@ -360,7 +358,7 @@ export default function StudentsPage() {
     setPermanentlyDeleting(true);
     try {
       const idToken = await user.getIdToken(true);
-      const res = await apiFetch("/api/admin/delete-student", {
+      const res = await fetch("/api/admin/delete-student", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -401,7 +399,7 @@ export default function StudentsPage() {
     setResettingPassword(true);
     try {
       const idToken = await user.getIdToken(true);
-      const res = await apiFetch("/api/admin/reset-password", {
+      const res = await fetch("/api/admin/reset-password", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -528,9 +526,20 @@ export default function StudentsPage() {
     }
   };
 
+  // 1) تنزيل مباشر — بدون أي محاولة مشاركة أو واتساب إطلاقًا
+  const downloadGeneratedPdf = async () => {
+    if (!pdfReady) return;
+    await downloadOrShareFile(pdfReady.file);
+    showToast("تم تنزيل التقرير ✅");
+  };
+
+  // 2) مشاركة عبر نافذة المشاركة الأصلية لنظام التشغيل (OS Share Sheet) —
+  // الطالب/المعلم يختار هو الوجهة (واتساب، تيليجرام، إيميل، إلخ)، بدون أي
+  // فرض مسبق. قبل هذا التعديل، لو الجهاز/المتصفح ما بيدعم navigator.share
+  // بالملفات، كانت الدالة تسقط تلقائيًا لتنزيل + فتح واتساب بالإجبار —
+  // هلق إذا مش مدعومة، منقول للمستخدم بوضوح ونقترح زر "تنزيل" بدلها.
   const shareGeneratedPdf = async () => {
     if (!pdfReady) return;
-    // محاولة استخدام ميزة المشاركة الأصلية (Web Share API) لإرفاق الملف مباشرة عبر واتساب إن توفرت
     if (typeof navigator !== "undefined" && navigator.canShare && navigator.canShare({ files: [pdfReady.file] })) {
       try {
         await navigator.share({
@@ -539,25 +548,29 @@ export default function StudentsPage() {
           text: `مرحباً، مرفق لكم تقرير نتائج الطالب ${pdfReady.student.fullName} من منصة English Hub.`,
         });
         showToast("تمت مشاركة الملف بنجاح ✅");
-        return;
       } catch (err: any) {
         if (err?.name !== "AbortError") {
           console.error("Share error:", err);
+          showToast("تعذّرت المشاركة، جرّب زر التنزيل بدلاً منها.");
         }
       }
+      return;
     }
-    // في حال عدم دعم المشاركة المباشرة للملف، يتم تحميل الملف وفتح واتساب
+    showToast("المشاركة المباشرة غير مدعومة على هذا الجهاز — استخدم زر التنزيل.");
+  };
+
+  // 3) فتح واتساب — خيار صريح ومنفصل يختاره المستخدم بنفسه (مش fallback
+  // إجباري جوّا زر تاني). ينزّل الملف أولاً (لازم يكون بالجهاز حتى يقدر
+  // المستخدم يرفقه يدويًا بواتساب، لأن واتساب ويب ما بيقبل إرفاق ملف عبر
+  // رابط مباشر) وبعدين يفتح محادثة واتساب بنص جاهز.
+  const openWhatsappForPdf = async () => {
+    if (!pdfReady) return;
     await downloadOrShareFile(pdfReady.file);
     const phone = normalizePhone(pdfReady.student.guardianPhone ?? "");
     const message = `مرحباً، أرفقت لكم تقرير نتائج الطالب ${pdfReady.student.fullName}. يرجى مراجعة التقرير المرفق.`;
     const url = phone ? `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(message)}` : `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(url, "_blank", "noopener,noreferrer");
-    showToast("تم تنزيل التقرير وفتح واتساب. قم بإرفاق ملف PDF المحمّل.");
-  };
-
-  const openWhatsappForPdf = async () => {
-    if (!pdfReady) return;
-    await shareGeneratedPdf();
+    showToast("تم تنزيل التقرير وفتح واتساب. قم بإرفاق ملف PDF المحمّل يدويًا.");
   };
 
   const buildWhatsappMessage = (fullName: string, phone: string, password: string) => {
@@ -899,13 +912,14 @@ export default function StudentsPage() {
       >
         {pdfReady && (
           <div className="flex flex-col gap-4">
-            <p className="text-sm text-brand-text">تم إنشاء تقرير <strong>{pdfReady.student.fullName}</strong>. يمكنك مشاركته مباشرة من الهاتف أو فتح واتساب ثم إرفاق الملف.</p>
+            <p className="text-sm text-brand-text">تم إنشاء تقرير <strong>{pdfReady.student.fullName}</strong>. اختر طريقة الحفظ أو المشاركة المناسبة.</p>
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" type="button" onClick={shareGeneratedPdf}>مشاركة ملف PDF</Button>
+              <Button size="sm" type="button" onClick={downloadGeneratedPdf}>تنزيل الملف</Button>
+              <Button size="sm" variant="secondary" type="button" onClick={shareGeneratedPdf}>مشاركة (اختر التطبيق)</Button>
               <Button size="sm" variant="success" type="button" onClick={openWhatsappForPdf}>فتح واتساب</Button>
               <Button size="sm" variant="secondary" type="button" onClick={() => setPdfReady(null)}>إغلاق</Button>
             </div>
-            <p className="text-xs text-brand-textMuted">في الهاتف اختر واتساب من نافذة المشاركة لإرفاق الملف مباشرة. في الكمبيوتر سيُنزل الملف، ثم استخدم زر فتح واتساب لإرفاقه يدوياً.</p>
+            <p className="text-xs text-brand-textMuted">"تنزيل" يحفظ الملف على جهازك مباشرة. "مشاركة" تفتح قائمة تطبيقاتك لاختيار الوجهة بنفسك. "فتح واتساب" اختصار مباشر لواتساب فقط إذا هو وجهتك المقصودة.</p>
           </div>
         )}
       </Modal>

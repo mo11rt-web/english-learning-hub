@@ -10,7 +10,6 @@ import { db } from "@/lib/firebase";
 import { StudentProfile, Attempt, Assignment, Lesson } from "@/lib/types";
 import { computeLevel } from "@/lib/gamification";
 import { matchesStudentGroups } from "@/lib/groupTargeting";
-import { apiFetch } from "@/lib/runtimeConfig";
 
 export interface StudentReportData {
   lessonsTotal: number;
@@ -119,7 +118,7 @@ export async function computeStudentReport(
     try {
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), 5000);
-      const res = await apiFetch("/api/student/rank", {
+      const res = await fetch("/api/student/rank", {
         method: "POST",
         headers: { Authorization: `Bearer ${idToken}` },
         signal: controller.signal,

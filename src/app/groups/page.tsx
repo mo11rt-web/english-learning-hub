@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -10,6 +12,7 @@ import {
   listenCollection,
   createDoc,
   deleteDocById,
+  updateDocById,
 } from "@/lib/firestore-helpers";
 import { Group } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,6 +34,12 @@ export default function GroupsPage() {
   const showToast = (m: string) => {
     setToast(m);
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const toggleLeaderboard = async (g: Group & { id: string }) => {
+    const next = g.leaderboardEnabled === false; // false -> true, و(true أو undefined) -> false
+    await updateDocById("groups", g.id, { leaderboardEnabled: next });
+    showToast(next ? `طلاب "${g.name}" رح يظهروا بلوحة الصدارة ✅` : `طلاب "${g.name}" رح ينخفوا عن لوحة الصدارة`);
   };
 
   const addGroup = async () => {
@@ -82,20 +91,36 @@ export default function GroupsPage() {
             <Button onClick={addGroup}>+ إضافة</Button>
           </div>
           <ul className="flex flex-col gap-2">
-            {groupsInWorkspace.map((g) => (
-              <li
-                key={g.id}
-                className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-surface/60 text-sm"
-              >
-                <span className="text-brand-text font-medium">{g.name}</span>
-                <button
-                  onClick={() => setDeleteTarget(g)}
-                  className="text-brand-error text-xs"
+            {groupsInWorkspace.map((g) => {
+              const leaderboardOn = g.leaderboardEnabled !== false;
+              return (
+                <li
+                  key={g.id}
+                  className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-surface/60 text-sm gap-3"
                 >
-                  حذف
-                </button>
-              </li>
-            ))}
+                  <span className="text-brand-text font-medium">{g.name}</span>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      onClick={() => toggleLeaderboard(g)}
+                      title={leaderboardOn ? "إخفاء طلاب هذه المجموعة عن لوحة الصدارة" : "إظهار طلاب هذه المجموعة بلوحة الصدارة"}
+                      className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-full transition-colors ${
+                        leaderboardOn
+                          ? "bg-brand-primary/10 text-brand-primary"
+                          : "bg-brand-textMuted/10 text-brand-textMuted"
+                      }`}
+                    >
+                      🏆 {leaderboardOn ? "ظاهرة بالصدارة" : "مخفية عن الصدارة"}
+                    </button>
+                    <button
+                      onClick={() => setDeleteTarget(g)}
+                      className="text-brand-error text-xs"
+                    >
+                      حذف
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
             {groupsInWorkspace.length === 0 && (
               <p className="text-brand-textMuted text-sm text-center py-6">
                 لا توجد مجموعات بهذا الفرع بعد.
