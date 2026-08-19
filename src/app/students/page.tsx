@@ -14,6 +14,7 @@ import { Modal, ConfirmDialog, Toast } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import ActionsDropdown from "@/components/ui/ActionsDropdown";
 import { CompactListRow } from "@/components/ui/CompactListRow";
+import { FilterChipsBar } from "@/components/ui/FilterChipsBar";
 import {
   listenCollection,
   updateDocById,
@@ -114,8 +115,9 @@ export default function StudentsPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [search, setSearch] = useState("");
-  const [showDeleted, setShowDeleted] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "disabled" | "deleted">("all");
   // تم إزالة مشاركة الروابط نهائياً بناءً على طلب المستخدم
   const [pdfNotesTarget, setPdfNotesTarget] = useState<(StudentProfile & { id: string }) | null>(null);
   const [pdfTeacherNotes, setPdfTeacherNotes] = useState("");
@@ -308,6 +310,7 @@ export default function StudentsPage() {
         createdAt: Date.now(),
       } as StudentProfile);
       setCredentialsModal({ fullName: form.fullName, phone, password });
+      setShowAddModal(false);
       setForm({ fullName: "", phone: "", address: "", stageId: "", groupId: "", password: randomPassword() });
       showToast("تم إنشاء حساب الطالب بنجاح ✅");
     } catch (e: any) {
@@ -384,7 +387,7 @@ export default function StudentsPage() {
       }
       showToast(`تم حذف الطالب "${permanentDeleteTarget.fullName}" نهائيًا`);
       setPermanentDeleteTarget(null);
-      setShowDeleted(true);
+      setStatusFilter("deleted");
     } catch {
       showToast("تعذّر الاتصال بالخادم، حاول مجددًا", "error");
     } finally {
@@ -596,12 +599,13 @@ export default function StudentsPage() {
   const visibleStudents = students.filter(
     (s) =>
       s.stageId === workspaceStageId &&
-      (showDeleted ? s.status === "deleted" : s.status !== "deleted")
+      (statusFilter === "all" ? s.status !== "deleted" : s.status === statusFilter)
   );
   const filtered = visibleStudents.filter(
     (s) =>
-      s.fullName.includes(search) ||
+      s.fullName.toLowerCase().includes(search.toLowerCase()) ||
       s.username?.includes(search) ||
+      s.phone?.includes(search) ||
       s.studentNumber?.includes(search)
   );
 
@@ -628,97 +632,8 @@ export default function StudentsPage() {
 
       {/* تم إزالة شريط مشاركة الرابط نهائياً */}
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <GlassCard className="lg:col-span-1 h-fit">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-primary to-brand-secondary flex items-center justify-center text-white text-lg shrink-0">
-              👤
-            </div>
-            <h2 className="font-bold text-brand-text">إضافة طالب جديد</h2>
-          </div>
-          <div
-            className="flex flex-col gap-3"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !(e.target as HTMLElement).closest("select")) {
-                e.preventDefault();
-                handleCreate();
-              }
-            }}
-          >
-            <input
-              placeholder="الاسم الكامل"
-              value={form.fullName}
-              onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
-            />
-            <input
-              placeholder="رقم هاتف الطالب"
-              dir="ltr"
-              type="tel"
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
-            />
-            <input
-              placeholder="العنوان (اختياري)"
-              value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
-            />
-            <div className="px-3 py-2 rounded-xl bg-brand-primary/10 text-brand-primary text-sm">
-              القسم: {workspaceStageName ?? "—"}
-            </div>
-            <select
-              value={form.groupId}
-              onChange={(e) => setForm({ ...form, groupId: e.target.value })}
-              className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
-            >
-              <option value="">بدون مجموعة (اختياري)</option>
-              {groups
-                .filter((g) => g.stageId === workspaceStageId)
-                .map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
-                ))}
-            </select>
-
-            <div>
-              <label className="text-xs text-brand-textMuted block mb-1">كلمة المرور</label>
-              <div className="flex gap-2">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  dir="ltr"
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className="flex-1 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="px-2 text-xs text-brand-textMuted shrink-0"
-                >
-                  {showPassword ? "إخفاء" : "إظهار"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, password: randomPassword() })}
-                  className="px-2 text-xs text-brand-primary shrink-0"
-                  title="توليد كلمة مرور عشوائية"
-                >
-                  🎲
-                </button>
-              </div>
-              <p className="text-xs text-brand-textMuted mt-1">
-                يمكنك كتابة كلمة مرور خاصة بك أو استخدام المولّدة تلقائيًا.
-              </p>
-            </div>
-
-            <Button onClick={handleCreate} disabled={creating}>
-              {creating ? "جاري الإنشاء..." : "إنشاء حساب الطالب"}
-            </Button>
-          </div>
-        </GlassCard>
-
-        <GlassCard className="lg:col-span-2">
+      <div className="grid gap-6">
+        <GlassCard>
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <div>
               <h2 className="font-bold text-brand-text">
@@ -726,6 +641,7 @@ export default function StudentsPage() {
               </h2>
               <p className="text-[11px] text-brand-textMuted mt-1">النسخة الاحتياطية تشمل بيانات الطلاب فقط ولا تشمل كلمات المرور.</p>
             </div>
+            <Button size="sm" onClick={() => setShowAddModal(true)}>إضافة طالب جديد</Button>
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={handleExportStudents}
@@ -747,15 +663,18 @@ export default function StudentsPage() {
                 className="hidden"
               />
             </div>
-            <label className="flex items-center gap-1.5 text-xs text-brand-textMuted">
-              <input
-                type="checkbox"
-                checked={showDeleted}
-                onChange={(e) => setShowDeleted(e.target.checked)}
-              />
-              عرض المحذوفين
-            </label>
           </div>
+
+          <FilterChipsBar
+            active={statusFilter}
+            onChange={(val) => setStatusFilter(val as any)}
+            options={[
+              { value: "all", label: "الكل", count: students.filter(s => s.stageId === workspaceStageId && s.status !== "deleted").length },
+              { value: "active", label: "نشط", count: students.filter(s => s.stageId === workspaceStageId && s.status === "active").length },
+              { value: "disabled", label: "معطّل", count: students.filter(s => s.stageId === workspaceStageId && s.status === "disabled").length },
+              { value: "deleted", label: "محذوف", count: students.filter(s => s.stageId === workspaceStageId && s.status === "deleted").length },
+            ]}
+          />
 
           <div className="relative mb-4">
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-textMuted text-sm pointer-events-none">
@@ -832,12 +751,50 @@ export default function StudentsPage() {
             })}
             {filtered.length === 0 && (
               <p className="text-center text-brand-textMuted py-12 text-sm">
-                {showDeleted ? "لا يوجد طلاب محذوفون." : "لا يوجد طلاب بعد."}
+                لا يوجد طلاب يطابقون هذا البحث أو الفلتر.
               </p>
             )}
           </div>
         </GlassCard>
       </div>
+
+      <Modal
+        open={showAddModal}
+        onClose={() => !creating && setShowAddModal(false)}
+        title="إضافة طالب جديد"
+      >
+        <div
+          className="flex flex-col gap-3"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !(e.target as HTMLElement).closest("select")) {
+              e.preventDefault();
+              handleCreate();
+            }
+          }}
+        >
+          <input placeholder="الاسم الكامل" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
+          <input placeholder="رقم هاتف الطالب" dir="ltr" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
+          <input placeholder="العنوان (اختياري)" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
+          <div className="px-3 py-2 rounded-xl bg-brand-primary/10 text-brand-primary text-sm">القسم: {workspaceStageName ?? "—"}</div>
+          <select value={form.groupId} onChange={(e) => setForm({ ...form, groupId: e.target.value })} className="px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70">
+            <option value="">بدون مجموعة (اختياري)</option>
+            {groups.filter((g) => g.stageId === workspaceStageId).map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+          </select>
+          <div>
+            <label className="text-xs text-brand-textMuted block mb-1">كلمة المرور</label>
+            <div className="flex gap-2">
+              <input type={showPassword ? "text" : "password"} dir="ltr" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="flex-1 px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70" />
+              <button type="button" onClick={() => setShowPassword((v) => !v)} className="px-2 text-xs text-brand-textMuted shrink-0">{showPassword ? "إخفاء" : "إظهار"}</button>
+              <button type="button" onClick={() => setForm({ ...form, password: randomPassword() })} className="px-2 text-xs text-brand-primary shrink-0" title="توليد كلمة مرور عشوائية">🎲</button>
+            </div>
+            <p className="text-xs text-brand-textMuted mt-1">يمكنك كتابة كلمة مرور خاصة بك أو استخدام المولّدة تلقائيًا.</p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button size="sm" variant="secondary" type="button" onClick={() => setShowAddModal(false)} disabled={creating}>إلغاء</Button>
+            <Button size="sm" onClick={handleCreate} disabled={creating}>{creating ? "جاري الإنشاء..." : "إنشاء حساب الطالب"}</Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         open={!!pdfNotesTarget}

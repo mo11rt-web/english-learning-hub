@@ -16,7 +16,7 @@ import { CompactListRow } from "@/components/ui/CompactListRow";
 import { FilterChipsBar } from "@/components/ui/FilterChipsBar";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import ActionsDropdown from "@/components/ui/ActionsDropdown";
-import { Edit2, Trash2, ClipboardCheck } from "lucide-react";
+import { Trash2, ClipboardCheck } from "lucide-react";
 import { Assignment, Question, Group, QuestionType } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
@@ -353,7 +353,7 @@ export default function AssignmentsPage() {
         ]}
       />
 
-      <GlassCard className="!p-0 overflow-hidden mb-36">
+      <GlassCard className="!p-0 overflow-visible mb-36">
         <div className="flex flex-col">
           {filteredAssignments.map((assignment) => {
             const typeLetter = assignment.type === "exam" ? "ا" : assignment.type === "quiz" ? "ت" : "و";
@@ -372,11 +372,6 @@ export default function AssignmentsPage() {
                         label: "مراجعة الإجابات",
                         icon: <ClipboardCheck className="w-4 h-4" />,
                         onClick: () => (window.location.href = `/assignments/${assignment.id}/grade`),
-                      },
-                      {
-                        label: "تعديل الواجب",
-                        icon: <Edit2 className="w-4 h-4" />,
-                        onClick: () => openEditAssignment(assignment),
                       },
                       {
                         label: "حذف الواجب",

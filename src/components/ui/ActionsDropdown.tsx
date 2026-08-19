@@ -38,28 +38,32 @@ export default function ActionsDropdownDefault({ actions }: { actions: DropdownA
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setOpen((o) => !o)}
-        className="grid h-10 w-10 place-items-center rounded-xl border border-brand-primary/20 hover:bg-surfaceBorder/40 active:bg-surfaceBorder/60 text-brand-text transition-colors"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((o) => !o);
+        }}
+        className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-surfaceBorder/40 active:bg-surfaceBorder/60 text-brand-textMuted transition-colors"
         aria-label="خيارات"
         type="button"
       >
-        <MoreVertical size={16} />
+        <MoreVertical size={18} />
       </button>
       {open && (
-        <div className="absolute left-0 top-11 z-20 w-52 overflow-hidden rounded-xl border border-surfaceBorder/60 bg-surface/95 py-1.5 shadow-lg backdrop-blur-md">
+        <div className="absolute left-0 top-9 z-20 w-48 overflow-hidden rounded-xl border border-surfaceBorder/60 bg-surface/95 py-1 shadow-lg backdrop-blur-md">
           {visible.map((a, i) => (
             <button
               key={i}
               type="button"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setOpen(false);
                 a.onClick();
               }}
-              className={`flex w-full items-center gap-2.5 px-4 py-3 min-h-[44px] text-sm font-semibold transition-colors hover:bg-surfaceBorder/40 active:bg-surfaceBorder/60 ${
+              className={`flex w-full items-center gap-2 px-3 py-2 text-[13px] font-medium transition-colors hover:bg-surfaceBorder/40 active:bg-surfaceBorder/60 ${
                 a.danger || a.variant === "danger" ? "text-brand-error" : "text-brand-text"
               }`}
             >
-              {a.icon}
+              {a.icon && <span className="shrink-0">{a.icon}</span>}
               {a.label}
             </button>
           ))}

@@ -75,7 +75,6 @@ export function AppShell({
   const { stageId, loading: workspaceLoading, error: workspaceError, retry: retryWorkspace } = useWorkspace();
   const router = useRouter();
   const pathname = usePathname();
-  const [splashVisible, setSplashVisible] = useState(true);
 
   useEffect(() => {
     if (loading) return;
@@ -113,12 +112,6 @@ export function AppShell({
 
   const isReady = !loading && !!profile && profile.status === "active" && !authError;
 
-  useEffect(() => {
-    if (!isReady) return;
-    if (requireRole === "teacher" && profile?.role !== "student" && !stageId && pathname !== "/workspace") return;
-    const t = window.setTimeout(() => setSplashVisible(false), 150);
-    return () => window.clearTimeout(t);
-  }, [isReady, requireRole, profile, stageId, pathname]);
 
   if (authError) {
     return <ErrorScreen message={authError} onRetry={() => window.location.reload()} />;
@@ -143,7 +136,6 @@ export function AppShell({
 
   return (
     <MobileMenuProvider>
-      {splashVisible && <Spinner fadeOut />}
       <div className="min-h-screen bg-app-gradient flex" dir="rtl">
         <div className="hidden md:block">
           <Sidebar />

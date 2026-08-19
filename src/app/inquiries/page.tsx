@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/Button";
 import { Toast } from "@/components/ui/Modal";
 import { CompactListRow } from "@/components/ui/CompactListRow";
 import { FilterChipsBar } from "@/components/ui/FilterChipsBar";
-import ActionsDropdown from "@/components/ui/ActionsDropdown";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { createDoc, updateDocById } from "@/lib/firestore-helpers";
 import { db } from "@/lib/firebase";
@@ -227,17 +226,7 @@ export default function TeacherInquiriesPage() {
                       tone={inquiry.status === "new" ? "warning" : inquiry.status === "answered" ? "success" : inquiry.status === "resolved" ? "muted" : "primary"}
                     />
                   }
-                  trailing={
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="text-[10px] text-brand-textMuted">{formatDate(inquiry.lastMessageAt)}</span>
-                      <ActionsDropdown
-                        actions={[
-                          { label: "فتح المحادثة", icon: <MessageCircle className="w-4 h-4" />, onClick: () => setSelectedId(inquiry.id) },
-                          inquiry.status !== "resolved" ? { label: "تحديد كمحلول", icon: <CheckCircle2 className="w-4 h-4 text-brand-success" />, onClick: () => { setSelectedId(inquiry.id); resolveInquiry(); } } : null,
-                        ].filter(Boolean) as any}
-                      />
-                    </div>
-                  }
+                  trailing={<span className="text-[10px] text-brand-textMuted">{formatDate(inquiry.lastMessageAt)}</span>}
                 />
               );
             })}

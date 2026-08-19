@@ -25,12 +25,12 @@ export function CompactListRow({
   return (
     <Wrapper
       onClick={onClick}
-      className={`w-full flex items-center gap-2.5 px-2.5 py-2 border-b border-surfaceBorder/50 last:border-b-0 ${
+      className={`w-full flex items-start gap-2.5 px-2.5 py-2.5 border-b border-surfaceBorder/50 last:border-b-0 ${
         onClick ? "text-right hover:bg-surface/60 active:bg-surface transition-colors" : ""
       } ${active ? "bg-brand-primary/10" : ""}`}
     >
       <div
-        className={`w-[42px] h-[42px] shrink-0 rounded-full bg-gradient-to-br ${avatarGradient} text-white text-sm font-bold flex items-center justify-center`}
+        className={`w-[42px] h-[42px] shrink-0 rounded-full bg-gradient-to-br ${avatarGradient} text-white text-sm font-bold flex items-center justify-center mt-0.5`}
       >
         {avatarLabel}
       </div>
@@ -43,7 +43,7 @@ export function CompactListRow({
         </div>
         {subtitle && <div className="text-[11px] text-brand-textMuted mt-0.5 truncate">{subtitle}</div>}
       </div>
-      {trailing && <div className="shrink-0">{trailing}</div>}
+      {trailing && <div className="shrink-0 mt-1">{trailing}</div>}
     </Wrapper>
   );
 }
