@@ -47,6 +47,7 @@ export default function AnnouncementsPage() {
   const { stageId: workspaceStageId, stageName: workspaceStageName } = useWorkspace();
   const [items, setItems] = useState<(Announcement & { id: string })[]>([]);
   const [groups, setGroups] = useState<(Group & { id: string })[]>([]);
+  const [showComposer, setShowComposer] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -93,22 +94,25 @@ export default function AnnouncementsPage() {
   };
 
   const notifyPublished = async (announcementTitle: string, targetIds: string[]) => {
-    if (!workspaceStageId || status !== "published") return;
+    if (publicAnnouncement || !workspaceStageId || status !== "published") return;
     const studentUids = await getStudentUidsForStage(workspaceStageId, targetIds);
     await notifyUsers(studentUids, { title: "إعلان جديد من المعلم", body: announcementTitle, type: "announcement", link: "/student/home" });
   };
 
   const save = async () => {
-    if (!user || !workspaceStageId) return showToast("اختر القسم الحالي أولاً.", "error");
+    if (!user) return showToast("تعذّر التحقق من حساب المعلم.", "error");
+    if (!publicAnnouncement && !workspaceStageId) return showToast("اختر القسم الحالي أولاً.", "error");
     if (!title.trim() || !body.trim()) return showToast("يجب إدخال عنوان ونص الإعلان.", "error");
     if (publicAnnouncement && targetGroupIds.length > 0) return showToast("الإعلان الظاهر قبل تسجيل الدخول يجب أن يكون موجهاً لجميع الطلاب.", "error");
     setSaving(true);
     try {
-      const storedGroupIds = toStoredTargetGroupIds(targetGroupIds);
+      const storedGroupIds = toStoredTargetGroupIds(publicAnnouncement ? [] : targetGroupIds);
       const uploadedImageUrl = imageFile ? (await uploadImageToCloudinary(imageFile)).secureUrl : imageUrl.trim();
       const now = Date.now();
       const payload = {
-        title: title.trim(), body: body.trim(), targetGroupIds: storedGroupIds, stageId: workspaceStageId,
+        title: title.trim(), body: body.trim(), targetGroupIds: storedGroupIds,
+        // null يزيل الارتباط العملي بالقسم أيضاً عند تحويل إعلان خاص سابق إلى عام.
+        stageId: publicAnnouncement ? null : workspaceStageId,
         ...(uploadedImageUrl ? { imageUrl: uploadedImageUrl } : {}), ...(linkUrl.trim() ? { linkUrl: linkUrl.trim() } : {}),
         ...(startAt ? { startAt: new Date(startAt).getTime() } : {}), ...(endAt ? { endAt: new Date(endAt).getTime() } : {}),
         featured, public: publicAnnouncement, status, updatedAt: now,
@@ -118,6 +122,7 @@ export default function AnnouncementsPage() {
       if (status === "published") await notifyPublished(title.trim(), targetGroupIds);
       showToast(editingId ? "تم تحديث الإعلان ✅" : "تم حفظ الإعلان ✅");
       resetForm();
+      setShowComposer(false);
     } catch (error) {
       showToast(error instanceof Error ? error.message : "تعذّر حفظ الإعلان.", "error");
     } finally { setSaving(false); }
@@ -136,14 +141,20 @@ export default function AnnouncementsPage() {
     setPublicAnnouncement(Boolean(item.public));
     setImageUrl(item.imageUrl ?? "");
     setImageFile(null);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setShowComposer(true);
   };
 
   return (
     <AppShell requireRole="teacher">
       <PageHeader icon="📣" title="الإعلانات" meta={<span className="text-xs text-brand-textMuted">القسم الحالي: {workspaceStageName ?? "—"}</span>} />
-      <GlassCard className="mb-6">
-        <div className="flex items-center justify-between gap-3 mb-4"><h2 className="font-bold text-brand-text">{editingId ? "تعديل الإعلان" : "إعلان جديد"}</h2>{editingId && <button onClick={resetForm} className="text-xs text-brand-textMuted">إلغاء التعديل</button>}</div>
+      <Button className="w-full mb-6" onClick={() => { resetForm(); setShowComposer(true); }}><Plus size={18} /> إنشاء إعلان</Button>
+      <Modal
+        open={showComposer}
+        onClose={() => { if (!saving) { resetForm(); setShowComposer(false); } }}
+        title={editingId ? "تعديل الإعلان" : "إنشاء إعلان"}
+        maxWidth="max-w-2xl"
+      >
+        <div className="flex items-center justify-between gap-3 mb-4">{editingId && <button onClick={resetForm} className="text-xs text-brand-textMuted">إلغاء التعديل</button>}</div>
         <div className="grid md:grid-cols-2 gap-4">
           <div className="md:col-span-2 flex flex-col gap-1">
             <label className="text-xs font-bold text-brand-primary px-1">عنوان الإعلان</label>
@@ -153,9 +164,9 @@ export default function AnnouncementsPage() {
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-brand-primary px-1">المنصة المستهدفة</label>
             <div className="px-4 py-3 rounded-2xl border border-brand-primary/10 bg-brand-primary/5 text-brand-primary font-bold flex items-center gap-2 cursor-not-allowed">
-              <Layout size={16} /> {workspaceStageName || "القسم الحالي"}
+              <Layout size={16} /> {publicAnnouncement ? "المنصة كاملة" : workspaceStageName || "القسم الحالي"}
             </div>
-            <p className="text-[10px] text-brand-textMuted px-1">يتم ربط الإعلان تلقائياً بالقسم الذي تعمل عليه حالياً.</p>
+            <p className="text-[10px] text-brand-textMuted px-1">{publicAnnouncement ? "الإعلان العام مستقل عن القسم والمجموعات ويظهر قبل تسجيل الدخول." : "يتم ربط الإعلان تلقائياً بالقسم الذي تعمل عليه حالياً."}</p>
           </div>
 
           <div className="flex flex-col gap-1">
@@ -164,15 +175,16 @@ export default function AnnouncementsPage() {
               <Users size={16} className="absolute left-3 top-3.5 text-brand-textMuted" />
               <select 
                 multiple
-                value={targetGroupIds} 
+                value={targetGroupIds}
+                disabled={publicAnnouncement}
                 onChange={(event) => setTargetGroupIds(Array.from(event.target.selectedOptions, option => option.value))}
-                className="w-full pl-3 pr-9 py-3 rounded-2xl border border-brand-primary/20 bg-surface/50 focus:bg-surface transition-all outline-none focus:ring-2 focus:ring-brand-primary/20 min-h-[50px]"
+                className="w-full pl-3 pr-9 py-3 rounded-2xl border border-brand-primary/20 bg-surface/50 focus:bg-surface transition-all outline-none focus:ring-2 focus:ring-brand-primary/20 min-h-[50px] disabled:opacity-50"
               >
                 <option value="">جميع المجموعات</option>
                 {groupsInWorkspace.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
               </select>
             </div>
-            <p className="text-[10px] text-brand-textMuted px-1">اضغط مع Ctrl لاختيار أكثر من مجموعة.</p>
+            <p className="text-[10px] text-brand-textMuted px-1">{publicAnnouncement ? "الإعلان العام يصل للجميع، لذلك لا يمكن تخصيصه لمجموعة." : "اضغط مع Ctrl لاختيار أكثر من مجموعة."}</p>
           </div>
 
           <div className="md:col-span-2 flex flex-col gap-1">
@@ -222,13 +234,13 @@ export default function AnnouncementsPage() {
               <span className="text-sm font-bold text-brand-text">إعلان بارز (تنبيه)</span>
             </div>
             <div className="flex items-center gap-3">
-              <ToggleSwitch checked={publicAnnouncement} onChange={setPublicAnnouncement} />
+              <ToggleSwitch checked={publicAnnouncement} onChange={(enabled) => { setPublicAnnouncement(enabled); if (enabled) { setTargetGroupIds([]); setStatus("published"); } }} />
               <span className="text-sm font-bold text-brand-text text-right">يظهر قبل تسجيل الدخول</span>
             </div>
           </div>
         </div>
         <div className="flex gap-2 mt-4"><Button onClick={save} disabled={saving}>{saving ? "جارٍ الحفظ..." : editingId ? "حفظ التعديل" : "نشر الإعلان"} <Plus size={16} /></Button>{(title || body) && <Button variant="secondary" onClick={() => setPreviewItem({ title, body, targetGroupIds: [], createdBy: user?.uid ?? "", createdAt: Date.now(), imageUrl: imageFile ? "" : imageUrl, linkUrl, status, featured, public: publicAnnouncement })}><Eye size={16} /> معاينة</Button>}</div>
-      </GlassCard>
+      </Modal>
 
       <GlassCard className="!p-0 overflow-hidden mb-36">
         <div className="flex flex-col">

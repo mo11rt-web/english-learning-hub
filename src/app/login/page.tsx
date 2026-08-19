@@ -28,6 +28,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showInstallHelp, setShowInstallHelp] = useState(false);
   const [publicAnnouncements, setPublicAnnouncements] = useState<(Announcement & { id: string })[]>([]);
+  const [dismissedPublicAnnouncementId, setDismissedPublicAnnouncementId] = useState<string | null>(null);
   const [publicLeaderboards, setPublicLeaderboards] = useState<(LeaderboardSettings & { id: string })[]>([]);
   const router = useRouter();
   const { canInstall, promptInstall, showManualIosInstructions, installed } = usePwaInstall();
@@ -50,6 +51,8 @@ export default function LoginPage() {
     );
     return () => { announcementsUnsubscribe(); leaderboardUnsubscribe(); };
   }, []);
+
+  const activePublicAnnouncement = publicAnnouncements.find((item) => item.id !== dismissedPublicAnnouncementId) ?? null;
 
   const handleInstallClick = async () => {
     if (canInstall) {
@@ -143,9 +146,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center p-4" dir="rtl">
       <div className="w-full max-w-5xl grid lg:grid-cols-[1.05fr_0.95fr] gap-5 items-start">
         <div className="flex flex-col gap-4 order-2 lg:order-1">
-          {publicAnnouncements.filter((item) => item.featured).slice(0, 1).map((announcement) => <div key={announcement.id} className="overflow-hidden rounded-3xl bg-gradient-to-bl from-brand-sidebar via-brand-primary to-brand-secondary text-white shadow-glass">{announcement.imageUrl && <img src={announcement.imageUrl} alt="" className="w-full max-h-56 object-cover" />}<div className="p-5"><p className="text-xs text-white/70 mb-2">📣 إعلان مهم</p><h2 className="text-xl font-bold">{announcement.title}</h2><p className="text-sm text-white/80 mt-2 whitespace-pre-wrap">{announcement.body}</p></div></div>)}
           {publicLeaderboards.map((board) => <div key={board.id} className="rounded-3xl border border-brand-primary/20 bg-surface/90 p-5 shadow-glass"><div className="flex items-center justify-between mb-4"><div><h2 className="font-bold text-brand-text">🏆 نجوم هذا الشهر</h2><p className="text-xs text-brand-textMuted mt-1">اجتهد، اجمع النقاط، وقد يكون اسمك هنا ⭐</p></div><span className="text-3xl">🏆</span></div><div className="flex flex-col gap-2">{board.entries.slice(0, board.limit).map((entry) => <div key={`${board.id}-${entry.rank}`} className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 ${entry.rank === 1 ? "bg-brand-gold/15" : "bg-surface/60"}`}><span className="text-xl">{entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : "⭐"}</span><span className="font-bold text-brand-text flex-1 truncate">{entry.studentName}</span><span className="text-sm text-brand-primary font-bold whitespace-nowrap">{entry.points} نقطة</span></div>)}</div></div>)}
-          {publicAnnouncements.filter((item) => !item.featured).slice(0, 3).map((announcement) => <div key={announcement.id} className="rounded-2xl border border-brand-primary/15 bg-surface/80 px-4 py-3"><p className="font-bold text-brand-text">{announcement.title}</p><p className="text-sm text-brand-textMuted mt-1 whitespace-pre-wrap">{announcement.body}</p></div>)}
         </div>
         <GlassCard className="w-full max-w-md mx-auto order-1 lg:order-2">
         <div className="text-center mb-6">
@@ -226,6 +227,25 @@ export default function LoginPage() {
         )}
         </GlassCard>
       </div>
+
+      <Modal
+        open={Boolean(activePublicAnnouncement)}
+        onClose={() => activePublicAnnouncement && setDismissedPublicAnnouncementId(activePublicAnnouncement.id)}
+        title="إعلان عام"
+        maxWidth="max-w-xl"
+      >
+        {activePublicAnnouncement && (
+          <div className="rounded-3xl overflow-hidden border border-brand-primary/20 bg-surface">
+            <div className="h-2 bg-gradient-to-l from-brand-primary to-brand-secondary" />
+            {activePublicAnnouncement.imageUrl && <img src={activePublicAnnouncement.imageUrl} alt="" className="w-full max-h-64 object-cover" />}
+            <div className="p-5">
+              <h2 className="text-xl font-bold text-brand-text">{activePublicAnnouncement.title}</h2>
+              <p className="text-brand-textMuted mt-3 whitespace-pre-wrap leading-7">{activePublicAnnouncement.body}</p>
+              {activePublicAnnouncement.linkUrl && <a href={activePublicAnnouncement.linkUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center mt-5 px-4 py-2.5 rounded-xl bg-brand-primary text-white font-bold text-sm">فتح الرابط</a>}
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal open={showInstallHelp} onClose={() => setShowInstallHelp(false)} title="تثبيت التطبيق" maxWidth="max-w-sm">
         {showManualIosInstructions ? (
