@@ -641,7 +641,6 @@ export default function StudentsPage() {
               </h2>
               <p className="text-[11px] text-brand-textMuted mt-1">النسخة الاحتياطية تشمل بيانات الطلاب فقط ولا تشمل كلمات المرور.</p>
             </div>
-            <Button size="sm" onClick={() => setShowAddModal(true)}>إضافة طالب جديد</Button>
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={handleExportStudents}
@@ -664,6 +663,8 @@ export default function StudentsPage() {
               />
             </div>
           </div>
+
+          <Button className="w-full mb-3" onClick={() => setShowAddModal(true)}>إضافة طالب جديد</Button>
 
           <FilterChipsBar
             active={statusFilter}

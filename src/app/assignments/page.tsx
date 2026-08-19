@@ -48,6 +48,7 @@ export default function AssignmentsPage() {
   });
   const [creatingAssignment, setCreatingAssignment] = useState(false);
   const [assignmentMessage, setAssignmentMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<(Assignment & { id: string }) | null>(null);
   const [editForm, setEditForm] = useState({ title: "", type: "homework" as Assignment["type"], targetGroupId: "", selectedQ: new Set<string>() });
@@ -141,6 +142,7 @@ export default function AssignmentsPage() {
       return;
     }
     setAssignmentMessage(null);
+    setShowCreateModal(false);
     setShowPreviewModal(true);
   };
 
@@ -176,6 +178,7 @@ export default function AssignmentsPage() {
       });
 
       setShowPreviewModal(false);
+      setShowCreateModal(false);
       setAForm({ title: "", type: "homework", targetGroupId: "", durationMinutes: 30, selectedQ: new Set() });
       setAssignmentMessage({ text: "تم نشر الواجب بنجاح ويمكنك إضافة واجب آخر الآن.", type: "success" });
 
@@ -208,10 +211,15 @@ export default function AssignmentsPage() {
           <p className="text-sm text-brand-textMuted leading-7 mb-4">تم نقل إنشاء الأسئلة إلى صفحة مستقلة فيها شرح لكل نوع: اختيار من متعدد، صح أو خطأ، إكمال الفراغ بأربعة خيارات، ترتيب، مطابقة، وإجابات تحتاج مراجعة الأستاذ.</p>
           <Link href="/questions"><Button>فتح بنك الأسئلة وإضافة سؤال</Button></Link>
           <p className="text-xs text-brand-textMuted mt-3">الأسئلة الجاهزة في هذا القسم: {questionsInWorkspace.length}</p>
+          <Button className="w-full mt-4" onClick={() => setShowCreateModal(true)}>إنشاء واجب / اختبار</Button>
         </GlassCard>
 
-        <GlassCard>
-          <h2 className="font-bold text-brand-text mb-4">إنشاء واجب / اختبار</h2>
+        <Modal
+          open={showCreateModal}
+          onClose={() => !creatingAssignment && setShowCreateModal(false)}
+          title="إنشاء واجب / اختبار"
+          maxWidth="max-w-2xl"
+        >
           <div className="flex flex-col gap-3 mb-3">
             <input placeholder="عنوان الواجب" value={aForm.title}
               onChange={(e) => setAForm({ ...aForm, title: e.target.value })}
@@ -297,14 +305,14 @@ export default function AssignmentsPage() {
               </div>
 
               <div className="flex justify-end gap-3 pt-3 border-t border-brand-primary/15">
-                <Button variant="secondary" onClick={() => setShowPreviewModal(false)}>إلغاء وتعديل</Button>
+                <Button variant="secondary" onClick={() => { setShowPreviewModal(false); setShowCreateModal(true); }}>إلغاء وتعديل</Button>
                 <Button onClick={createAssignment} disabled={creatingAssignment}>
                   {creatingAssignment ? "جارٍ النشر..." : "تأكيد النشر والإرسال للطلاب"}
                 </Button>
               </div>
             </div>
           </Modal>
-        </GlassCard>
+        </Modal>
       </div>
 
       {editingAssignment && (
@@ -364,6 +372,7 @@ export default function AssignmentsPage() {
                 avatarLabel={typeLetter}
                 title={assignment.title}
                 subtitle={`${typeLabel} · ${assignment.questionIds?.length ?? 0} سؤال`}
+                onClick={() => (window.location.href = `/assignments/${assignment.id}/grade`)}
                 badge={<StatusBadge label={assignment.status === "published" ? "منشور" : "مسودة"} tone={assignment.status === "published" ? "success" : "muted"} />}
                 trailing={
                   <ActionsDropdown

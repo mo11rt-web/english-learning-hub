@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Trash2, Edit2, Rocket, PauseCircle, ExternalLink } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { collection, deleteDoc, doc, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { AppShell } from "@/components/layout/AppShell";
@@ -16,8 +16,6 @@ import { listenCollection, createDoc, updateDocById, orderBy } from "@/lib/fires
 import { Unit } from "@/lib/types";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { CompactListRow } from "@/components/ui/CompactListRow";
-import ActionsDropdown from "@/components/ui/ActionsDropdown";
 
 // بطاقة وحدة منفصلة على مستوى الملف (مش متداخلة جوا مكوّن الصفحة) — نفس
 // السبب دايمًا: تفادي أي إعادة إنشاء لنوع المكوّن أثناء الكتابة بحقل
@@ -36,15 +34,15 @@ function UnitCard({
   const [editing, setEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(unit.title);
 
-  if (editing) {
-    return (
-      <div className="px-3 py-3 border-b border-surfaceBorder/50">
-        <div className="flex flex-col gap-2">
+  return (
+    <GlassCard className="h-full">
+      {editing ? (
+        <div className="flex flex-col gap-2 mb-2">
           <input
             autoFocus
             value={draftTitle}
             onChange={(e) => setDraftTitle(e.target.value)}
-            className="w-full px-3 py-2 rounded-xl border border-brand-primary/25 bg-surface/70 text-sm"
+            className="w-full px-3 py-1.5 rounded-lg border border-brand-primary/25 bg-surface/70 text-sm"
           />
           <div className="flex gap-2">
             <Button
@@ -68,44 +66,43 @@ function UnitCard({
             </Button>
           </div>
         </div>
-      </div>
-    );
-  }
+      ) : (
+        <Link href={`/units/${unit.id}`}>
+          <div className="flex items-center justify-between mb-2 cursor-pointer">
+            <h3 className="font-bold text-brand-text">{unit.title}</h3>
+            <StatusBadge
+              label={unit.status === "published" ? "منشورة ✓" : "مسودة"}
+              tone={unit.status === "published" ? "success" : "warning"}
+            />
+          </div>
+        </Link>
+      )}
 
-  return (
-    <CompactListRow
-      avatarLabel={unit.title.charAt(0).toUpperCase()}
-      title={unit.title}
-      badge={<StatusBadge label={unit.status === "published" ? "منشورة" : "مسودة"} tone={unit.status === "published" ? "success" : "warning"} />}
-      onClick={() => (window.location.href = `/units/${unit.id}`)}
-      trailing={
-        <ActionsDropdown
-          actions={[
-            {
-              label: "فتح الدروس",
-              icon: <ExternalLink className="w-4 h-4" />,
-              onClick: () => (window.location.href = `/units/${unit.id}`),
-            },
-            {
-              label: "تعديل الاسم",
-              icon: <Edit2 className="w-4 h-4" />,
-              onClick: () => setEditing(true),
-            },
-            {
-              label: unit.status === "published" ? "إلغاء النشر" : "نشر الوحدة",
-              icon: unit.status === "published" ? <PauseCircle className="w-4 h-4" /> : <Rocket className="w-4 h-4 text-brand-success" />,
-              onClick: onTogglePublish,
-            },
-            {
-              label: "حذف الوحدة",
-              icon: <Trash2 className="w-4 h-4" />,
-              onClick: onDelete,
-              variant: "danger",
-            },
-          ]}
-        />
-      }
-    />
+      <div className="flex flex-wrap items-center gap-2 mt-3">
+        <Link
+          href={`/units/${unit.id}`}
+          className="px-3 py-1.5 rounded-lg text-xs font-arabic font-bold bg-surface text-brand-text border border-brand-gold/65 hover:bg-brand-goldLight/45 transition-all inline-flex items-center"
+        >
+          فتح الدروس ←
+        </Link>
+        {!editing && (
+          <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
+            ✏️ تعديل الاسم
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={onTogglePublish}
+          className={unit.status === "published" ? undefined : "!text-brand-success"}
+        >
+          {unit.status === "published" ? "⏸ إلغاء النشر" : "🚀 نشر الوحدة"}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onDelete} title="حذف الوحدة" className="!text-brand-error">
+          <Trash2 size={13} /> حذف
+        </Button>
+      </div>
+    </GlassCard>
   );
 }
 
@@ -220,22 +217,20 @@ export default function UnitsPage() {
         </p>
       </GlassCard>
 
-      <GlassCard className="!p-0 overflow-hidden mb-36">
-        <div className="flex flex-col">
-          {unitsInWorkspace.map((u) => (
-            <UnitCard
-              key={u.id}
-              unit={u}
-              onTogglePublish={() => togglePublish(u)}
-              onRename={(newTitle) => renameUnit(u, newTitle)}
-              onDelete={() => requestDeleteUnit(u)}
-            />
-          ))}
-          {unitsInWorkspace.length === 0 && (
-            <p className="text-brand-textMuted text-sm text-center py-12">لا توجد وحدات بهذا القسم بعد.</p>
-          )}
-        </div>
-      </GlassCard>
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {unitsInWorkspace.map((u) => (
+          <UnitCard
+            key={u.id}
+            unit={u}
+            onTogglePublish={() => togglePublish(u)}
+            onRename={(newTitle) => renameUnit(u, newTitle)}
+            onDelete={() => requestDeleteUnit(u)}
+          />
+        ))}
+        {unitsInWorkspace.length === 0 && (
+          <p className="text-brand-textMuted">لا توجد وحدات بهذا القسم بعد.</p>
+        )}
+      </div>
 
       <ConfirmDialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} onConfirm={confirmDeleteUnit} title="تأكيد حذف الوحدة" message={deleteTarget ? `هل أنت متأكد من حذف الوحدة «${deleteTarget.unit.title}»؟${deleteTarget.lessonsCount ? ` هذه الوحدة تحتوي على ${deleteTarget.lessonsCount} درس، وسيتم حذف الدروس المرتبطة بها أيضاً.` : " لا تحتوي هذه الوحدة على دروس حالياً."}` : ""} confirmLabel="تأكيد الحذف" />
       {toast && <Toast message={toast.message} type={toast.type} />}

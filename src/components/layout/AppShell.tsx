@@ -12,38 +12,9 @@ import { MobileMenuProvider } from "@/hooks/useMobileMenu";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useAndroidPush } from "@/hooks/useAndroidPush";
 
-function Spinner({ fadeOut = false }: { fadeOut?: boolean }) {
-  return (
-    <div
-      className={`fixed inset-0 z-[999] bg-app-gradient flex flex-col items-center justify-center p-8 text-center overflow-hidden transition-opacity duration-500 ease-out ${
-        fadeOut ? "opacity-0 pointer-events-none" : "opacity-100"
-      }`}
-    >
-      <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-brand-primary/10 rounded-full blur-3xl animate-pulse" />
-      <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 bg-brand-gold/10 rounded-full blur-3xl animate-pulse delay-1000" />
-
-      <div className="relative z-10 flex flex-col items-center gap-8 max-w-sm">
-        <div className="w-32 h-32 md:w-40 md:h-32 rounded-[2.5rem] bg-white/10 flex items-center justify-center shadow-glass border border-white/20 animate-splash-pop overflow-hidden p-4">
-          <img src="/icons/icon-512.png" alt="Allawi Logo" className="w-full h-full object-contain drop-shadow-xl" />
-        </div>
-
-        <div className="space-y-4">
-          <h1 className="text-3xl md:text-4xl font-black text-brand-text tracking-tight leading-tight animate-fade-up">
-            تعلم ملهم،<br />
-            <span className="text-brand-primary drop-shadow-sm">مستقبل واعد</span>
-          </h1>
-
-          <div className="flex flex-col items-center gap-4 pt-4">
-            <div className="flex gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-brand-primary animate-bounce [animation-delay:-0.3s]" />
-              <div className="w-2.5 h-2.5 rounded-full bg-brand-primary animate-bounce [animation-delay:-0.15s]" />
-              <div className="w-2.5 h-2.5 rounded-full bg-brand-primary animate-bounce" />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+function Spinner() {
+  // تحميل داخلي محايد فقط؛ لا يعرض شاشة الشعار عند التنقل بين الصفحات.
+  return <div className="fixed inset-0 z-[999] bg-app-gradient" aria-busy="true" />;
 }
 
 function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => void }) {
@@ -75,6 +46,10 @@ export function AppShell({
   const { stageId, loading: workspaceLoading, error: workspaceError, retry: retryWorkspace } = useWorkspace();
   const router = useRouter();
   const pathname = usePathname();
+  const [showLaunchSplash, setShowLaunchSplash] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.sessionStorage.getItem("allawi_launch_splash_done") !== "1";
+  });
 
   useEffect(() => {
     if (loading) return;
@@ -112,13 +87,19 @@ export function AppShell({
 
   const isReady = !loading && !!profile && profile.status === "active" && !authError;
 
+  // تظهر شاشة الشعار مرة واحدة عند بداية جلسة التطبيق فقط، ولا تعود عند فتح صفحة أخرى.
+  useEffect(() => {
+    if (!isReady || !showLaunchSplash) return;
+    window.sessionStorage.setItem("allawi_launch_splash_done", "1");
+    setShowLaunchSplash(false);
+  }, [isReady, showLaunchSplash]);
 
   if (authError) {
     return <ErrorScreen message={authError} onRetry={() => window.location.reload()} />;
   }
 
   if (!isReady) {
-    return <Spinner />;
+    return showLaunchSplash ? <Spinner /> : <div className="min-h-screen bg-app-gradient" aria-busy="true" />;
   }
 
   if (
@@ -131,7 +112,7 @@ export function AppShell({
     if (workspaceError) {
       return <ErrorScreen message={workspaceError} onRetry={retryWorkspace} />;
     }
-    return <Spinner />;
+    return showLaunchSplash ? <Spinner /> : <div className="min-h-screen bg-app-gradient" aria-busy="true" />;
   }
 
   return (
