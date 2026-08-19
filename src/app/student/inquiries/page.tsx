@@ -9,6 +9,8 @@ import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { Toast } from "@/components/ui/Modal";
+import { CompactListRow } from "@/components/ui/CompactListRow";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { createDoc, updateDocById } from "@/lib/firestore-helpers";
 import { db } from "@/lib/firebase";
 import { getTeacherUids, notifyUsers } from "@/lib/notifications";
@@ -280,39 +282,34 @@ export default function StudentInquiriesPage() {
         </GlassCard>
       ) : null}
 
-      <div className="flex items-center justify-between mb-3"><h2 className="font-bold text-brand-text">أسئلتي السابقة ({inquiries.length})</h2><Clock3 size={18} className="text-brand-textMuted" /></div>
-      <div className="flex flex-col gap-3 pb-24">
-        {inquiries.map((inquiry) => (
-          <button key={inquiry.id} onClick={() => setSelectedId(inquiry.id)} className="text-right group">
-            <GlassCard className={`hover:ring-2 hover:ring-brand-primary/30 transition-all ${selectedId === inquiry.id ? "ring-2 ring-brand-primary" : ""}`}>
-              <div className="flex items-center justify-between gap-4">
-                <div className="w-10 h-10 rounded-xl bg-surfaceBorder/30 flex items-center justify-center text-brand-textMuted group-hover:bg-brand-primary/10 group-hover:text-brand-primary transition-colors shrink-0">
-                  <HelpCircle size={20} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold text-brand-text truncate">{inquiry.title}</p>
-                  <p className="text-[11px] text-brand-textMuted mt-1">
-                    {inquiry.unitId && units.find(u => u.id === inquiry.unitId)?.title ? `الوحدة: ${units.find(u => u.id === inquiry.unitId)?.title} · ` : ""}
-                    {inquiry.lessonId && lessons.find(l => l.id === inquiry.lessonId)?.title ? `الدرس: ${lessons.find(l => l.id === inquiry.lessonId)?.title} · ` : ""}
-                    آخر تحديث: {formatDate(inquiry.lastMessageAt)}
-                  </p>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-[10px] font-bold shrink-0 ${statusStyles[inquiry.status]}`}>
-                  {statusLabels[inquiry.status]}
-                </span>
-              </div>
-            </GlassCard>
-          </button>
-        ))}
-        {inquiries.length === 0 && (
-          <div className="py-12 text-center">
-            <div className="w-16 h-16 rounded-full bg-surfaceBorder/20 flex items-center justify-center mx-auto mb-4 text-brand-textMuted opacity-20">
-              <MessageCircle size={32} />
-            </div>
-            <p className="text-sm text-brand-textMuted">لا توجد أسئلة مرسلة بعد.</p>
-          </div>
-        )}
+      <div className="flex items-center justify-between mb-3 px-1">
+        <h2 className="font-bold text-brand-text">أسئلتي السابقة ({inquiries.length})</h2>
+        <Clock3 size={18} className="text-brand-textMuted" />
       </div>
+      
+      <GlassCard className="!p-0 overflow-hidden mb-36">
+        <div className="flex flex-col">
+          {inquiries.map((inquiry) => (
+            <CompactListRow
+              key={inquiry.id}
+              avatarLabel={inquiry.title?.[0] ?? "س"}
+              title={inquiry.title}
+              subtitle={formatDate(inquiry.lastMessageAt)}
+              onClick={() => setSelectedId(inquiry.id)}
+              active={selectedId === inquiry.id}
+              badge={
+                <StatusBadge
+                  label={statusLabels[inquiry.status]}
+                  tone={inquiry.status === "new" ? "warning" : inquiry.status === "answered" ? "success" : inquiry.status === "resolved" ? "muted" : "primary"}
+                />
+              }
+            />
+          ))}
+          {inquiries.length === 0 && (
+            <p className="text-center text-brand-textMuted py-12 text-sm">لم تقم بطرح أي أسئلة بعد.</p>
+          )}
+        </div>
+      </GlassCard>
       {toast && <Toast message={toast.message} type={toast.type} />}
     </AppShell>
   );

@@ -18,6 +18,9 @@ import { notifyUsers, getStudentUidsForStage } from "@/lib/notifications";
 import { toStoredTargetGroupIds } from "@/lib/groupTargeting";
 import { uploadImageToCloudinary } from "@/lib/cloudinary";
 import { formatSyrianDate } from "@/lib/dateUtils";
+import { CompactListRow } from "@/components/ui/CompactListRow";
+import ActionsDropdown from "@/components/ui/ActionsDropdown";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 
 const statusLabels: Record<AnnouncementStatus, string> = { draft: "مسودة", published: "منشور", expired: "منتهي" };
 const statusStyles: Record<AnnouncementStatus, string> = {
@@ -227,7 +230,50 @@ export default function AnnouncementsPage() {
         <div className="flex gap-2 mt-4"><Button onClick={save} disabled={saving}>{saving ? "جارٍ الحفظ..." : editingId ? "حفظ التعديل" : "نشر الإعلان"} <Plus size={16} /></Button>{(title || body) && <Button variant="secondary" onClick={() => setPreviewItem({ title, body, targetGroupIds: [], createdBy: user?.uid ?? "", createdAt: Date.now(), imageUrl: imageFile ? "" : imageUrl, linkUrl, status, featured, public: publicAnnouncement })}><Eye size={16} /> معاينة</Button>}</div>
       </GlassCard>
 
-      <div className="flex flex-col gap-3 pb-24">{itemsInWorkspace.map((item) => <GlassCard key={item.id} className={item.status === "expired" ? "opacity-60" : ""}><div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-bold text-brand-text">{item.title}</h3><span className={`px-2 py-1 rounded-lg text-[11px] ${statusStyles[item.status ?? "published"]}`}>{statusLabels[item.status ?? "published"]}</span>{item.featured && <span className="text-[11px] text-brand-gold">بارز</span>}</div><p className="text-brand-text text-sm mt-1 whitespace-pre-wrap">{item.body}</p><p className="text-xs text-brand-textMuted mt-2">يبدأ: {formatDate(item.startAt)} · ينتهي: {formatDate(item.endAt)}</p></div><div className="flex items-center gap-1 shrink-0"><button onClick={() => setPreviewItem(item)} className="grid h-9 w-9 place-items-center rounded-lg text-brand-textMuted hover:bg-surfaceBorder/40 hover:text-brand-primary transition-colors" title="معاينة"><Eye size={16} /></button><button onClick={() => startEdit(item)} className="grid h-9 w-9 place-items-center rounded-lg text-brand-primary hover:bg-surfaceBorder/40 transition-colors" title="تعديل"><Pencil size={16} /></button><button onClick={async () => { if (window.confirm("هل تريد حذف الإعلان؟")) { await deleteDocById("announcements", item.id); showToast("تم حذف الإعلان"); } }} className="grid h-9 w-9 place-items-center rounded-lg text-brand-error hover:bg-surfaceBorder/40 transition-colors" title="حذف"><Trash2 size={16} /></button></div></div></GlassCard>)}{itemsInWorkspace.length === 0 && <p className="text-brand-textMuted">لا توجد إعلانات في هذا القسم.</p>}</div>
+      <GlassCard className="!p-0 overflow-hidden mb-36">
+        <div className="flex flex-col">
+          {itemsInWorkspace.map((item) => (
+            <CompactListRow
+              key={item.id}
+              avatarLabel="إ"
+              title={item.title}
+              titleMuted={item.status === "expired"}
+              subtitle={`${formatDate(item.startAt)} · ${formatDate(item.endAt)}`}
+              badge={
+                <div className="flex gap-1">
+                  <StatusBadge label={statusLabels[item.status ?? "published"]} tone={item.status === "published" ? "success" : item.status === "expired" ? "danger" : "warning"} />
+                  {item.featured && <StatusBadge label="بارز" tone="gold" />}
+                </div>
+              }
+              trailing={
+                <ActionsDropdown
+                  actions={[
+                    {
+                      label: "معاينة الإعلان",
+                      icon: <Eye className="w-4 h-4" />,
+                      onClick: () => setPreviewItem(item),
+                    },
+                    {
+                      label: "تعديل الإعلان",
+                      icon: <Pencil className="w-4 h-4" />,
+                      onClick: () => startEdit(item),
+                    },
+                    {
+                      label: "حذف الإعلان",
+                      icon: <Trash2 className="w-4 h-4" />,
+                      onClick: async () => { if (window.confirm("هل تريد حذف الإعلان؟")) { await deleteDocById("announcements", item.id); showToast("تم حذف الإعلان"); } },
+                      variant: "danger",
+                    },
+                  ]}
+                />
+              }
+            />
+          ))}
+          {itemsInWorkspace.length === 0 && (
+            <p className="text-brand-textMuted text-sm text-center py-12">لا توجد إعلانات في هذا القسم.</p>
+          )}
+        </div>
+      </GlassCard>
       <Modal open={Boolean(previewItem)} onClose={() => setPreviewItem(null)} title="معاينة الإعلان" maxWidth="max-w-xl">{previewItem && <div className="rounded-3xl overflow-hidden border border-brand-primary/20 bg-surface"><div className="h-2 bg-gradient-to-l from-brand-primary to-brand-secondary" />{previewItem.imageUrl && <img src={previewItem.imageUrl} alt="" className="w-full max-h-64 object-cover" />}<div className="p-5"><div className="flex items-center justify-between gap-2"><h3 className="text-xl font-bold text-brand-text">{previewItem.title}</h3><span className="text-brand-primary">📣</span></div><p className="text-brand-textMuted mt-3 whitespace-pre-wrap">{previewItem.body}</p>{previewItem.linkUrl && <a href={previewItem.linkUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-brand-primary mt-4"><Link2 size={15} /> فتح الرابط</a>}</div></div>}</Modal>
       {toast && <Toast message={toast.message} type={toast.type} />}
     </AppShell>

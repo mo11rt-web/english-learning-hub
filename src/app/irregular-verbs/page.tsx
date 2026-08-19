@@ -16,6 +16,10 @@ import {
   deleteDocById,
   orderBy,
 } from "@/lib/firestore-helpers";
+import { CompactListRow } from "@/components/ui/CompactListRow";
+import ActionsDropdown from "@/components/ui/ActionsDropdown";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { Edit2, Trash2, CheckCircle, XCircle, Volume2 } from "lucide-react";
 import { IrregularVerb } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
@@ -251,74 +255,52 @@ export default function IrregularVerbsPage() {
           ))}
         </div>
       </div>
-      <GlassCard className="p-0 overflow-hidden">
-        {visibleVerbs.length > 0 ? (
-          <div className="overflow-x-auto max-h-[68vh] overflow-y-auto">
-            <table className="w-full min-w-[980px] border-collapse text-sm">
-              <thead className="sticky top-0 z-10 bg-surface/95 backdrop-blur border-b border-surfaceBorder">
-                <tr className="text-right text-brand-textMuted">
-                  <th className="px-4 py-3 font-semibold whitespace-nowrap">التصريف الأول<br /><span className="text-[10px] font-normal">Base Form</span></th>
-                  <th className="px-4 py-3 font-semibold whitespace-nowrap">التصريف الثاني<br /><span className="text-[10px] font-normal">Past Simple</span></th>
-                  <th className="px-4 py-3 font-semibold whitespace-nowrap">التصريف الثالث<br /><span className="text-[10px] font-normal">Past Participle</span></th>
-                  <th className="px-4 py-3 font-semibold">الترجمة العربية</th>
-                  <th className="px-4 py-3 font-semibold min-w-[220px]">المثال</th>
-                  <th className="px-4 py-3 font-semibold whitespace-nowrap">المستوى / الحالة</th>
-                  <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">الإجراءات</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surfaceBorder/60">
-                {visibleVerbs.map((v) => (
-                  <tr key={v.id} className={`align-top transition-colors hover:bg-surface/60 ${!v.active ? "opacity-60" : ""}`}>
-                    <td className="px-4 py-4" dir="ltr">
-                      <div className="flex items-center gap-2 min-w-[140px]">
-                        <span className="font-bold text-brand-primary">{v.base}</span>
-                        <SpeakButton text={v.base} size="sm" />
-                      </div>
-                    </td>
-                    <td className="px-4 py-4" dir="ltr">
-                      <div className="flex items-center gap-2 min-w-[140px]">
-                        <span className="font-medium text-brand-text">{v.pastSimple}</span>
-                        <SpeakButton text={v.pastSimple} size="sm" />
-                      </div>
-                    </td>
-                    <td className="px-4 py-4" dir="ltr">
-                      <div className="flex items-center gap-2 min-w-[155px]">
-                        <span className="font-medium text-brand-text">{v.pastParticiple}</span>
-                        <SpeakButton text={v.pastParticiple} size="sm" />
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-brand-text" dir="rtl">{v.meaningAr}</td>
-                    <td className="px-4 py-4 text-brand-textMuted italic" dir="ltr">
-                      {v.example || "—"}
-                    </td>
-                    <td className="px-4 py-4" dir="rtl">
-                      <div className="flex flex-col items-start gap-1.5">
-                        <span className="px-2.5 py-1 rounded-lg bg-brand-primary/10 text-brand-primary text-xs whitespace-nowrap">{levelLabel[v.level]}</span>
-                        <span className={`px-2.5 py-1 rounded-lg text-xs whitespace-nowrap ${v.active ? "bg-brand-success/10 text-brand-success" : "bg-surfaceBorder/50 text-brand-textMuted"}`}>
-                          {v.active ? "مفعّل" : "معطّل"}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex flex-wrap justify-center gap-2 min-w-[170px]">
-                        <button onClick={() => startEdit(v)} className="px-3 py-1.5 rounded-lg bg-brand-primary/10 text-brand-primary text-xs font-bold hover:bg-brand-primary/20">تعديل</button>
-                        <button
-                          onClick={() => updateDocById("irregular_verbs", v.id, { active: !v.active })}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold ${v.active ? "bg-surfaceBorder/60 text-brand-textMuted hover:bg-surfaceBorder" : "bg-brand-success/10 text-brand-success hover:bg-brand-success/20"}`}
-                        >
-                          {v.active ? "تعطيل" : "✓ تفعيل"}
-                        </button>
-                        <button onClick={() => deleteDocById("irregular_verbs", v.id)} className="px-3 py-1.5 rounded-lg bg-brand-error/10 text-brand-error text-xs font-bold hover:bg-brand-error/20">حذف</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-brand-textMuted text-center py-10">لا توجد أفعال شاذة بهذا الفلتر بعد.</p>
-        )}
+      <GlassCard className="!p-0 overflow-hidden mb-36">
+        <div className="flex flex-col">
+          {visibleVerbs.map((v) => (
+            <CompactListRow
+              key={v.id}
+              avatarLabel={v.base.charAt(0).toUpperCase()}
+              title={`${v.base} (${v.pastSimple} / ${v.pastParticiple})`}
+              titleMuted={!v.active}
+              subtitle={`${v.meaningAr} · ${levelLabel[v.level]}`}
+              badge={<StatusBadge label={v.active ? "مفعّل" : "معطّل"} tone={v.active ? "success" : "muted"} />}
+              trailing={
+                <div className="flex items-center gap-1">
+                  <SpeakButton text={v.base} size="sm" />
+                  <ActionsDropdown
+                    actions={[
+                      {
+                        label: "تعديل الفعل",
+                        icon: <Edit2 className="w-4 h-4" />,
+                        onClick: () => startEdit(v),
+                      },
+                      {
+                        label: v.active ? "تعطيل الفعل" : "تفعيل الفعل",
+                        icon: v.active ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4 text-brand-success" />,
+                        onClick: () => updateDocById("irregular_verbs", v.id, { active: !v.active }),
+                      },
+                      {
+                        label: "نطق الفعل",
+                        icon: <Volume2 className="w-4 h-4" />,
+                        onClick: () => { /* SpeakButton handles this */ },
+                      },
+                      {
+                        label: "حذف الفعل",
+                        icon: <Trash2 className="w-4 h-4" />,
+                        onClick: () => deleteDocById("irregular_verbs", v.id),
+                        variant: "danger",
+                      },
+                    ]}
+                  />
+                </div>
+              }
+            />
+          ))}
+          {visibleVerbs.length === 0 && (
+            <p className="text-brand-textMuted text-sm text-center py-12">لا توجد أفعال شاذة تطابق هذا الفلتر.</p>
+          )}
+        </div>
       </GlassCard>
       {toast && <Toast message={toast.message} type={toast.type} />}
     </AppShell>

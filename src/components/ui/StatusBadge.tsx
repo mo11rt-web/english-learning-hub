@@ -1,9 +1,10 @@
-type Tone = "success" | "warning" | "error" | "muted" | "primary" | "gold";
+type Tone = "success" | "warning" | "error" | "danger" | "muted" | "primary" | "gold";
 
 const STYLES: Record<Tone, string> = {
   success: "bg-brand-success/15 text-brand-success",
   warning: "bg-brand-warning/15 text-brand-warning",
   error: "bg-brand-error/15 text-brand-error",
+  danger: "bg-brand-error/15 text-brand-error",
   muted: "bg-surfaceBorder/60 text-brand-textMuted",
   primary: "bg-brand-primary/15 text-brand-primary",
   gold: "bg-brand-gold/15 text-brand-gold",
@@ -13,6 +14,7 @@ const DOT_STYLES: Record<Tone, string> = {
   success: "bg-brand-success",
   warning: "bg-brand-warning",
   error: "bg-brand-error",
+  danger: "bg-brand-error",
   muted: "bg-brand-textMuted",
   primary: "bg-brand-primary",
   gold: "bg-brand-gold",

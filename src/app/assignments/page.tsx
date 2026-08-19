@@ -12,6 +12,11 @@ import { Modal, Toast } from "@/components/ui/Modal";
 import {
   listenCollection, createDoc, updateDocById, deleteDocById, orderBy,
 } from "@/lib/firestore-helpers";
+import { CompactListRow } from "@/components/ui/CompactListRow";
+import { FilterChipsBar } from "@/components/ui/FilterChipsBar";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import ActionsDropdown from "@/components/ui/ActionsDropdown";
+import { Edit2, Trash2, ClipboardCheck } from "lucide-react";
 import { Assignment, Question, Group, QuestionType } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
@@ -47,6 +52,7 @@ export default function AssignmentsPage() {
   const [editingAssignment, setEditingAssignment] = useState<(Assignment & { id: string }) | null>(null);
   const [editForm, setEditForm] = useState({ title: "", type: "homework" as Assignment["type"], targetGroupId: "", selectedQ: new Set<string>() });
   const [savingEdit, setSavingEdit] = useState(false);
+  const [filter, setFilter] = useState<"all" | "draft" | "published">("all");
 
   useEffect(() => {
     const u1 = listenCollection<Question>("question_bank", [orderBy("createdAt", "desc")], setQuestions);
@@ -61,6 +67,7 @@ export default function AssignmentsPage() {
   const assignmentsInWorkspace = assignments.filter((a) =>
     matchesStudentGroups(a.targetGroupIds, Array.from(groupIdsInWorkspace))
   );
+  const filteredAssignments = assignmentsInWorkspace.filter((a) => filter === "all" || a.status === filter);
 
   const toggleQ = (id: string) => {
     const s = new Set(aForm.selectedQ);
@@ -332,21 +339,62 @@ export default function AssignmentsPage() {
         </GlassCard>
       )}
 
-      <h2 className="font-bold text-brand-text mb-4">واجبات "{workspaceStageName ?? "—"}"</h2>
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 pb-36">
-        {assignmentsInWorkspace.map((assignment) => (
-          <GlassCard key={assignment.id}>
-            <h3 className="font-bold text-brand-text mb-1">{assignment.title}</h3>
-            <p className="text-xs text-brand-textMuted mb-3">{assignment.questionIds?.length ?? 0} سؤال · {assignment.status === "published" ? "منشور" : "مسودة"}</p>
-            <div className="flex flex-wrap items-center gap-3">
-              <Link href={`/assignments/${assignment.id}/grade`} className="text-brand-primary text-sm">مراجعة الإجابات ↗</Link>
-              <button type="button" onClick={() => openEditAssignment(assignment)} className="text-brand-textMuted text-sm">تعديل</button>
-              <button type="button" onClick={() => deleteAssignment(assignment)} className="text-brand-error text-sm">حذف</button>
-            </div>
-          </GlassCard>
-        ))}
-        {assignmentsInWorkspace.length === 0 && <p className="text-brand-textMuted">لا توجد واجبات بهذا القسم بعد.</p>}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-bold text-brand-text">واجبات "{workspaceStageName ?? "—"}"</h2>
       </div>
+
+      <FilterChipsBar
+        active={filter}
+        onChange={setFilter}
+        options={[
+          { value: "all", label: "الكل", count: assignmentsInWorkspace.length },
+          { value: "published", label: "منشور", count: assignmentsInWorkspace.filter((a) => a.status === "published").length },
+          { value: "draft", label: "مسودة", count: assignmentsInWorkspace.filter((a) => a.status === "draft").length },
+        ]}
+      />
+
+      <GlassCard className="!p-0 overflow-hidden mb-36">
+        <div className="flex flex-col">
+          {filteredAssignments.map((assignment) => {
+            const typeLetter = assignment.type === "exam" ? "ا" : assignment.type === "quiz" ? "ت" : "و";
+            const typeLabel = assignmentTypeLabels[assignment.type] || assignment.type;
+            return (
+              <CompactListRow
+                key={assignment.id}
+                avatarLabel={typeLetter}
+                title={assignment.title}
+                subtitle={`${typeLabel} · ${assignment.questionIds?.length ?? 0} سؤال`}
+                badge={<StatusBadge label={assignment.status === "published" ? "منشور" : "مسودة"} tone={assignment.status === "published" ? "success" : "muted"} />}
+                trailing={
+                  <ActionsDropdown
+                    actions={[
+                      {
+                        label: "مراجعة الإجابات",
+                        icon: <ClipboardCheck className="w-4 h-4" />,
+                        onClick: () => (window.location.href = `/assignments/${assignment.id}/grade`),
+                      },
+                      {
+                        label: "تعديل الواجب",
+                        icon: <Edit2 className="w-4 h-4" />,
+                        onClick: () => openEditAssignment(assignment),
+                      },
+                      {
+                        label: "حذف الواجب",
+                        icon: <Trash2 className="w-4 h-4" />,
+                        onClick: () => deleteAssignment(assignment),
+                        variant: "danger",
+                      },
+                    ]}
+                  />
+                }
+              />
+            );
+          })}
+          {filteredAssignments.length === 0 && (
+            <p className="text-brand-textMuted text-sm text-center py-12">لا توجد واجبات تطابق هذا الفلتر.</p>
+          )}
+        </div>
+      </GlassCard>
     </AppShell>
   );
 }

@@ -14,6 +14,9 @@ import {
   deleteDocById,
   orderBy,
 } from "@/lib/firestore-helpers";
+import { CompactListRow } from "@/components/ui/CompactListRow";
+import ActionsDropdown from "@/components/ui/ActionsDropdown";
+import { Trash2 } from "lucide-react";
 import { PastExamQuestion, Stage } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
@@ -163,28 +166,33 @@ export default function PastExamsPage() {
         </select>
       </div>
 
-      <div className="flex flex-col gap-3">
-        {filtered.map((q) => (
-          <GlassCard key={q.id} className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs text-brand-primary mb-1">
-                {q.subject} · {stages.find((s) => s.id === q.stageId)?.name ?? "—"} · {q.year} · {q.round} · {q.marks} علامة
-              </p>
-              <p className="text-brand-text font-medium">{q.questionText}</p>
-              {q.imageUrl && <p className="text-xs text-brand-textMuted mt-1">📎 يحتوي ملف مرفق</p>}
-            </div>
-            <button
-              onClick={() => deleteDocById("past_exam_questions", q.id)}
-              className="text-brand-error text-xs shrink-0"
-            >
-              حذف
-            </button>
-          </GlassCard>
-        ))}
-        {filtered.length === 0 && (
-          <p className="text-brand-textMuted">لا توجد أسئلة بعد.</p>
-        )}
-      </div>
+      <GlassCard className="!p-0 overflow-hidden mb-36">
+        <div className="flex flex-col">
+          {filtered.map((q) => (
+            <CompactListRow
+              key={q.id}
+              avatarLabel="ا"
+              title={q.questionText}
+              subtitle={`${q.subject} · ${q.year} · ${q.round} · ${q.marks} علامة`}
+              trailing={
+                <ActionsDropdown
+                  actions={[
+                    {
+                      label: "حذف السؤال",
+                      icon: <Trash2 className="w-4 h-4" />,
+                      onClick: () => deleteDocById("past_exam_questions", q.id),
+                      variant: "danger",
+                    },
+                  ]}
+                />
+              }
+            />
+          ))}
+          {filtered.length === 0 && (
+            <p className="text-brand-textMuted text-sm text-center py-12">لا توجد أسئلة بعد.</p>
+          )}
+        </div>
+      </GlassCard>
     </AppShell>
   );
 }

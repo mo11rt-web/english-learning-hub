@@ -13,11 +13,13 @@ import { Button } from "@/components/ui/Button";
 import { Modal, ConfirmDialog, Toast } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import ActionsDropdown from "@/components/ui/ActionsDropdown";
+import { CompactListRow } from "@/components/ui/CompactListRow";
 import {
   listenCollection,
   updateDocById,
   orderBy,
 } from "@/lib/firestore-helpers";
+import { User, Key, FileText, Trash2, RotateCcw, ShieldAlert } from "lucide-react";
 import { StudentProfile, Stage, Group } from "@/lib/types";
 import { phoneToEmail, normalizePhone } from "@/lib/phone";
 import { computeLevel } from "@/lib/gamification";
@@ -767,96 +769,69 @@ export default function StudentsPage() {
             />
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col mb-36">
             {filtered.map((s) => {
               const stageName = stages.find((st) => st.id === s.stageId)?.name ?? "—";
-              const accent =
-                s.status === "active"
-                  ? "border-r-4 border-r-brand-success"
-                  : s.status === "deleted"
-                  ? "border-r-4 border-r-brand-textMuted"
-                  : "border-r-4 border-r-brand-error";
+              const groupName = groups.find((g) => s.groupIds?.includes(g.id))?.name ?? "بدون مجموعة";
+              
               return (
-                <div
+                <CompactListRow
                   key={s.id}
-                  className={`flex items-center justify-between gap-3 rounded-2xl border border-surfaceBorder/60 ${accent} bg-surface/60 px-3.5 py-2.5 hover:shadow-md active:scale-[0.99] transition-all`}
-                >
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand-primary to-brand-secondary font-extrabold text-white text-sm ring-2 ring-surface shadow-sm">
-                      {s.fullName?.[0] ?? "?"}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="truncate font-bold text-brand-text text-sm">{s.fullName}</p>
-                        <StatusBadge
-                          label={s.status === "active" ? "نشط" : s.status === "deleted" ? "محذوف" : "معطّل"}
-                          tone={s.status === "active" ? "success" : s.status === "deleted" ? "muted" : "error"}
-                        />
-                      </div>
-                      <p className="truncate text-[11px] text-brand-textMuted" dir="ltr">
-                        {s.phone ?? s.username}
-                      </p>
-                      <p className="truncate text-[11px] text-brand-textMuted">
-                        {stageName} · {s.points ?? 0} نقطة · {computeLevel(s.points ?? 0).name}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    {s.status === "deleted" ? (
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => handleRestore(s)}
-                          className="text-brand-success text-xs font-semibold px-1.5 py-1"
-                        >
-                          ↩ استرجاع
-                        </button>
-                        <button
-                          onClick={() => setPermanentDeleteTarget(s)}
-                          disabled={permanentlyDeleting}
-                          className="text-brand-error text-xs font-semibold px-1.5 py-1 disabled:opacity-50"
-                        >
-                          🗑 حذف نهائي
-                        </button>
-                      </div>
-                    ) : (
-                      <ActionsDropdown
-                        actions={[
-                          { label: "تعديل بيانات الطالب", icon: <span>✎</span>, onClick: () => openEdit(s) },
-                          {
-                            label: s.status === "active" ? "تعطيل الحساب" : "تفعيل الحساب",
-                            icon: <span>{s.status === "active" ? "⏸" : "▶️"}</span>,
-                            onClick: () =>
-                              updateDocById("profiles", s.id, {
-                                status: s.status === "active" ? "disabled" : "active",
-                              }),
-                          },
-                          {
-                            label: "تغيير كلمة المرور",
-                            icon: <span>🔑</span>,
-                            onClick: () => setPasswordInfoTarget(s),
-                          },
-                          // تم حذف خيار مشاركة الروابط بناءً على رغبة المستخدم
-                          {
-                            label: exportingPdfId === s.id ? "جارٍ التصدير..." : "تصدير تقرير PDF",
-                            icon: <span>🖨</span>,
-                            onClick: () => handleExportPdf(s),
-                          },
-                          {
-                            label: "حذف الطالب",
-                            icon: <span>🗑</span>,
-                            onClick: () => setDeleteTarget(s),
-                            danger: true,
-                          },
-                        ]}
-                      />
-                    )}
-                  </div>
-                </div>
+                  avatarLabel={s.fullName?.[0] ?? "?"}
+                  title={s.fullName}
+                  subtitle={`${groupName} · ${s.phone ?? s.username} · ${s.points ?? 0} نقطة`}
+                  badge={
+                    <StatusBadge
+                      label={s.status === "active" ? "نشط" : s.status === "deleted" ? "محذوف" : "معطّل"}
+                      tone={s.status === "active" ? "success" : s.status === "deleted" ? "muted" : "error"}
+                    />
+                  }
+                  trailing={
+                    <ActionsDropdown
+                      actions={[
+                        { label: "تعديل بيانات الطالب", icon: <User className="w-4 h-4" />, onClick: () => openEdit(s) },
+                        {
+                          label: s.status === "active" ? "تعطيل الحساب" : "تفعيل الحساب",
+                          icon: s.status === "active" ? <ShieldAlert className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4 text-brand-success" />,
+                          onClick: () =>
+                            updateDocById("profiles", s.id, {
+                              status: s.status === "active" ? "disabled" : "active",
+                            }),
+                        },
+                        {
+                          label: "تغيير كلمة المرور",
+                          icon: <Key className="w-4 h-4" />,
+                          onClick: () => setPasswordInfoTarget(s),
+                        },
+                        {
+                          label: exportingPdfId === s.id ? "جارٍ التصدير..." : "تصدير تقرير PDF",
+                          icon: <FileText className="w-4 h-4" />,
+                          onClick: () => handleExportPdf(s),
+                        },
+                        s.status === "deleted" ? {
+                          label: "استرجاع الطالب",
+                          icon: <RotateCcw className="w-4 h-4 text-brand-success" />,
+                          onClick: () => handleRestore(s),
+                        } : {
+                          label: "حذف الطالب",
+                          icon: <Trash2 className="w-4 h-4" />,
+                          onClick: () => setDeleteTarget(s),
+                          variant: "danger",
+                        },
+                        s.status === "deleted" ? {
+                          label: "حذف نهائي",
+                          icon: <Trash2 className="w-4 h-4" />,
+                          onClick: () => setPermanentDeleteTarget(s),
+                          variant: "danger",
+                        } : null,
+                      ].filter(Boolean) as any}
+                    />
+                  }
+                />
               );
             })}
             {filtered.length === 0 && (
-              <p className="text-center text-brand-textMuted py-6">
+              <p className="text-center text-brand-textMuted py-12 text-sm">
                 {showDeleted ? "لا يوجد طلاب محذوفون." : "لا يوجد طلاب بعد."}
               </p>
             )}

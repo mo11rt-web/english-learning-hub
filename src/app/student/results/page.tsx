@@ -7,8 +7,11 @@ import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ProgressDonut } from "@/components/ProgressDonut";
+import { CompactListRow } from "@/components/ui/CompactListRow";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useAuth } from "@/hooks/useAuth";
 import { computeStudentReport, StudentReportData } from "@/lib/studentReport";
+import { formatSyrianDate } from "@/lib/dateUtils";
 
 export default function StudentResultsPage() {
   const { user } = useAuth();
@@ -124,22 +127,31 @@ export default function StudentResultsPage() {
             </GlassCard>
           </div>
 
-          <GlassCard>
-            <h3 className="font-bold text-brand-text mb-3">آخر نتائج الاختبارات والواجبات</h3>
+          <GlassCard className="!p-0 overflow-hidden mb-36">
+            <div className="px-5 py-4 border-b border-surfaceBorder/60">
+              <h3 className="font-bold text-brand-text">آخر نتائج الاختبارات والواجبات</h3>
+            </div>
             {report.recentResults.length === 0 ? (
-              <p className="text-brand-textMuted text-sm">لا توجد نتائج بعد.</p>
+              <p className="text-center text-brand-textMuted py-12 text-sm">لا توجد نتائج بعد.</p>
             ) : (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col">
                 {report.recentResults.map((r, i) => {
                   const pct = r.maxScore > 0 ? Math.round((r.score / r.maxScore) * 100) : 0;
                   const pending = r.status === "pending-review";
+                  
                   return (
-                    <div key={i} className="flex items-center justify-between gap-3 bg-surface/60 rounded-xl px-3 py-2.5 text-sm">
-                      <span className="text-brand-text font-medium">{r.title}</span>
-                      <span className={`font-bold whitespace-nowrap ${pending ? "text-brand-warning" : pct >= 70 ? "text-brand-success" : pct >= 50 ? "text-brand-warning" : "text-brand-error"}`}>
-                        {pending ? "بانتظار مراجعة الأستاذ" : `${r.score}/${r.maxScore} (${pct}%)`}
-                      </span>
-                    </div>
+                    <CompactListRow
+                      key={i}
+                      avatarLabel={r.title?.[0] ?? "ن"}
+                      title={r.title}
+                      subtitle={formatSyrianDate(r.date ?? Date.now())}
+                      badge={
+                        <StatusBadge
+                          label={pending ? "بانتظار المراجعة" : `${r.score}/${r.maxScore} (${pct}%)`}
+                          tone={pending ? "warning" : pct >= 70 ? "success" : pct >= 50 ? "warning" : "error"}
+                        />
+                      }
+                    />
                   );
                 })}
               </div>

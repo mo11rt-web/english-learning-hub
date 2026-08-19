@@ -4,11 +4,12 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, PlayCircle, BookOpen, Layers3 } from "lucide-react";
+import { CheckCircle2, PlayCircle, BookOpen, Layers3, ChevronDown } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { CompactListRow } from "@/components/ui/CompactListRow";
 import { useAuth } from "@/hooks/useAuth";
 import { listenCollection, where } from "@/lib/firestore-helpers";
 import { Lesson, StudentProfile, Unit } from "@/lib/types";
@@ -90,31 +91,24 @@ export default function StudentLessonsPage() {
 
           return (
             <section key={unit.id} aria-label={`وحدة ${unit.title}`} className="relative">
-              <GlassCard className={`relative z-10 mb-4 overflow-hidden p-5 md:p-6 ${complete ? "border-brand-success/60" : "border-brand-primary/25"}`}>
-                <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-l from-brand-primary via-brand-secondary to-brand-goldLight" />
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div className={`mt-0.5 rounded-2xl p-3 shadow-sm ${complete ? "bg-brand-success/15 text-brand-success" : "bg-brand-primary/10 text-brand-primary"}`}>
-                      <Layers3 size={24} />
+              <GlassCard className="!p-0 overflow-hidden mb-4 z-10 relative">
+                <CompactListRow
+                  avatarLabel={unit.title?.[0] ?? "و"}
+                  title={unit.title}
+                  subtitle={`${unitLessons.length} دروس · ${completedCount} مكتمل`}
+                  badge={
+                    <div className="flex flex-col items-end">
+                      <span className={`font-extrabold text-sm ${complete ? "text-brand-success" : "text-brand-primary"}`}>{percentage}%</span>
+                      <div className="w-16 h-1.5 rounded-full bg-surfaceBorder/40 mt-1 overflow-hidden">
+                        <div className={`h-full rounded-full ${complete ? "bg-brand-success" : "bg-brand-primary"}`} style={{ width: `${percentage}%` }} />
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-bold tracking-wide text-brand-primary mb-1">المسار التعليمي · وحدة</p>
-                      <h2 className={`font-extrabold text-xl truncate ${complete ? "text-brand-success" : "text-brand-text"}`}>{unit.title}</h2>
-                      <p className="text-xs text-brand-textMuted mt-1">{unitLessons.length} دروس · {completedCount} مكتمل · {remainingCount} متبقي</p>
-                    </div>
-                  </div>
-                  <div className="text-center shrink-0">
-                    <span className={`font-extrabold text-lg ${complete ? "text-brand-success" : "text-brand-primary"}`}>{percentage}%</span>
-                    <span className="block text-[10px] text-brand-textMuted mt-0.5">إنجاز الوحدة</span>
-                  </div>
-                </div>
-                <div className="mt-5 h-3 rounded-full bg-surfaceBorder/40 overflow-hidden" aria-label={`نسبة التقدم ${percentage}%`}>
-                  <div className={`h-full rounded-full transition-all duration-500 ${complete ? "bg-brand-success" : "bg-gradient-to-l from-brand-primary to-brand-secondary"}`} style={{ width: `${percentage}%` }} />
-                </div>
-                <div className="flex justify-between text-[11px] text-brand-textMuted mt-2"><span>التقدم في الوحدة</span><span>{completedCount} من {unitLessons.length} دروس</span></div>
+                  }
+                  trailing={<ChevronDown size={18} className="text-brand-textMuted" />}
+                />
               </GlassCard>
 
-              <div className="relative mr-3 md:mr-8 pr-5 md:pr-7 border-r-2 border-surfaceBorder/60 pb-2">
+              <div className="relative mr-3 md:mr-8 pr-5 md:pr-7 border-r-2 border-surfaceBorder/60 pb-8">
                 {/* الخط العمودي: الجزء المكتمل يتلوّن بنجاح فوق خط رمادي محايد —
                     النسبة محسوبة من completedCount/unitLessons.length الموجودة
                     أصلاً فوق (سطر 88)، بلا أي state أو بيانات جديدة. */}

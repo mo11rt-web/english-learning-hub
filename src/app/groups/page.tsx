@@ -14,6 +14,9 @@ import {
   deleteDocById,
   updateDocById,
 } from "@/lib/firestore-helpers";
+import { CompactListRow } from "@/components/ui/CompactListRow";
+import ActionsDropdown from "@/components/ui/ActionsDropdown";
+import { Trash2 } from "lucide-react";
 import { Group } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
@@ -90,43 +93,47 @@ export default function GroupsPage() {
             />
             <Button onClick={addGroup}>+ إضافة</Button>
           </div>
-          <ul className="flex flex-col gap-2">
+          <div className="flex flex-col">
             {groupsInWorkspace.map((g) => {
               const leaderboardOn = g.leaderboardEnabled !== false;
               return (
-                <li
+                <CompactListRow
                   key={g.id}
-                  className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-surface/60 text-sm gap-3"
-                >
-                  <span className="text-brand-text font-medium">{g.name}</span>
-                  <div className="flex items-center gap-3 shrink-0">
+                  avatarLabel={g.name.charAt(0).toUpperCase()}
+                  title={g.name}
+                  badge={
                     <button
                       onClick={() => toggleLeaderboard(g)}
-                      title={leaderboardOn ? "إخفاء طلاب هذه المجموعة عن لوحة الصدارة" : "إظهار طلاب هذه المجموعة بلوحة الصدارة"}
-                      className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-full transition-colors ${
+                      className={`flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-full transition-colors ${
                         leaderboardOn
                           ? "bg-brand-primary/10 text-brand-primary"
                           : "bg-brand-textMuted/10 text-brand-textMuted"
                       }`}
                     >
-                      🏆 {leaderboardOn ? "ظاهرة بالصدارة" : "مخفية عن الصدارة"}
+                      🏆 {leaderboardOn ? "ظاهرة" : "مخفية"}
                     </button>
-                    <button
-                      onClick={() => setDeleteTarget(g)}
-                      className="text-brand-error text-xs"
-                    >
-                      حذف
-                    </button>
-                  </div>
-                </li>
+                  }
+                  trailing={
+                    <ActionsDropdown
+                      actions={[
+                        {
+                          label: "حذف المجموعة",
+                          icon: <Trash2 className="w-4 h-4" />,
+                          onClick: () => setDeleteTarget(g),
+                          variant: "danger",
+                        },
+                      ]}
+                    />
+                  }
+                />
               );
             })}
             {groupsInWorkspace.length === 0 && (
-              <p className="text-brand-textMuted text-sm text-center py-6">
+              <p className="text-brand-textMuted text-sm text-center py-8">
                 لا توجد مجموعات بهذا الفرع بعد.
               </p>
             )}
-          </ul>
+          </div>
         </GlassCard>
       </div>
 

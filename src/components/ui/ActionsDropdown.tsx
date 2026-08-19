@@ -8,13 +8,18 @@ export interface DropdownAction {
   icon: React.ReactNode;
   onClick: () => void;
   danger?: boolean;
+  variant?: "danger" | "default";
   hidden?: boolean;
 }
 
 // نفس مكوّن قائمة الإجراءات (⋮) الموجود بعلاوي نت بالضبط — بيجمع كل
 // إجراءات الصف (تعديل/تعطيل/حذف...) بقائمة منسدلة واحدة نظيفة بدل صف
 // طويل من الأزرار النصية الصغيرة المتلاصقة.
-export default function ActionsDropdown({ actions }: { actions: DropdownAction[] }) {
+export function ActionsDropdown({ actions }: { actions: DropdownAction[] }) {
+  return <ActionsDropdownDefault actions={actions} />;
+}
+
+export default function ActionsDropdownDefault({ actions }: { actions: DropdownAction[] }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -51,7 +56,7 @@ export default function ActionsDropdown({ actions }: { actions: DropdownAction[]
                 a.onClick();
               }}
               className={`flex w-full items-center gap-2.5 px-4 py-3 min-h-[44px] text-sm font-semibold transition-colors hover:bg-surfaceBorder/40 active:bg-surfaceBorder/60 ${
-                a.danger ? "text-brand-error" : "text-brand-text"
+                a.danger || a.variant === "danger" ? "text-brand-error" : "text-brand-text"
               }`}
             >
               {a.icon}

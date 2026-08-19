@@ -3,15 +3,17 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
-import { ImagePlus, Link2 } from "lucide-react";
+import { ImagePlus, Link2, ExternalLink, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
-import { listenCollection, createDoc, orderBy } from "@/lib/firestore-helpers";
+import { listenCollection, createDoc, deleteDocById, orderBy } from "@/lib/firestore-helpers";
 import { FileAsset } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
 import { uploadImageToCloudinary } from "@/lib/cloudinary";
+import { CompactListRow } from "@/components/ui/CompactListRow";
+import ActionsDropdown from "@/components/ui/ActionsDropdown";
 
 type ResourceType = "pdf" | "image" | "audio" | "video" | "other";
 
@@ -67,7 +69,39 @@ export default function FilesPage() {
         </div>
         <Button onClick={saveFile} disabled={saving} className="mt-4">{saving ? "جارٍ الحفظ..." : "إضافة الملف"}</Button>
       </GlassCard>
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 pb-24">{files.map((file) => <GlassCard key={file.id}><p className="font-medium text-brand-text truncate">{file.name}</p><p className="text-xs text-brand-textMuted mb-2">{file.sizeBytes ? `${(file.sizeBytes / 1024).toFixed(0)} KB · ` : "رابط خارجي · "}{file.type.toUpperCase()}</p><a href={file.storagePath} target="_blank" rel="noreferrer" className="text-brand-primary text-sm">فتح الملف ↗</a></GlassCard>)}{files.length === 0 && <p className="text-brand-textMuted">لا توجد ملفات بعد.</p>}</div>
+      <GlassCard className="!p-0 overflow-hidden mb-36">
+        <div className="flex flex-col">
+          {files.map((file) => (
+            <CompactListRow
+              key={file.id}
+              avatarLabel="ف"
+              title={file.name}
+              subtitle={`${file.sizeBytes ? `${(file.sizeBytes / 1024).toFixed(0)} KB · ` : ""}${file.type.toUpperCase()} · ${new Date(file.uploadedAt).toLocaleDateString("ar-SY")}`}
+              onClick={() => window.open(file.storagePath, "_blank")}
+              trailing={
+                <ActionsDropdown
+                  actions={[
+                    {
+                      label: "فتح الملف",
+                      icon: <ExternalLink className="w-4 h-4" />,
+                      onClick: () => window.open(file.storagePath, "_blank"),
+                    },
+                    {
+                      label: "حذف الملف",
+                      icon: <Trash2 className="w-4 h-4" />,
+                      onClick: () => deleteDocById("files", file.id),
+                      variant: "danger",
+                    },
+                  ]}
+                />
+              }
+            />
+          ))}
+          {files.length === 0 && (
+            <p className="text-brand-textMuted text-sm text-center py-12">لا توجد ملفات بعد.</p>
+          )}
+        </div>
+      </GlassCard>
     </AppShell>
   );
 }

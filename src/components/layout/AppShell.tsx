@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
@@ -12,10 +12,36 @@ import { MobileMenuProvider } from "@/hooks/useMobileMenu";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useAndroidPush } from "@/hooks/useAndroidPush";
 
-function Spinner() {
+function Spinner({ fadeOut = false }: { fadeOut?: boolean }) {
   return (
-    <div className="min-h-screen bg-app-gradient flex items-center justify-center">
-      <div className="h-9 w-9 animate-spin rounded-full border-4 border-brand-primary/25 border-t-brand-primary" />
+    <div
+      className={`fixed inset-0 z-[999] bg-app-gradient flex flex-col items-center justify-center p-8 text-center overflow-hidden transition-opacity duration-500 ease-out ${
+        fadeOut ? "opacity-0 pointer-events-none" : "opacity-100"
+      }`}
+    >
+      <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-brand-primary/10 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 bg-brand-gold/10 rounded-full blur-3xl animate-pulse delay-1000" />
+
+      <div className="relative z-10 flex flex-col items-center gap-8 max-w-sm">
+        <div className="w-32 h-32 md:w-40 md:h-32 rounded-[2.5rem] bg-white/10 flex items-center justify-center shadow-glass border border-white/20 animate-splash-pop overflow-hidden p-4">
+          <img src="/icons/icon-512.png" alt="Allawi Logo" className="w-full h-full object-contain drop-shadow-xl" />
+        </div>
+
+        <div className="space-y-4">
+          <h1 className="text-3xl md:text-4xl font-black text-brand-text tracking-tight leading-tight animate-fade-up">
+            تعلم ملهم،<br />
+            <span className="text-brand-primary drop-shadow-sm">مستقبل واعد</span>
+          </h1>
+
+          <div className="flex flex-col items-center gap-4 pt-4">
+            <div className="flex gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-brand-primary animate-bounce [animation-delay:-0.3s]" />
+              <div className="w-2.5 h-2.5 rounded-full bg-brand-primary animate-bounce [animation-delay:-0.15s]" />
+              <div className="w-2.5 h-2.5 rounded-full bg-brand-primary animate-bounce" />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -49,6 +75,7 @@ export function AppShell({
   const { stageId, loading: workspaceLoading, error: workspaceError, retry: retryWorkspace } = useWorkspace();
   const router = useRouter();
   const pathname = usePathname();
+  const [splashVisible, setSplashVisible] = useState(true);
 
   useEffect(() => {
     if (loading) return;
@@ -84,11 +111,20 @@ export function AppShell({
     }
   }, [loading, user, profile, requireRole, router, signOut, stageId, workspaceLoading, pathname]);
 
+  const isReady = !loading && !!profile && profile.status === "active" && !authError;
+
+  useEffect(() => {
+    if (!isReady) return;
+    if (requireRole === "teacher" && profile?.role !== "student" && !stageId && pathname !== "/workspace") return;
+    const t = window.setTimeout(() => setSplashVisible(false), 150);
+    return () => window.clearTimeout(t);
+  }, [isReady, requireRole, profile, stageId, pathname]);
+
   if (authError) {
     return <ErrorScreen message={authError} onRetry={() => window.location.reload()} />;
   }
 
-  if (loading || !profile || profile.status !== "active") {
+  if (!isReady) {
     return <Spinner />;
   }
 
@@ -107,6 +143,7 @@ export function AppShell({
 
   return (
     <MobileMenuProvider>
+      {splashVisible && <Spinner fadeOut />}
       <div className="min-h-screen bg-app-gradient flex" dir="rtl">
         <div className="hidden md:block">
           <Sidebar />

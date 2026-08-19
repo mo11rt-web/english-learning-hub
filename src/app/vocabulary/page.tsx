@@ -14,6 +14,9 @@ import {
   deleteDocById,
   orderBy,
 } from "@/lib/firestore-helpers";
+import { CompactListRow } from "@/components/ui/CompactListRow";
+import ActionsDropdown from "@/components/ui/ActionsDropdown";
+import { Trash2, Volume2 } from "lucide-react";
 import { VocabularyItem, Stage, WordType } from "@/lib/types";
 import { useWorkspace } from "@/hooks/useWorkspace";
 
@@ -95,30 +98,41 @@ export default function VocabularyPage() {
         </h2>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map((item) => (
-          <GlassCard key={item.id}>
-            <div className="flex items-center justify-between mb-2">
-              <p dir="ltr" className="text-xl font-bold text-brand-primary">{item.word}</p>
-              <SpeakButton text={item.word} size="sm" />
-            </div>
-            <p className="text-brand-text mb-1">{item.translation}</p>
-            <p className="text-xs text-brand-textMuted mb-2">{wordTypeLabels[item.wordType]}</p>
-            {item.example && (
-              <p dir="ltr" className="text-sm text-brand-textMuted italic">{item.example}</p>
-            )}
-            <button
-              onClick={() => deleteDocById("vocabulary_items", item.id)}
-              className="text-brand-error text-xs mt-3"
-            >
-              حذف
-            </button>
-          </GlassCard>
-        ))}
-        {filtered.length === 0 && (
-          <p className="text-brand-textMuted">لا توجد كلمات بعد.</p>
-        )}
-      </div>
+      <GlassCard className="!p-0 overflow-hidden mb-36">
+        <div className="flex flex-col">
+          {filtered.map((item) => (
+            <CompactListRow
+              key={item.id}
+              avatarLabel={item.word.charAt(0).toUpperCase()}
+              title={item.word}
+              subtitle={`${item.translation} · ${wordTypeLabels[item.wordType]}`}
+              trailing={
+                <div className="flex items-center gap-1">
+                  <SpeakButton text={item.word} size="sm" />
+                  <ActionsDropdown
+                    actions={[
+                      {
+                        label: "نطق الكلمة",
+                        icon: <Volume2 className="w-4 h-4" />,
+                        onClick: () => { /* SpeakButton handles this, but we can add a manual trigger if needed */ },
+                      },
+                      {
+                        label: "حذف الكلمة",
+                        icon: <Trash2 className="w-4 h-4" />,
+                        onClick: () => deleteDocById("vocabulary_items", item.id),
+                        variant: "danger",
+                      },
+                    ]}
+                  />
+                </div>
+              }
+            />
+          ))}
+          {filtered.length === 0 && (
+            <p className="text-brand-textMuted text-sm text-center py-12">لا توجد كلمات بعد.</p>
+          )}
+        </div>
+      </GlassCard>
     </AppShell>
   );
 }
