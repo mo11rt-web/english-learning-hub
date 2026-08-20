@@ -47,7 +47,7 @@ service cloud.firestore {
          request.resource.data.role == resource.data.role &&
          request.resource.data.status == resource.data.status &&
          request.resource.data.diff(resource.data).affectedKeys()
-           .hasOnly(['points', 'mustChangePassword', 'photoUrl', 'fcmTokens']));
+           .hasOnly(['points', 'mustChangePassword', 'photoUrl', 'fcmTokens', 'termsAccepted']));
       allow delete: if isTeacherOrAdmin();
     }
 

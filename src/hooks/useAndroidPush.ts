@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Capacitor } from "@capacitor/core";
 import { PushNotifications } from "@capacitor/push-notifications";
 import { doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -8,7 +9,12 @@ export function useAndroidPush() {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (typeof window === "undefined" || !user) return;
+    // هذا الـ hook مخصص فقط لتطبيق أندرويد (Capacitor Native). على موقع
+    // الويب العادي (متصفح)، إشعارات الويب متكفّلة فيها usePushNotifications.ts
+    // (Firebase Web Push مع VAPID Key). بدون هذا الفحص، كان أي زائر لموقع
+    // الويب يشغّل مكتبة Capacitor Push بلا أي بريدج حقيقي — بلا فايدة،
+    // ويحتمل يطلب صلاحية إشعارات غير متوقعة/مزدوجة.
+    if (typeof window === "undefined" || !user || !Capacitor.isNativePlatform()) return;
 
     const initPush = async () => {
       try {

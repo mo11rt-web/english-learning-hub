@@ -1,6 +1,3 @@
-import html2canvas from "html2canvas";
-import { jsPDF } from "jspdf";
-
 /**
  * Renders an off-screen HTML element (already styled with our Arabic font +
  * RTL layout) into a real PDF file. We deliberately don't use jsPDF's text
@@ -8,8 +5,19 @@ import { jsPDF } from "jspdf";
  * so text-based PDF generation would come out as boxes/garbage. Rendering
  * through the browser's own text engine (via html2canvas) is what actually
  * produces correct Arabic output.
+ *
+ * html2canvas و jsPDF مستوردتين هون بشكل ديناميكي (dynamic import) داخل
+ * الدالة، مش بأعلى الملف. قبل هذا التعديل كانت مستوردتين بشكل ثابت، فكان
+ * حجمهما الكامل (تقريبًا 190KB إضافية) ينحمّل مع صفحة /students لأي معلم
+ * يفتحها، حتى لو ما استخدم ميزة تصدير PDF إطلاقًا بهالجلسة. هيك، المكتبتين
+ * ما بينحمّلوا إلا لما المعلم يضغط فعليًا على زر "تصدير تقرير PDF".
  */
 export async function exportHtmlToPdf(element: HTMLElement, filename: string): Promise<File> {
+  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+    import("html2canvas"),
+    import("jspdf"),
+  ]);
+
   // ننتظر اكتمال تحميل Cairo قبل الرسم؛ وإلا قد يلتقط html2canvas خطاً بديلاً بمسافات مختلفة.
   if (typeof document !== "undefined" && "fonts" in document) {
     await document.fonts.ready;
