@@ -18,6 +18,7 @@ import { Inquiry, InquiryMessage, InquiryStatus, Lesson, Unit, StudentProfile } 
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { formatSyrianDate } from "@/lib/dateUtils";
+import { queryTargetGroupIds } from "@/lib/groupTargeting";
 
 const statusLabels: Record<InquiryStatus, string> = {
   new: "جديد",
@@ -84,18 +85,50 @@ export default function StudentInquiriesPage() {
     return () => unsubscribe();
   }, [user]);
 
+  // السؤال يبقى عاماً إذا لم يختر الطالب وحدة. الوحدات المعروضة هنا لا تكون
+  // إلا للوحدات التي تضم درساً منشوراً وموجهاً إلى إحدى مجموعات الطالب.
   useEffect(() => {
-    if (!stageId) return;
-    const loadReferences = async () => {
-      const [unitSnapshot, lessonSnapshot] = await Promise.all([
-        getDocs(query(collection(db, "units"), where("stageId", "==", stageId))),
-        getDocs(query(collection(db, "lessons"), where("stageId", "==", stageId))),
-      ]);
-      setUnits(unitSnapshot.docs.map((item) => ({ ...(item.data() as Unit), id: item.id })));
-      setLessons(lessonSnapshot.docs.map((item) => ({ ...(item.data() as Lesson), id: item.id })));
-    };
-    loadReferences().catch((error) => showToast(`تعذّر تحميل الدروس: ${error.message}`, "error"));
-  }, [stageId]);
+    if (!stageId) {
+      setUnits([]);
+      setLessons([]);
+      return;
+    }
+    const targetGroups = queryTargetGroupIds(student?.groupIds);
+    Promise.all([
+      getDocs(query(collection(db, "units"), where("stageId", "==", stageId), where("status", "==", "published"))),
+      getDocs(query(
+        collection(db, "lessons"),
+        where("stageId", "==", stageId),
+        where("status", "==", "published"),
+        where("targetGroupIds", "array-contains-any", targetGroups)
+      )),
+    ])
+      .then(([unitSnapshot, lessonSnapshot]) => {
+        const permittedUnitIds = new Set(lessonSnapshot.docs.map((item) => (item.data() as Lesson).unitId));
+        setUnits(unitSnapshot.docs
+          .map((item) => ({ ...(item.data() as Unit), id: item.id }))
+          .filter((unit) => permittedUnitIds.has(unit.id)));
+      })
+      .catch((error) => showToast(`تعذّر تحميل الوحدات: ${error.message}`, "error"));
+  }, [stageId, student?.groupIds]);
+
+  useEffect(() => {
+    setLessonId("");
+    if (!stageId || !unitId) {
+      setLessons([]);
+      return;
+    }
+    const targetGroups = queryTargetGroupIds(student?.groupIds);
+    getDocs(query(
+      collection(db, "lessons"),
+      where("stageId", "==", stageId),
+      where("unitId", "==", unitId),
+      where("status", "==", "published"),
+      where("targetGroupIds", "array-contains-any", targetGroups)
+    ))
+      .then((snapshot) => setLessons(snapshot.docs.map((item) => ({ ...(item.data() as Lesson), id: item.id }))))
+      .catch((error) => showToast(`تعذّر تحميل الدروس: ${error.message}`, "error"));
+  }, [stageId, unitId, student?.groupIds]);
 
   useEffect(() => {
     if (inquiryIdFromUrl && inquiries.some((item) => item.id === inquiryIdFromUrl)) setSelectedId(inquiryIdFromUrl);
