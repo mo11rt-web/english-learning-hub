@@ -14,15 +14,16 @@ import {
   deleteDocById,
   updateDocById,
 } from "@/lib/firestore-helpers";
-import { CompactListRow } from "@/components/ui/CompactListRow";
 import ActionsDropdown from "@/components/ui/ActionsDropdown";
-import { Trash2 } from "lucide-react";
-import { Group } from "@/lib/types";
+import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { Group, StudentProfile } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
 
 export default function GroupsPage() {
   const [groups, setGroups] = useState<(Group & { id: string })[]>([]);
+  const [students, setStudents] = useState<(StudentProfile & { id: string })[]>([]);
+  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<(Group & { id: string }) | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -31,7 +32,8 @@ export default function GroupsPage() {
 
   useEffect(() => {
     const u = listenCollection<Group>("groups", [], setGroups);
-    return () => u();
+    const uStudents = listenCollection<StudentProfile>("profiles", [], (all) => setStudents(all.filter((profile) => profile.role === "student") as (StudentProfile & { id: string })[]));
+    return () => { u(); uStudents(); };
   }, []);
 
   const showToast = (m: string) => {
@@ -96,36 +98,64 @@ export default function GroupsPage() {
           <div className="flex flex-col">
             {groupsInWorkspace.map((g) => {
               const leaderboardOn = g.leaderboardEnabled !== false;
+              const isExpanded = expandedGroupId === g.id;
+              const members = students
+                .filter((student) => student.stageId === stageId && student.status !== "deleted" && (student.groupIds ?? []).includes(g.id))
+                .sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
+              const rankLabels = ["الأول", "الثاني", "الثالث"];
+              const rankIcons = ["🥇", "🥈", "🥉"];
+
               return (
-                <CompactListRow
-                  key={g.id}
-                  avatarLabel={g.name.charAt(0).toUpperCase()}
-                  title={g.name}
-                  badge={
+                <div key={g.id} className="border-b border-surfaceBorder/50 last:border-b-0">
+                  <div className="flex items-center gap-2.5 px-2.5 py-2.5">
                     <button
-                      onClick={() => toggleLeaderboard(g)}
-                      className={`flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-full transition-colors ${
-                        leaderboardOn
-                          ? "bg-brand-primary/10 text-brand-primary"
-                          : "bg-brand-textMuted/10 text-brand-textMuted"
-                      }`}
+                      type="button"
+                      onClick={() => setExpandedGroupId((current) => current === g.id ? null : g.id)}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-brand-primary hover:bg-brand-primary/10 active:bg-brand-primary/15 transition-colors"
+                      aria-label={isExpanded ? `إخفاء طلاب ${g.name}` : `عرض طلاب ${g.name}`}
+                      aria-expanded={isExpanded}
                     >
-                      🏆 {leaderboardOn ? "ظاهرة" : "مخفية"}
+                      {isExpanded ? <ChevronUp size={19} /> : <ChevronDown size={19} />}
                     </button>
-                  }
-                  trailing={
-                    <ActionsDropdown
-                      actions={[
-                        {
-                          label: "حذف المجموعة",
-                          icon: <Trash2 className="w-4 h-4" />,
-                          onClick: () => setDeleteTarget(g),
-                          variant: "danger",
-                        },
-                      ]}
-                    />
-                  }
-                />
+                    <div className="w-[42px] h-[42px] shrink-0 rounded-full bg-gradient-to-br from-brand-primary to-brand-secondary text-white text-sm font-bold flex items-center justify-center">
+                      {g.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[13px] font-bold text-brand-text truncate">{g.name}</span>
+                        <button
+                          onClick={() => toggleLeaderboard(g)}
+                          className={`flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-full transition-colors ${
+                            leaderboardOn
+                              ? "bg-brand-primary/10 text-brand-primary"
+                              : "bg-brand-textMuted/10 text-brand-textMuted"
+                          }`}
+                        >
+                          🏆 {leaderboardOn ? "ظاهرة" : "مخفية"}
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-brand-textMuted mt-0.5">{members.length} طالب</p>
+                    </div>
+                    <div className="shrink-0"><ActionsDropdown actions={[{ label: "حذف المجموعة", icon: <Trash2 className="w-4 h-4" />, onClick: () => setDeleteTarget(g), variant: "danger" }]} /></div>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="mx-3 mb-3 rounded-2xl border border-brand-primary/10 bg-surface/45 overflow-hidden">
+                      <div className="px-3 py-2 text-[11px] font-bold text-brand-textMuted border-b border-surfaceBorder/50">طلاب المجموعة — مرتّبون حسب النقاط</div>
+                      {members.map((student, index) => {
+                        const isTopThree = index < 3;
+                        return (
+                          <div key={student.id} className={`flex items-center gap-2.5 px-3 py-2 border-b border-surfaceBorder/40 last:border-b-0 ${isTopThree ? "bg-brand-gold/10" : ""}`}>
+                            <span className={`min-w-12 text-center text-[11px] font-bold ${isTopThree ? "text-brand-primary" : "text-brand-textMuted"}`}>{isTopThree ? `${rankIcons[index]} ${rankLabels[index]}` : `#${index + 1}`}</span>
+                            <span className={`flex-1 min-w-0 truncate text-sm ${isTopThree ? "font-bold text-brand-text" : "text-brand-text"}`}>{student.fullName}</span>
+                            <span className="text-xs font-bold text-brand-primary whitespace-nowrap">{student.points ?? 0} نقطة</span>
+                          </div>
+                        );
+                      })}
+                      {members.length === 0 && <p className="px-3 py-5 text-center text-xs text-brand-textMuted">لا يوجد طلاب في هذه المجموعة.</p>}
+                    </div>
+                  )}
+                </div>
               );
             })}
             {groupsInWorkspace.length === 0 && (

@@ -699,7 +699,7 @@ export default function StudentsPage() {
                   key={s.id}
                   avatarLabel={s.fullName?.[0] ?? "?"}
                   title={s.fullName}
-                  subtitle={`${groupName} · ${s.phone ?? s.username} · ${s.points ?? 0} نقطة`}
+                  subtitle={<span dir="rtl">المجموعة: <bdi>{groupName}</bdi> · <bdi dir="ltr">{s.phone ?? s.username ?? "—"}</bdi> · <bdi>{s.points ?? 0} نقطة</bdi></span>}
                   badge={
                     <StatusBadge
                       label={s.status === "active" ? "نشط" : s.status === "deleted" ? "محذوف" : "معطّل"}

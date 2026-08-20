@@ -242,7 +242,7 @@ export default function AnnouncementsPage() {
         <div className="flex gap-2 mt-4"><Button onClick={save} disabled={saving}>{saving ? "جارٍ الحفظ..." : editingId ? "حفظ التعديل" : "نشر الإعلان"} <Plus size={16} /></Button>{(title || body) && <Button variant="secondary" onClick={() => setPreviewItem({ title, body, targetGroupIds: [], createdBy: user?.uid ?? "", createdAt: Date.now(), imageUrl: imageFile ? "" : imageUrl, linkUrl, status, featured, public: publicAnnouncement })}><Eye size={16} /> معاينة</Button>}</div>
       </Modal>
 
-      <GlassCard className="!p-0 overflow-hidden mb-36">
+      <GlassCard className="!p-0 overflow-visible mb-36">
         <div className="flex flex-col">
           {itemsInWorkspace.map((item) => (
             <CompactListRow

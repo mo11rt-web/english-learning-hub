@@ -49,7 +49,7 @@ export default function ActionsDropdownDefault({ actions }: { actions: DropdownA
         <MoreVertical size={18} />
       </button>
       {open && (
-        <div className="absolute left-0 top-9 z-20 w-48 overflow-hidden rounded-xl border border-surfaceBorder/60 bg-surface/95 py-1 shadow-lg backdrop-blur-md">
+        <div className="absolute left-0 top-9 z-50 w-52 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-surfaceBorder/60 bg-surface/95 py-1 shadow-lg backdrop-blur-md">
           {visible.map((a, i) => (
             <button
               key={i}
@@ -59,7 +59,7 @@ export default function ActionsDropdownDefault({ actions }: { actions: DropdownA
                 setOpen(false);
                 a.onClick();
               }}
-              className={`flex w-full items-center gap-2 px-3 py-2 text-[13px] font-medium transition-colors hover:bg-surfaceBorder/40 active:bg-surfaceBorder/60 ${
+              className={`flex w-full items-center gap-2 whitespace-nowrap px-3 py-2 text-[13px] font-medium transition-colors hover:bg-surfaceBorder/40 active:bg-surfaceBorder/60 ${
                 a.danger || a.variant === "danger" ? "text-brand-error" : "text-brand-text"
               }`}
             >
