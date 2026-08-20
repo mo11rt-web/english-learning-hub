@@ -13,6 +13,7 @@ import { Modal } from "@/components/ui/Modal";
 import { normalizePhone } from "@/lib/phone";
 import { usePwaInstall } from "@/lib/usePwaInstall";
 import { Announcement, LeaderboardSettings } from "@/lib/types";
+import { LoginBackdrop } from "@/components/LoginBackdrop";
 
 // المنصة ما بتسأل المستخدم "معلم ولا طالب" — بتكتشف نوع الحساب تلقائياً.
 // كل رقم هاتف مسجّل ببريد وهمي واحد بس (إما @teacher.com أو @student.com)،
@@ -143,8 +144,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" dir="rtl">
-      <div className="w-full max-w-5xl grid lg:grid-cols-[1.05fr_0.95fr] gap-5 items-start">
+    <div className="min-h-screen flex items-center justify-center p-4 relative" dir="rtl">
+      <LoginBackdrop />
+      <div className="w-full max-w-5xl grid lg:grid-cols-[1.05fr_0.95fr] gap-5 items-start relative z-10">
         <div className="flex flex-col gap-4 order-2 lg:order-1">
           {publicLeaderboards.map((board) => <div key={board.id} className="rounded-3xl border border-brand-primary/20 bg-surface/90 p-5 shadow-glass"><div className="flex items-center justify-between mb-4"><div><h2 className="font-bold text-brand-text">🏆 نجوم هذا الشهر</h2><p className="text-xs text-brand-textMuted mt-1">اجتهد، اجمع النقاط، وقد يكون اسمك هنا ⭐</p></div><span className="text-3xl">🏆</span></div><div className="flex flex-col gap-2">{board.entries.slice(0, board.limit).map((entry) => <div key={`${board.id}-${entry.rank}`} className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 ${entry.rank === 1 ? "bg-brand-gold/15" : "bg-surface/60"}`}><span className="text-xl">{entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : "⭐"}</span><span className="font-bold text-brand-text flex-1 truncate">{entry.studentName}</span><span className="text-sm text-brand-primary font-bold whitespace-nowrap">{entry.points} نقطة</span></div>)}</div></div>)}
         </div>

@@ -2,15 +2,17 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { WelcomeIntro, hasShownIntroThisSession } from "@/components/WelcomeIntro";
 
 export default function Home() {
   const { user, profile, loading } = useAuth();
   const router = useRouter();
+  const [showIntro, setShowIntro] = useState(() => !hasShownIntroThisSession());
 
-  useEffect(() => {
+  const redirect = () => {
     if (loading) return;
     if (!user || !profile) {
       router.replace("/login");
@@ -19,11 +21,16 @@ export default function Home() {
     } else {
       router.replace("/dashboard");
     }
-  }, [loading, user, profile, router]);
+  };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <p className="text-brand-text">جاري التحميل...</p>
-    </div>
-  );
+  useEffect(() => {
+    if (!showIntro) redirect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, user, profile, showIntro]);
+
+  if (showIntro) {
+    return <WelcomeIntro onDone={() => { setShowIntro(false); redirect(); }} />;
+  }
+
+  return <div className="min-h-screen bg-app-gradient" />;
 }
